@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VUS-OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-elevated: #111827;
+    --card: rgba(17, 24, 39, 0.7);
+    --card-hover: rgba(30, 41, 59, 0.8);
+    --border: rgba(51, 65, 85, 0.5);
+    --border-hover: rgba(74, 222, 128, 0.35);
+    --fg: #f1f5f9;
+    --fg-muted: #94a3b8;
+    --fg-dim: #475569;
+    --accent: #22c55e;
+    --accent-glow: rgba(34, 197, 94, 0.15);
+    --danger: #ef4444;
+    --radius: 12px;
+    --font: 'Space Grotesk', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+    --taskbar-h: 56px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font);
+    user-select: none;
+  }
+
+  /* ================= BOOT SCREEN ================= */
+  #boot {
+    position: fixed; inset: 0;
+    z-index: 1000;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    transition: opacity 0.5s ease;
+  }
+  #boot.hide { opacity: 0; pointer-events: none; }
+
+  .boot-logo {
+    width: 72px; height: 72px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--accent), #10b981);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 32px; color: #000;
+    box-shadow: 0 0 40px rgba(34,197,94,0.35);
+    animation: bootPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes bootPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+  }
+
+  .boot-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--fg-muted);
+  }
+
+  .boot-bar-track {
+    width: 260px;
+    height: 6px;
+    border-radius: 4px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .boot-bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), #10b981);
+    box-shadow: 0 0 12px rgba(34,197,94,0.5);
+    transition: width 2s linear;
+  }
+
+  /* ================= DESKTOP ================= */
+  #desktop {
+    position: fixed;
+    inset: 0;
+    bottom: var(--taskbar-h);
+    background:
+      radial-gradient(circle at 15% 15%, rgba(34,197,94,0.10), transparent 45%),
+      radial-gradient(circle at 85% 80%, rgba(16,185,129,0.08), transparent 45%),
+      var(--bg);
+    overflow: hidden;
+  }
+
+  #icons {
+    position: absolute;
+    inset: 0;
+    padding: 18px;
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(auto-fill, 96px);
+    gap: 4px;
+    align-content: start;
+  }
+
+  .icon {
+    width: 88px;
+    height: 92px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 8px 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .icon:hover, .icon.selected {
+    background: rgba(255,255,255,0.06);
+    outline: 1px solid var(--border-hover);
+  }
+  .icon-glyph {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 700;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  }
+  .icon-glyph.green { background: rgba(34,197,94,0.18); color: #4ade80; }
+  .icon-glyph.blue { background: rgba(59,130,246,0.18); color: #60a5fa; }
+  .icon-glyph.amber { background: rgba(245,158,11,0.18); color: #fbbf24; }
+  .icon-glyph.rose { background: rgba(244,63,94,0.18); color: #fb7185; }
+  .icon-glyph.violet { background: rgba(139,92,246,0.18); color: #a78bfa; }
+  .icon-glyph.cyan { background: rgba(6,182,212,0.18); color: #22d3ee; }
+  .icon-glyph.lime { background: rgba(132,204,22,0.18); color: #a3e635; }
+  .icon-glyph.orange { background: rgba(249,115,22,0.18); color: #fb923c; }
+  .icon-glyph.red { background: rgba(239,68,68,0.18); color: #f87171; }
+  .icon-glyph.black { background: rgba(148,163,184,0.18); color: #cbd5e1; }
+  .icon-glyph.white { background: rgba(255,255,255,0.14); color: #f1f5f9; }
+
+  .icon-label {
+    font-size: 11.5px;
+    line-height: 1.25;
+    color: var(--fg);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+  }
+
+  /* ================= WINDOWS ================= */
+  .win {
+    position: absolute;
+    min-width: 320px;
+    min-height: 220px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .win.focused {
+    border-color: var(--border-hover);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.6), 0 0 0 1px rgba(34,197,94,0.15);
+  }
+  .win.minimized { display: none; }
+  .win.maximized {
+    top: 0 !important; left: 0 !important;
+    width: 100% !important; height: 100% !important;
+    border-radius: 0;
+  }
+
+  .win-titlebar {
+    height: 42px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px 0 14px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    cursor: grab;
+  }
+  .win-titlebar:active { cursor: grabbing; }
+
+  .win-icon {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .win-title {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .win-btn {
+    width: 30px; height: 30px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: var(--fg-muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 15px;
+  }
+  .win-btn:hover { background: rgba(255,255,255,0.08); color: var(--fg); }
+  .win-btn.close:hover { background: var(--danger); color: #fff; }
+
+  .win-body {
+    flex: 1;
+    position: relative;
+    background: #000;
+  }
+  .win-body iframe {
+    width: 100%; height: 100%;
+    border: none;
+    display: block;
+  }
+  .win-body .win-loading {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--fg-dim);
+    font-size: 13px;
+    font-family: var(--mono);
+    background: var(--bg-elevated);
+  }
+
+  .win-resize {
+    position: absolute;
+    right: 0; bottom: 0;
+    width: 16px; height: 16px;
+    cursor: nwse-resize;
+    z-index: 2;
+  }
+  .win-resize::after {
+    content: '';
+    position: absolute;
+    right: 4px; bottom: 4px;
+    width: 8px; height: 8px;
+    border-right: 2px solid var(--fg-dim);
+    border-bottom: 2px solid var(--fg-dim);
+  }
+
+  /* ================= TASKBAR ================= */
+  #taskbar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: var(--taskbar-h);
+    background: rgba(17,24,39,0.85);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    z-index: 500;
+  }
+
+  #start-btn {
+    display: flex; align-items: center; gap: 8px;
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--fg);
+    font-family: var(--font);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  #start-btn:hover { border-color: var(--border-hover); background: var(--card-hover); }
+  #start-btn .mark {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, var(--accent), #10b981);
+    color: #000;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+
+  #taskbar-sep {
+    width: 1px; height: 28px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  #tasklist {
+    flex: 1;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    height: 100%;
+    align-items: center;
+    scrollbar-width: none;
+  }
+  #tasklist::-webkit-scrollbar { display: none; }
+
+  .task-item {
+    display: flex; align-items: center; gap: 8px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--fg-muted);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    max-width: 180px;
+    flex-shrink: 0;
+  }
+  .task-item span {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .task-item .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--fg-dim);
+    flex-shrink: 0;
+  }
+  .task-item.active {
+    border-color: var(--border-hover);
+    color: var(--fg);
+    background: var(--card-hover);
+  }
+  .task-item.active .dot { background: var(--accent); box-shadow: 0 0 6px rgba(34,197,94,0.6); }
+
+  #clock {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--fg-muted);
+    padding: 0 12px;
+    flex-shrink: 0;
+    text-align: right;
+    line-height: 1.3;
+  }
+  #clock .date { font-size: 10.5px; color: var(--fg-dim); }
+
+  /* ================= START MENU ================= */
+  #start-menu {
+    position: fixed;
+    left: 10px;
+    bottom: calc(var(--taskbar-h) + 8px);
+    width: 340px;
+    max-height: 60vh;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    z-index: 600;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #start-menu.open { display: flex; }
+
+  .start-search {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .start-search input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 13px;
+    outline: none;
+  }
+  .start-search input:focus { border-color: var(--accent); }
+
+  .start-list {
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .start-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .start-item:hover { background: rgba(255,255,255,0.06); }
+  .start-item-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .start-item-text { flex: 1; overflow: hidden; }
+  .start-item-name { font-size: 13px; font-weight: 600; color: var(--fg); }
+  .start-item-desc {
+    font-size: 11px; color: var(--fg-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* scrollbars */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- BOOT SCREEN -->
+<div id="boot">
+  <div class="boot-logo">V</div>
+  <div class="boot-title">VUS-OS</div>
+  <div class="boot-bar-track"><div class="boot-bar-fill" id="bootFill"></div></div>
+</div>
+
+<!-- DESKTOP -->
+<div id="desktop">
+  <div id="icons"></div>
+  <!-- windows get appended here -->
+</div>
+
+<!-- START MENU -->
+<div id="start-menu">
+  <div class="start-search">
+    <input type="text" id="startSearch" placeholder="Search apps..." autocomplete="off">
+  </div>
+  <div class="start-list" id="startList"></div>
+</div>
+
+<!-- TASKBAR -->
+<div id="taskbar">
+  <button id="start-btn">
+    <span class="mark">V</span>
+    Start
+  </button>
+  <div id="taskbar-sep"></div>
+  <div id="tasklist"></div>
+  <div id="clock">
+    <div class="time" id="clockTime">--:--</div>
+    <div class="date" id="clockDate">--</div>
+  </div>
+</div>
+
+<script>
+// ===================== CONFIG =====================
+const APPS_JSON_URL = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
+
+// ===================== BOOT SEQUENCE =====================
+window.addEventListener("load", () => {
+  const fill = document.getElementById("bootFill");
+  // force reflow so the transition actually animates from 0
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => { fill.style.width = "100%"; });
+  });
+  setTimeout(() => {
+    document.getElementById("boot").classList.add("hide");
+    setTimeout(() => document.getElementById("boot").remove(), 550);
+  }, 2000);
+});
+
+// ===================== UTIL =====================
+function escapeHtml(str) {
+  return (str || "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+function initials(name) {
+  return (name || "?").trim().substring(0, 2).toUpperCase();
+}
+let zTop = 10;
+
+// ===================== LOAD APPS.JSON =====================
+let allApps = [];
+
+fetch(APPS_JSON_URL)
+  .then(r => r.json())
+  .then(data => {
+    const sections = ["home", "apps", "tools", "hubs", "links"];
+    const seen = new Set();
+    sections.forEach(sec => {
+      (data[sec] || []).forEach(app => {
+        if (!app.name || !app.url) return;
+        const key = app.name + "|" + app.url;
+        if (seen.has(key)) return;
+        seen.add(key);
+        allApps.push(app);
+      });
+    });
+    renderIcons();
+    renderStartList(allApps);
+  })
+  .catch(err => {
+    console.error("Failed to load apps.json", err);
+  });
+
+// ===================== DESKTOP ICONS =====================
+function renderIcons() {
+  const wrap = document.getElementById("icons");
+  wrap.innerHTML = "";
+  allApps.forEach(app => {
+    const el = document.createElement("div");
+    el.className = "icon";
+    el.innerHTML = `
+      <div class="icon-glyph ${app.color || 'green'}">${escapeHtml(app.icon || initials(app.name))}</div>
+      <div class="icon-label">${escapeHtml(app.name)}</div>
+    `;
+    el.ondblclick = () => launchApp(app);
+    let lastTap = 0;
+    el.addEventListener("touchend", () => {
+      const now = Date.now();
+      if (now - lastTap < 350) launchApp(app);
+      lastTap = now;
+    });
+    el.onclick = (e) => {
+      document.querySelectorAll(".icon.selected").forEach(i => i.classList.remove("selected"));
+      el.classList.add("selected");
+    };
+    wrap.appendChild(el);
+  });
+}
+
+// ===================== START MENU =====================
+const startMenu = document.getElementById("start-menu");
+const startBtn = document.getElementById("start-btn");
+const startSearch = document.getElementById("startSearch");
+
+startBtn.onclick = (e) => {
+  e.stopPropagation();
+  startMenu.classList.toggle("open");
+  if (startMenu.classList.contains("open")) startSearch.focus();
+};
+document.addEventListener("click", (e) => {
+  if (!startMenu.contains(e.target) && e.target !== startBtn) {
+    startMenu.classList.remove("open");
+  }
+});
+startSearch.addEventListener("input", () => {
+  const q = startSearch.value.toLowerCase().trim();
+  const filtered = q
+    ? allApps.filter(a => a.name.toLowerCase().includes(q) || (a.desc || "").toLowerCase().includes(q))
+    : allApps;
+  renderStartList(filtered);
+});
+
+function renderStartList(list) {
+  const wrap = document.getElementById("startList");
+  if (!list.length) {
+    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--fg-dim);font-size:13px;">No apps found</div>';
+    return;
+  }
+  wrap.innerHTML = "";
+  list.forEach(app => {
+    const el = document.createElement("div");
+    el.className = "start-item";
+    el.innerHTML = `
+      <div class="start-item-icon icon-glyph ${app.color || 'green'}">${escapeHtml(app.icon || initials(app.name))}</div>
+      <div class="start-item-text">
+        <div class="start-item-name">${escapeHtml(app.name)}</div>
+        <div class="start-item-desc">${escapeHtml(app.desc || "")}</div>
+      </div>
+    `;
+    el.onclick = () => {
+      launchApp(app);
+      startMenu.classList.remove("open");
+      startSearch.value = "";
+    };
+    wrap.appendChild(el);
+  });
+}
+
+// ===================== WINDOW MANAGER =====================
+const desktop = document.getElementById("desktop");
+const tasklist = document.getElementById("tasklist");
+let winCount = 0;
+const openWindows = new Map(); // id -> {el, taskEl, app}
+
+function launchApp(app) {
+  // non-raw links just open in a new tab, same behavior as VUS Hub
+  if (!app.url.includes("raw.githubusercontent.com")) {
+    window.open(app.url, "_blank", "noopener");
+    return;
+  }
+  const id = "win" + (++winCount);
+  const win = createWindow(id, app);
+  desktop.appendChild(win);
+  createTaskItem(id, app);
+  focusWindow(id);
+  loadAppContent(id, app);
+}
+
+function createWindow(id, app) {
+  const win = document.createElement("div");
+  win.className = "win focused";
+  win.id = id;
+  win.dataset.title = app.name;
+
+  // staggered default position/size
+  const offset = (winCount % 8) * 26;
+  const w = Math.min(760, window.innerWidth - 100);
+  const h = Math.min(520, window.innerHeight - 160);
+  win.style.width = w + "px";
+  win.style.height = h + "px";
+  win.style.left = (60 + offset) + "px";
+  win.style.top = (40 + offset) + "px";
+  win.style.zIndex = ++zTop;
+
+  win.innerHTML = `
+    <div class="win-titlebar">
+      <div class="win-icon icon-glyph ${app.color || 'green'}">${escapeHtml(app.icon || initials(app.name))}</div>
+      <div class="win-title">${escapeHtml(app.name)}</div>
+      <button class="win-btn min" title="Minimize">&#8212;</button>
+      <button class="win-btn max" title="Maximize">&#9723;</button>
+      <button class="win-btn close" title="Close">&#10005;</button>
+    </div>
+    <div class="win-body">
+      <div class="win-loading">Loading ${escapeHtml(app.name)}...</div>
+    </div>
+    <div class="win-resize"></div>
+  `;
+
+  // focus on any interaction
+  win.addEventListener("mousedown", () => focusWindow(id), true);
+
+  // dragging
+  const titlebar = win.querySelector(".win-titlebar");
+  titlebar.addEventListener("mousedown", (e) => {
+    if (e.target.closest(".win-btn")) return;
+    if (win.classList.contains("maximized")) return;
+    const startX = e.clientX, startY = e.clientY;
+    const startLeft = win.offsetLeft, startTop = win.offsetTop;
+    function onMove(ev) {
+      win.style.left = (startLeft + ev.clientX - startX) + "px";
+      win.style.top = Math.max(0, startTop + ev.clientY - startY) + "px";
+    }
+    function onUp() {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
+  titlebar.addEventListener("dblclick", (e) => {
+    if (e.target.closest(".win-btn")) return;
+    toggleMaximize(id);
+  });
+
+  // resizing
+  const resizer = win.querySelector(".win-resize");
+  resizer.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    const startX = e.clientX, startY = e.clientY;
+    const startW = win.offsetWidth, startH = win.offsetHeight;
+    function onMove(ev) {
+      win.style.width = Math.max(320, startW + ev.clientX - startX) + "px";
+      win.style.height = Math.max(220, startH + ev.clientY - startY) + "px";
+    }
+    function onUp() {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
+
+  win.querySelector(".win-btn.min").onclick = () => minimizeWindow(id);
+  win.querySelector(".win-btn.max").onclick = () => toggleMaximize(id);
+  win.querySelector(".win-btn.close").onclick = () => closeWindow(id);
+
+  return win;
+}
+
+function loadAppContent(id, app) {
+  const win = document.getElementById(id);
+  const body = win.querySelector(".win-body");
+  fetch(app.url)
+    .then(r => {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.text();
+    })
+    .then(text => {
+      const blob = new Blob([text], { type: "text/html" });
+      const blobUrl = URL.createObjectURL(blob);
+      const iframe = document.createElement("iframe");
+      iframe.src = blobUrl;
+      body.innerHTML = "";
+      body.appendChild(iframe);
+    })
+    .catch(() => {
+      body.innerHTML = `<div class="win-loading" style="color:var(--danger)">Failed to load ${escapeHtml(app.name)}</div>`;
+    });
+}
+
+function createTaskItem(id, app) {
+  const el = document.createElement("div");
+  el.className = "task-item active";
+  el.innerHTML = `<span class="dot"></span><span>${escapeHtml(app.name)}</span>`;
+  el.onclick = () => {
+    const win = document.getElementById(id);
+    if (win.classList.contains("minimized")) {
+      win.classList.remove("minimized");
+      focusWindow(id);
+    } else if (parseInt(win.style.zIndex) === zTop) {
+      minimizeWindow(id);
+    } else {
+      focusWindow(id);
+    }
+  };
+  tasklist.appendChild(el);
+  openWindows.set(id, { el: document.getElementById.bind(document), taskEl: el, app });
+}
+
+function focusWindow(id) {
+  document.querySelectorAll(".win").forEach(w => w.classList.remove("focused"));
+  document.querySelectorAll(".task-item").forEach(t => t.classList.remove("active"));
+  const win = document.getElementById(id);
+  if (!win) return;
+  win.classList.add("focused");
+  win.style.zIndex = ++zTop;
+  const info = openWindows.get(id);
+  if (info) info.taskEl.classList.add("active");
+}
+
+function minimizeWindow(id) {
+  const win = document.getElementById(id);
+  win.classList.add("minimized");
+  const info = openWindows.get(id);
+  if (info) info.taskEl.classList.remove("active");
+}
+
+function toggleMaximize(id) {
+  const win = document.getElementById(id);
+  win.classList.toggle("maximized");
+}
+
+function closeWindow(id) {
+  const win = document.getElementById(id);
+  const iframe = win.querySelector("iframe");
+  if (iframe && iframe.src.startsWith("blob:")) URL.revokeObjectURL(iframe.src);
+  win.remove();
+  const info = openWindows.get(id);
+  if (info) info.taskEl.remove();
+  openWindows.delete(id);
+}
+
+// ===================== CLOCK =====================
+function updateClock() {
+  const now = new Date();
+  document.getElementById("clockTime").textContent =
+    now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  document.getElementById("clockDate").textContent =
+    now.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+setInterval(updateClock, 1000 * 15);
+updateClock();
+</script>
+</body>
+</html>
