@@ -328,6 +328,55 @@
     flex-shrink: 0;
   }
 
+  /* system tiles (App Store / Settings) — permanently pinned, visually
+     distinct from ordinary app tiles: square glyph-style buttons rather
+     than a labeled pill, tinted with their own accent color at rest. */
+  #system-tiles {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    padding-right: 2px;
+  }
+  .sys-tile {
+    width: 40px; height: 40px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .sys-tile.store {
+    background: rgba(139,92,246,0.14);
+    color: #a78bfa;
+  }
+  .sys-tile.store:hover { background: rgba(139,92,246,0.22); }
+  .sys-tile.store.active {
+    border-color: rgba(139,92,246,0.5);
+    background: rgba(139,92,246,0.26);
+    box-shadow: 0 0 0 1px rgba(139,92,246,0.15);
+  }
+  .sys-tile.settings {
+    background: rgba(6,182,212,0.14);
+    color: #22d3ee;
+  }
+  .sys-tile.settings:hover { background: rgba(6,182,212,0.22); }
+  .sys-tile.settings.active {
+    border-color: rgba(6,182,212,0.5);
+    background: rgba(6,182,212,0.26);
+    box-shadow: 0 0 0 1px rgba(6,182,212,0.15);
+  }
+  .sys-tile.running::after {
+    content: '';
+    position: absolute;
+    bottom: 3px; left: 50%;
+    transform: translateX(-50%);
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
   #tasklist {
     flex: 1;
     display: flex;
@@ -367,6 +416,13 @@
     background: var(--card-hover);
   }
   .task-item.active .dot { background: var(--accent); box-shadow: 0 0 6px rgba(34,197,94,0.6); }
+  .task-item.pinned .dot { background: var(--fg-dim); }
+  .task-item.pinned.active .dot { background: var(--accent); box-shadow: 0 0 6px rgba(34,197,94,0.6); }
+  .task-item .pin-mark {
+    font-size: 9px;
+    color: var(--fg-dim);
+    flex-shrink: 0;
+  }
 
   #clock {
     font-family: var(--mono);
@@ -419,58 +475,6 @@
     overflow-y: auto;
     padding: 8px;
   }
-  .start-item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 9px 10px;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-  .start-item:hover { background: rgba(255,255,255,0.06); }
-  .start-item-icon {
-    width: 32px; height: 32px;
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700;
-    flex-shrink: 0;
-  }
-  .start-item-text { flex: 1; overflow: hidden; }
-  .start-item-name { font-size: 13px; font-weight: 600; color: var(--fg); }
-  .start-item-desc {
-    font-size: 11px; color: var(--fg-dim);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-
-  /* ================= START MENU ================= */
-  #start-menu {
-    position: fixed;
-    left: 10px;
-    bottom: calc(var(--taskbar-h) + 8px);
-    width: 340px;
-    max-height: 60vh;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
-    z-index: 600;
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  #start-menu.open { display: flex; }
-  .start-search { padding: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-  .start-search input {
-    width: 100%;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 9px 12px;
-    color: var(--fg);
-    font-family: var(--font);
-    font-size: 13px;
-    outline: none;
-  }
-  .start-search input:focus { border-color: var(--accent); }
-  .start-list { overflow-y: auto; padding: 8px; }
   .start-item {
     display: flex; align-items: center; gap: 12px;
     padding: 9px 10px;
@@ -573,6 +577,29 @@
     outline: none;
   }
   .store-search:focus { border-color: var(--accent); }
+  .store-tabs {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .store-tab {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--fg-muted);
+    cursor: pointer;
+    font-family: var(--font);
+  }
+  .store-tab:hover { border-color: var(--border-hover); color: var(--fg); }
+  .store-tab.active {
+    background: var(--accent-glow);
+    border-color: rgba(34,197,94,0.35);
+    color: var(--accent);
+  }
   .store-list {
     flex: 1;
     min-height: 0;
@@ -757,6 +784,8 @@
     Start
   </button>
   <div id="taskbar-sep"></div>
+  <div id="system-tiles"></div>
+  <div id="taskbar-sep"></div>
   <div id="tasklist"></div>
   <div id="clock">
     <div class="time" id="clockTime">--:--</div>
@@ -796,7 +825,7 @@ const appKey = app => app.name + "|" + app.url;
 // ===================== BUILT-IN APPS =====================
 // Always-on desktop apps. VUS Launcher pulled live from apps.json's "home"
 // entry once loaded; Notes points at the VUS Hub Notes tool; Store is local.
-const STORE_APP = { name: "App Store", url: "__store__", desc: "Browse and install VUS apps", icon: "🛍️", color: "violet" };
+const STORE_APP = { name: "App Store", url: "__store__", desc: "Browse and install VUS apps", icon: "🛒", color: "violet" };
 const SETTINGS_APP = { name: "Settings", url: "__settings__", desc: "VUS-OS preferences", icon: "⚙️", color: "cyan" };
 let launcherApp = { name: "VUS Launcher", url: "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/main/VUSL", desc: "Main game hub", icon: "🎮", color: "green" };
 let notesApp = { name: "Notes", url: "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/Notes", desc: "Keep text saved easily", icon: "📝", color: "amber" };
@@ -819,6 +848,7 @@ function installApp(app) {
   if (!list.some(a => appKey(a) === appKey(app))) {
     list.push(app);
     setInstalled(list);
+    placeNewItemAtFreeCell(appKey(app));
   }
   renderIcons();
 }
@@ -855,6 +885,7 @@ function createFolder() {
   const id = "folder_" + Date.now();
   list.push({ id, name: "New Folder", color: "amber", items: [] });
   setFolders(list);
+  placeNewItemAtFreeCell("folder:" + id);
   renderIcons();
 }
 function updateFolder(id, patch) {
@@ -884,7 +915,7 @@ function findAppByKey(key) {
 const SIZE_KEY = "vusos_icon_size";
 const ICON_SIZES = { small: 96, medium: 128, large: 160 };
 function getIconSize() { return localStorage.getItem(SIZE_KEY) || "medium"; }
-function setIconSize(size) { localStorage.setItem(SIZE_KEY, size); applyIconSize(); renderIcons(); }
+function setIconSize(size) { localStorage.setItem(SIZE_KEY, size); applyIconSize(); refreshDesktopIcons(); }
 function applyIconSize() {
   const px = ICON_SIZES[getIconSize()] || 96;
   document.documentElement.style.setProperty("--icon-cell", px + "px");
@@ -922,21 +953,116 @@ function setPosition(itemKey, x, y) {
 function cellPx() { return ICON_SIZES[getIconSize()] || 96; }
 function snapCoord(px, cell) { return Math.round(px / cell) * cell; }
 
+// ===================== GRID HELPERS =====================
+// Column/row spacing matches what renderIcons()'s auto-placement used to use.
+function gridStep() {
+  const cell = cellPx();
+  return { colStep: cell + 2, rowStep: cell + 4 };
+}
+// Convert a pixel position to the nearest valid (col,row) grid cell, clamped
+// so the icon can never sit off-screen on any edge.
+function pxToCell(x, y) {
+  const { colStep, rowStep } = gridStep();
+  const cols = Math.max(1, Math.floor((desktop.clientWidth - 14) / colStep));
+  const rows = Math.max(1, Math.floor((desktop.clientHeight - 28) / rowStep));
+  let col = Math.round((x - 14) / colStep);
+  let row = Math.round((y - 14) / rowStep);
+  col = Math.min(Math.max(col, 0), cols - 1);
+  row = Math.min(Math.max(row, 0), rows - 1);
+  return { col, row };
+}
+function cellToPx(col, row) {
+  const { colStep, rowStep } = gridStep();
+  return { x: 14 + col * colStep, y: 14 + row * rowStep };
+}
+// Clamp an arbitrary pixel position so the full icon box stays on screen —
+// strict against the top and left edges (never negative), and also capped
+// against the right/bottom edges using the current icon cell size.
+function clampToDesktop(x, y) {
+  const cell = cellPx();
+  const cellH = cell + 4;
+  const maxX = Math.max(0, desktop.clientWidth - cell);
+  const maxY = Math.max(0, desktop.clientHeight - cellH);
+  return {
+    x: Math.min(Math.max(x, 0), maxX),
+    y: Math.min(Math.max(y, 0), maxY)
+  };
+}
+
+// Returns the set of grid cells (as "c,r" strings) currently occupied by
+// EVERY existing desktop item's persisted position, excluding `excludeKey`.
+// Unlike iconKeyAtCell (which reads the live DOM and therefore only works
+// after a render has happened), this reads straight from localStorage plus
+// the known auto-placement fallback, so it's safe to call before a new
+// item has ever been rendered.
+function occupiedCellsExcluding(excludeKey) {
+  const folders = getFolders();
+  const desktopApps = [...getInstalled()];
+  const allKeys = [...desktopApps.map(a => appKey(a)), ...folders.map(f => "folder:" + f.id)];
+  const positions = getPositions();
+  const occupied = new Set();
+  const cell = cellPx();
+  let autoIndex = 0;
+  const perCol = Math.max(1, Math.floor((desktop.clientHeight - 28) / (cell + 4)));
+  allKeys.forEach(key => {
+    if (key === excludeKey) return;
+    let px;
+    if (positions[key]) {
+      px = positions[key];
+    } else {
+      // mirrors nextAutoPos() in renderIcons()
+      const col = Math.floor(autoIndex / perCol);
+      const row = autoIndex % perCol;
+      autoIndex++;
+      px = { x: 14 + col * (cell + 2), y: 14 + row * (cell + 4) };
+    }
+    const { col, row } = pxToCell(px.x, px.y);
+    occupied.add(col + "," + row);
+  });
+  return occupied;
+}
+
+// Finds the nearest free grid cell to the top-left (0,0) origin — used to
+// place a brand-new item (freshly installed app, newly created folder) onto
+// the desktop without overlapping anything already there.
+function placeNewItemAtFreeCell(key) {
+  const occupied = occupiedCellsExcluding(key);
+  const { colStep, rowStep } = gridStep();
+  const cols = Math.max(1, Math.floor((desktop.clientWidth - 14) / colStep));
+  const rows = Math.max(1, Math.floor((desktop.clientHeight - 28) / rowStep));
+  // scan column-major (matches the visual fill order of nextAutoPos）
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < rows; r++) {
+      const k = c + "," + r;
+      if (!occupied.has(k)) {
+        const { x, y } = cellToPx(c, r);
+        setPosition(key, x, y);
+        return;
+      }
+    }
+  }
+  // grid is completely full — fall back to (0,0), it'll just overlap
+  const { x, y } = cellToPx(0, 0);
+  setPosition(key, x, y);
+}
+
 // ===================== LOAD APPS.JSON =====================
 let allApps = [];
 
 fetch(APPS_JSON_URL)
   .then(r => r.json())
   .then(data => {
-    const sections = ["home", "apps", "tools", "hubs", "links"];
+    // "home" (the launcher tile) is folded into the "apps" category for
+    // store/filter purposes — it's still just an app to the user.
+    const sectionToCategory = { home: "apps", apps: "apps", tools: "tools", hubs: "hubs", links: "links" };
     const seen = new Set();
-    sections.forEach(sec => {
+    Object.keys(sectionToCategory).forEach(sec => {
       (data[sec] || []).forEach(app => {
         if (!app.name || !app.url) return;
         const key = app.name + "|" + app.url;
         if (seen.has(key)) return;
         seen.add(key);
-        allApps.push(app);
+        allApps.push(Object.assign({}, app, { category: sectionToCategory[sec] }));
       });
     });
     // prefer live data for the built-in launcher/notes if present
@@ -947,11 +1073,17 @@ fetch(APPS_JSON_URL)
 
     seedDefaultsIfNeeded();
     renderIcons();
+    renderPinnedTaskbar();
+    // Auto plain-refresh once, on first load, so icons always start in
+    // correct grid spots with no overlaps and nothing off-screen.
+    refreshDesktopIcons();
   })
   .catch(err => {
     console.error("Failed to load apps.json", err);
     seedDefaultsIfNeeded();
     renderIcons(); // still show built-ins even if apps.json fails
+    renderPinnedTaskbar();
+    refreshDesktopIcons();
   });
 
 // ===================== DESKTOP ICONS =====================
@@ -967,7 +1099,7 @@ function renderIcons() {
   wrap.innerHTML = "";
 
   const folders = getFolders();
-  const desktopApps = [STORE_APP, SETTINGS_APP, ...getInstalled()];
+  const desktopApps = [...getInstalled()];
   const positions = getPositions();
   const cell = cellPx();
 
@@ -998,14 +1130,146 @@ function renderIcons() {
   });
 }
 
-// isLocked: cannot be removed from the desktop, and cannot be dropped into a folder.
-function isLocked(app) {
-  return app === STORE_APP || app === SETTINGS_APP;
+// ===================== REFRESH =====================
+// Plain grid refresh: snap every existing desktop item to the nearest valid
+// grid cell (never off-screen), resolve overlaps by walking the grid in
+// order and assigning each item the next free cell, and drop position
+// records for items that no longer exist. This does NOT reshuffle items
+// into a totally fresh layout — each item stays as close as possible to
+// its current spot, just corrected onto the grid / into view / de-overlapped.
+function refreshDesktopIcons() {
+  const folders = getFolders();
+  const desktopApps = [...getInstalled()];
+  const validKeys = new Set([
+    ...desktopApps.map(a => appKey(a)),
+    ...folders.map(f => "folder:" + f.id)
+  ]);
+
+  const positions = getPositions();
+  // drop stale entries (apps that were uninstalled / folders deleted)
+  Object.keys(positions).forEach(k => {
+    if (!validKeys.has(k)) delete positions[k];
+  });
+
+  const { colStep, rowStep } = gridStep();
+  const cols = Math.max(1, Math.floor((desktop.clientWidth - 14) / colStep));
+  const rows = Math.max(1, Math.floor((desktop.clientHeight - 28) / rowStep));
+  const occupied = new Set();
+  const cellKey = (c, r) => c + "," + r;
+
+  function nearestFreeCell(wantCol, wantRow) {
+    // BFS outward from the wanted cell for the closest unoccupied, in-bounds cell
+    const seen = new Set();
+    const queue = [{ c: wantCol, r: wantRow, d: 0 }];
+    seen.add(cellKey(wantCol, wantRow));
+    while (queue.length) {
+      const { c, r } = queue.shift();
+      if (c >= 0 && c < cols && r >= 0 && r < rows && !occupied.has(cellKey(c, r))) {
+        return { c, r };
+      }
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dc, dr]) => {
+        const nc = c + dc, nr = r + dr;
+        const k = cellKey(nc, nr);
+        if (!seen.has(k)) { seen.add(k); queue.push({ c: nc, r: nr }); }
+      });
+      // safety cap
+      if (seen.size > (cols * rows + 50)) break;
+    }
+    // fallback: first free cell scanning row-major
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (!occupied.has(cellKey(c, r))) return { c, r };
+      }
+    }
+    return { c: 0, r: 0 };
+  }
+
+  // Process items ordered by their current position (top-to-bottom,
+  // left-to-right) so placement order feels stable and predictable.
+  const allKeys = [...desktopApps.map(a => appKey(a)), ...folders.map(f => "folder:" + f.id)];
+  const withPos = allKeys.map(key => {
+    const pos = positions[key];
+    if (pos) {
+      const { col, row } = pxToCell(pos.x, pos.y);
+      return { key, col, row, hadPos: true };
+    }
+    return { key, col: 0, row: 0, hadPos: false };
+  });
+  withPos.sort((a, b) => (a.row - b.row) || (a.col - b.col));
+
+  withPos.forEach(item => {
+    const free = nearestFreeCell(item.col, item.row);
+    occupied.add(cellKey(free.c, free.r));
+    const { x, y } = cellToPx(free.c, free.r);
+    positions[item.key] = { x, y };
+  });
+
+  localStorage.setItem(POS_KEY, JSON.stringify(positions));
+  renderIcons();
 }
-// isFoldable: whether this icon can be dragged into a folder. Store/Settings
-// and the two default built-ins (Launcher/Notes) stay desktop-only.
+
+// ===================== SORT =====================
+// Fully repacks every desktop item into the grid, column-major (fills a
+// column top-to-bottom, then moves to the next column — matching how
+// nextAutoPos() in renderIcons() lays things out), in the order determined
+// by `mode`:
+//   "alpha"    - alphabetical by name (folders + apps together, A→Z)
+//   "leftright"- by current position, left-to-right then top-to-bottom
+//   "topbottom"- by current position, top-to-bottom then left-to-right
+function sortDesktopIcons(mode) {
+  const folders = getFolders();
+  const desktopApps = [...getInstalled()];
+  const positions = getPositions();
+
+  const items = [
+    ...desktopApps.map(a => ({ key: appKey(a), name: a.name })),
+    ...folders.map(f => ({ key: "folder:" + f.id, name: f.name }))
+  ].map(item => {
+    const pos = positions[item.key];
+    const cell = pos ? pxToCell(pos.x, pos.y) : { col: 0, row: 0 };
+    return { ...item, col: cell.col, row: cell.row };
+  });
+
+  if (mode === "alpha") {
+    items.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  } else if (mode === "topbottom") {
+    items.sort((a, b) => (a.row - b.row) || (a.col - b.col) || a.name.localeCompare(b.name));
+  } else { // "leftright" (default)
+    items.sort((a, b) => (a.col - b.col) || (a.row - b.row) || a.name.localeCompare(b.name));
+  }
+
+  const { colStep, rowStep } = gridStep();
+  const rows = Math.max(1, Math.floor((desktop.clientHeight - 28) / rowStep));
+  const cols = Math.max(1, Math.floor((desktop.clientWidth - 14) / colStep));
+
+  items.forEach((item, i) => {
+    let col, row;
+    if (mode === "topbottom") {
+      // row-major: fill the top row left-to-right, then wrap to the next row
+      col = i % cols;
+      row = Math.floor(i / cols);
+    } else {
+      // column-major: fill the left column top-to-bottom, then wrap to the next column
+      col = Math.floor(i / rows);
+      row = i % rows;
+    }
+    positions[item.key] = { x: 14 + col * colStep, y: 14 + row * rowStep };
+  });
+
+  localStorage.setItem(POS_KEY, JSON.stringify(positions));
+  renderIcons();
+}
+
+// isLocked: cannot be removed from the desktop, and cannot be dropped into a folder.
+// (App Store and Settings no longer live on the desktop at all — they're
+// permanent system tiles in the taskbar — so nothing on the desktop is locked.)
+function isLocked(app) {
+  return false;
+}
+// isFoldable: whether this icon can be dragged into a folder. The two
+// default built-ins (Launcher/Notes) stay desktop-only.
 function isFoldable(app) {
-  return app !== STORE_APP && app !== SETTINGS_APP && app !== launcherApp && app !== notesApp;
+  return app !== launcherApp && app !== notesApp;
 }
 
 function buildAppIcon(app) {
@@ -1069,7 +1333,7 @@ function selectIcon(el) {
   el.classList.add("selected");
 }
 
-// ===================== MANUAL DRAG (reposition + drop-into-folder) =====================
+// ===================== MANUAL DRAG (reposition + drop-into-folder + swap) =====================
 function attachDrag(el, key, locked, foldable, onSimpleClick) {
   let dragging = false;
   let startX, startY, startLeft, startTop, pressTime;
@@ -1089,8 +1353,11 @@ function attachDrag(el, key, locked, foldable, onSimpleClick) {
         if (getSettings().snapMode === "snap") gridOverlay.classList.add("show");
       }
       if (!dragging) return;
-      el.style.left = Math.max(0, startLeft + dx) + "px";
-      el.style.top = Math.max(0, startTop + dy) + "px";
+      // Strict bounds while dragging: never allow the icon past the top or
+      // left edge, and cap it against the right/bottom edge too.
+      const clamped = clampToDesktop(startLeft + dx, startTop + dy);
+      el.style.left = clamped.x + "px";
+      el.style.top = clamped.y + "px";
 
       // highlight folder under cursor (only if this item is allowed to be foldered)
       document.querySelectorAll(".icon").forEach(i => { if (i !== el) i.classList.remove("selected"); });
@@ -1123,17 +1390,7 @@ function attachDrag(el, key, locked, foldable, onSimpleClick) {
         }
       }
 
-      // otherwise, reposition on desktop
-      let x = el.offsetLeft, y = el.offsetTop;
-      if (getSettings().snapMode === "snap") {
-        const cell = cellPx();
-        x = snapCoord(x, cell + 2);
-        y = snapCoord(y, cell + 4);
-      }
-      x = Math.max(0, x); y = Math.max(0, y);
-      el.style.left = x + "px";
-      el.style.top = y + "px";
-      setPosition(key, x, y);
+      finishIconDrop(el, key, startLeft, startTop);
     }
 
     document.addEventListener("mousemove", onMove);
@@ -1157,8 +1414,9 @@ function attachDrag(el, key, locked, foldable, onSimpleClick) {
       if (getSettings().snapMode === "snap") gridOverlay.classList.add("show");
     }
     if (!dragging) return;
-    el.style.left = Math.max(0, startLeft + dx) + "px";
-    el.style.top = Math.max(0, startTop + dy) + "px";
+    const clamped = clampToDesktop(startLeft + dx, startTop + dy);
+    el.style.left = clamped.x + "px";
+    el.style.top = clamped.y + "px";
   }, { passive: true });
   el.addEventListener("touchend", (e) => {
     gridOverlay.classList.remove("show");
@@ -1180,17 +1438,107 @@ function attachDrag(el, key, locked, foldable, onSimpleClick) {
       }
     }
 
-    let x = el.offsetLeft, y = el.offsetTop;
-    if (getSettings().snapMode === "snap") {
-      const cell = cellPx();
-      x = snapCoord(x, cell + 2);
-      y = snapCoord(y, cell + 4);
-    }
-    el.style.left = x + "px";
-    el.style.top = y + "px";
-    setPosition(key, x, y);
+    finishIconDrop(el, key, startLeft, startTop);
     dragging = false;
   }, true);
+}
+
+// Returns the storage key (app key or "folder:id") for whichever rendered
+// desktop icon is currently sitting in the given (col,row) grid cell,
+// excluding `excludeKey`. Reads from the live DOM rather than the positions
+// store, since a never-dragged icon may only have an auto-placed position
+// that was never persisted to localStorage.
+function iconKeyAtCell(col, row, excludeKey) {
+  const icons = document.querySelectorAll("#icons > .icon");
+  for (const icon of icons) {
+    const iconKey = icon.dataset.key || (icon.dataset.folderId ? "folder:" + icon.dataset.folderId : null);
+    if (!iconKey || iconKey === excludeKey) continue;
+    const pc = pxToCell(icon.offsetLeft, icon.offsetTop);
+    if (pc.col === col && pc.row === row) return iconKey;
+  }
+  return null;
+}
+
+// Shared drop logic for mouse + touch: snaps the dropped icon to a grid
+// cell. If another item already occupies that cell, swap the two items'
+// positions (the occupant takes the spot this icon was dragged from). If
+// for any reason a swap can't be resolved, fall back to placing this icon
+// in the closest free cell instead of allowing an overlap.
+function finishIconDrop(el, key, startLeft, startTop) {
+  const clamped = clampToDesktop(el.offsetLeft, el.offsetTop);
+  let x = clamped.x, y = clamped.y;
+
+  if (getSettings().snapMode === "snap") {
+    const { col, row } = pxToCell(x, y);
+    const target = cellToPx(col, row);
+    x = target.x; y = target.y;
+
+    const occupantKey = iconKeyAtCell(col, row, key);
+
+    if (occupantKey && !isKeyLocked(occupantKey)) {
+      // swap: the occupant moves to wherever this icon started the drag
+      const startClamped = clampToDesktop(
+        startLeft !== undefined ? startLeft : el.offsetLeft,
+        startTop !== undefined ? startTop : el.offsetTop
+      );
+      const startCell = pxToCell(startClamped.x, startClamped.y);
+      const startPos = cellToPx(startCell.col, startCell.row);
+
+      const positions = getPositions();
+      positions[occupantKey] = { x: startPos.x, y: startPos.y };
+      positions[key] = { x, y };
+      localStorage.setItem(POS_KEY, JSON.stringify(positions));
+      renderIcons();
+      return;
+    }
+
+    if (occupantKey) {
+      // occupant can't be moved (e.g. locked) — place this icon in the
+      // closest free cell instead of overlapping it
+      const free = nearestFreeCellExcluding(col, row, key);
+      const freePos = cellToPx(free.c, free.r);
+      x = freePos.x; y = freePos.y;
+    }
+  }
+
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+  setPosition(key, x, y);
+}
+
+// No desktop icons are locked anymore (App Store / Settings moved to the
+// taskbar), but this hook is kept in case future built-ins need it.
+function isKeyLocked(key) {
+  return false;
+}
+
+// BFS outward from (wantCol,wantRow) for the nearest in-bounds grid cell
+// that isn't occupied by any rendered icon other than `excludeKey`.
+function nearestFreeCellExcluding(wantCol, wantRow, excludeKey) {
+  const { colStep, rowStep } = gridStep();
+  const cols = Math.max(1, Math.floor((desktop.clientWidth - 14) / colStep));
+  const rows = Math.max(1, Math.floor((desktop.clientHeight - 28) / rowStep));
+  const cellKey = (c, r) => c + "," + r;
+  const seen = new Set([cellKey(wantCol, wantRow)]);
+  const queue = [{ c: wantCol, r: wantRow }];
+  while (queue.length) {
+    const { c, r } = queue.shift();
+    if (c >= 0 && c < cols && r >= 0 && r < rows && !iconKeyAtCell(c, r, excludeKey)) {
+      return { c, r };
+    }
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dc, dr]) => {
+      const nc = c + dc, nr = r + dr;
+      const k = cellKey(nc, nr);
+      if (!seen.has(k)) { seen.add(k); queue.push({ c: nc, r: nr }); }
+    });
+    if (seen.size > (cols * rows + 50)) break;
+  }
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (!iconKeyAtCell(c, r, excludeKey)) return { c, r };
+    }
+  }
+  return { c: wantCol, r: wantRow };
 }
 
 function elementUnderIcon(dragEl, ev) {
@@ -1310,6 +1658,148 @@ function buildFolderIconStatic(folder, parentFolderId, winId) {
   return el;
 }
 
+// ===================== SYSTEM TILES (App Store / Settings) =====================
+// These two live permanently in the taskbar — never on the desktop, never
+// unpinnable — rendered as distinct square glyph buttons rather than the
+// usual labeled task pill.
+function renderSystemTiles() {
+  const wrap = document.getElementById("system-tiles");
+  wrap.innerHTML = "";
+  wrap.appendChild(buildSystemTile(STORE_APP, "store", storeWinId, openAppStore));
+  wrap.appendChild(buildSystemTile(SETTINGS_APP, "settings", settingsWinId, openSettings));
+}
+function buildSystemTile(app, cls, winId, onClick) {
+  const el = document.createElement("div");
+  el.className = "sys-tile " + cls;
+  const win = winId ? document.getElementById(winId) : null;
+  const isRunning = !!win;
+  const isActive = isRunning && win.classList.contains("focused") && !win.classList.contains("minimized");
+  if (isRunning) el.classList.add("running");
+  if (isActive) el.classList.add("active");
+  el.title = app.name;
+  el.textContent = app.icon;
+  el.onclick = onClick;
+  return el;
+}
+
+// ===================== TASKBAR PINNING =====================
+// pinned = [ { name, url, icon, color } ]  — reuses the app object shape.
+// Persisted independently of "installed" so an app can be pinned to the
+// taskbar without being on the desktop (e.g. pinned straight from the
+// Start Menu or App Store's underlying app list).
+const PIN_KEY = "vusos_pinned_taskbar";
+function getPinned() {
+  try { return JSON.parse(localStorage.getItem(PIN_KEY)) || []; }
+  catch { return []; }
+}
+function setPinned(list) { localStorage.setItem(PIN_KEY, JSON.stringify(list)); }
+function isPinned(app) { return getPinned().some(a => appKey(a) === appKey(app)); }
+function pinToTaskbar(app) {
+  if (app.url === "__store__" || app.url === "__settings__") return; // not pinnable
+  const list = getPinned();
+  if (!list.some(a => appKey(a) === appKey(app))) {
+    list.push({ name: app.name, url: app.url, icon: app.icon, color: app.color });
+    setPinned(list);
+  }
+  renderPinnedTaskbar();
+}
+function unpinFromTaskbar(app) {
+  setPinned(getPinned().filter(a => appKey(a) !== appKey(app)));
+  renderPinnedTaskbar();
+}
+
+// Renders the pinned row of taskbar icons (apps that stay in the taskbar
+// whether or not they're currently running). Running windows for a pinned
+// app are represented by that SAME pinned tile — it just gains "active"
+// state and the ability to be brought to front / minimized like any other
+// task item, but never disappears from the taskbar when the window closes.
+function renderPinnedTaskbar() {
+  renderSystemTiles();
+  const pinned = getPinned();
+  // clear out any previously-rendered pinned tiles, then re-add in order
+  tasklist.querySelectorAll('.task-item[data-pinned="1"]').forEach(el => el.remove());
+  pinned.slice().reverse().forEach(app => {
+    const runningId = findRunningWindowIdForApp(app);
+    const el = buildTaskbarTile(app, true, runningId);
+    tasklist.insertBefore(el, tasklist.firstChild);
+  });
+}
+
+// Finds an already-open, non-pinned-origin window id running this exact app
+// (by name+url), if any — used so a pin's tile reflects "active" state and
+// can be clicked to focus/minimize the real window instead of relaunching.
+function findRunningWindowIdForApp(app) {
+  for (const [id, info] of openWindows.entries()) {
+    if (info.app && appKey(info.app) === appKey(app) && !info.isPinnedTile) return id;
+  }
+  return null;
+}
+
+function buildTaskbarTile(app, pinned, runningId) {
+  const el = document.createElement("div");
+  el.className = "task-item" + (pinned ? " pinned" : "");
+  if (pinned) el.dataset.pinned = "1";
+  const isRunning = !!runningId;
+  const win = isRunning ? document.getElementById(runningId) : null;
+  const isActive = isRunning && win && win.classList.contains("focused") && !win.classList.contains("minimized");
+  if (isActive) el.classList.add("active");
+  el.innerHTML = `<span class="dot"></span><span>${escapeHtml(app.name)}</span>`;
+
+  el.onclick = () => {
+    if (runningId) {
+      const w = document.getElementById(runningId);
+      if (!w) { launchPinnedApp(app); return; }
+      if (w.classList.contains("minimized")) {
+        w.classList.remove("minimized");
+        focusWindow(runningId);
+      } else if (parseInt(w.style.zIndex) === zTop) {
+        minimizeWindow(runningId);
+      } else {
+        focusWindow(runningId);
+      }
+    } else {
+      launchPinnedApp(app);
+    }
+  };
+  el.oncontextmenu = (e) => {
+    e.preventDefault();
+    showTaskbarContextMenu(e, app, pinned);
+  };
+  return el;
+}
+
+// Launches a pinned app's window the same way any other app launches, but
+// tags the resulting window so the taskbar knows to route clicks on the
+// pinned tile to this live window (see findRunningWindowIdForApp).
+function launchPinnedApp(app) {
+  if (!app.url.includes("raw.githubusercontent.com")) {
+    window.open(app.url, "_blank", "noopener");
+    return;
+  }
+  const id = "win" + (++winCount);
+  const win = createWindow(id, app);
+  desktop.appendChild(win);
+  openWindows.set(id, { taskEl: null, app, isPinnedTaskbarLaunch: true });
+  focusWindow(id);
+  loadAppContent(id, app);
+  renderPinnedTaskbar();
+}
+
+function showTaskbarContextMenu(e, app, pinned) {
+  e.preventDefault();
+  e.stopPropagation();
+  ctxMenu.innerHTML = pinned
+    ? `<div class="ctx-item danger" id="ctxUnpin">Unpin from taskbar</div>`
+    : `<div class="ctx-item" id="ctxPin">Pin to taskbar</div>`;
+  if (pinned) {
+    ctxMenu.querySelector("#ctxUnpin").onclick = () => { unpinFromTaskbar(app); closeCtxMenu(); };
+  } else {
+    ctxMenu.querySelector("#ctxPin").onclick = () => { pinToTaskbar(app); closeCtxMenu(); };
+  }
+  const tile = e.currentTarget || e.target.closest(".task-item");
+  if (tile) positionCtxNearElement(tile); else positionCtx(e);
+}
+
 // ===================== CONTEXT MENUS =====================
 const ctxMenu = document.getElementById("ctxMenu");
 function closeCtxMenu() { ctxMenu.classList.remove("open"); ctxMenu.innerHTML = ""; }
@@ -1322,8 +1812,69 @@ function positionCtx(e) {
   ctxMenu.classList.add("open");
 }
 
+// Anchors the context menu to a specific element's bounding box rather than
+// the raw cursor position — used for the taskbar, where positionCtx()'s
+// vertical clamp (window.innerHeight - 220) can push the menu far above the
+// cursor and make it feel detached from the item that was clicked.
+function positionCtxNearElement(el) {
+  const rect = el.getBoundingClientRect();
+  ctxMenu.classList.add("open"); // add first so offsetHeight/Width are measurable
+  const menuW = ctxMenu.offsetWidth || 200;
+  const menuH = ctxMenu.offsetHeight || 100;
+  let left = rect.left;
+  if (left + menuW > window.innerWidth) left = window.innerWidth - menuW - 8;
+  left = Math.max(8, left);
+  // prefer opening upward from the element (taskbar sits at the bottom)
+  let top = rect.top - menuH - 6;
+  if (top < 8) top = rect.bottom + 6;
+  ctxMenu.style.left = left + "px";
+  ctxMenu.style.top = top + "px";
+}
+
+// Opens the "Sort" submenu positioned just to the right of (or, if there's
+// no room, just to the left of) the "Sort" item that was clicked.
+function showSortSubMenu(anchorEl) {
+  const options = [
+    { mode: "alpha", label: "Sort alphabetically" },
+    { mode: "leftright", label: "Sort left to right" },
+    { mode: "topbottom", label: "Sort top to bottom" }
+  ];
+  sortSubMenu.innerHTML = options.map(o =>
+    `<div class="ctx-item" data-mode="${o.mode}">${o.label}</div>`
+  ).join("");
+  sortSubMenu.querySelectorAll(".ctx-item").forEach(el => {
+    el.onclick = () => {
+      sortDesktopIcons(el.dataset.mode);
+      closeSortSubMenu();
+      closeCtxMenu();
+    };
+  });
+
+  const rect = anchorEl.getBoundingClientRect();
+  const menuWidth = 200;
+  let left = rect.right + 4;
+  if (left + menuWidth > window.innerWidth) left = Math.max(4, rect.left - menuWidth - 4);
+  let top = Math.min(rect.top, window.innerHeight - 140);
+  sortSubMenu.style.left = left + "px";
+  sortSubMenu.style.top = Math.max(4, top) + "px";
+  sortSubMenu.classList.add("open");
+}
+
+const sortSubMenu = (() => {
+  const el = document.createElement("div");
+  el.className = "ctx-menu";
+  el.id = "sortSubMenu";
+  document.body.appendChild(el);
+  return el;
+})();
+function closeSortSubMenu() { sortSubMenu.classList.remove("open"); sortSubMenu.innerHTML = ""; }
+document.addEventListener("click", (e) => {
+  if (!sortSubMenu.contains(e.target) && !(e.target.closest && e.target.closest("#ctxSort"))) closeSortSubMenu();
+});
+
 function showDesktopContextMenu(e) {
   e.preventDefault();
+  closeSortSubMenu();
   const sizes = ["small", "medium", "large"];
   const current = getIconSize();
   ctxMenu.innerHTML = `
@@ -1333,11 +1884,18 @@ function showDesktopContextMenu(e) {
     </div>
     <div class="ctx-sep"></div>
     <div class="ctx-item" id="ctxNewFolder">New Folder</div>
+    <div class="ctx-item" id="ctxSort">Sort <span style="color:var(--fg-dim);">›</span></div>
+    <div class="ctx-item" id="ctxRefresh">Refresh</div>
   `;
   ctxMenu.querySelectorAll("#sizeRow .ctx-item").forEach(el => {
     el.onclick = () => { setIconSize(el.dataset.size); closeCtxMenu(); };
   });
   ctxMenu.querySelector("#ctxNewFolder").onclick = () => { createFolder(); closeCtxMenu(); };
+  ctxMenu.querySelector("#ctxRefresh").onclick = () => { refreshDesktopIcons(); closeCtxMenu(); };
+  ctxMenu.querySelector("#ctxSort").onclick = (ev) => {
+    ev.stopPropagation();
+    showSortSubMenu(ctxMenu.querySelector("#ctxSort"));
+  };
   positionCtx(e);
 }
 
@@ -1345,10 +1903,19 @@ function showAppContextMenu(e, app, folderId, winId) {
   e.preventDefault();
   e.stopPropagation();
   const inFolder = !!folderId;
+  const pinned = isPinned(app);
   ctxMenu.innerHTML = `
+    ${pinned
+      ? '<div class="ctx-item danger" id="ctxUnpin">Unpin from taskbar</div>'
+      : '<div class="ctx-item" id="ctxPin">Pin to taskbar</div>'}
+    <div class="ctx-sep"></div>
     ${inFolder ? '<div class="ctx-item" id="ctxRemoveFromFolder">Remove from folder</div><div class="ctx-sep"></div>' : ''}
     <div class="ctx-item danger" id="ctxUninstall">Remove from desktop</div>
   `;
+  ctxMenu.querySelector(pinned ? "#ctxUnpin" : "#ctxPin").onclick = () => {
+    if (pinned) unpinFromTaskbar(app); else pinToTaskbar(app);
+    closeCtxMenu();
+  };
   if (inFolder) {
     ctxMenu.querySelector("#ctxRemoveFromFolder").onclick = () => {
       const list = getFolders();
@@ -1438,7 +2005,7 @@ function renderStartList(query) {
   const wrap = document.getElementById("startList");
 
   const appEntries = allApps
-    .filter(a => !q || a.name.toLowerCase().includes(q) || (a.desc || "").toLowerCase().includes(q))
+    .filter(a => !q || a.name.toLowerCase().includes(q))
     .map(a => ({ type: "app", data: a }));
   const folderEntries = getFolders()
     .filter(f => !q || f.name.toLowerCase().includes(q))
@@ -1462,6 +2029,7 @@ function renderStartList(query) {
         </div>
       `;
       el.onclick = () => { openFolder(entry.data.id); startMenu.classList.remove("open"); };
+      el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showFolderContextMenu(e, entry.data.id); };
     } else {
       const a = entry.data;
       el.innerHTML = `
@@ -1472,6 +2040,7 @@ function renderStartList(query) {
         </div>
       `;
       el.onclick = () => { launchApp(a); startMenu.classList.remove("open"); };
+      el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showAppContextMenu(e, a); };
     }
     wrap.appendChild(el);
   });
@@ -1489,6 +2058,9 @@ function launchApp(app) {
     window.open(app.url, "_blank", "noopener");
     return;
   }
+  // if this app is pinned to the taskbar, route through the pinned launcher
+  // so the pinned tile picks up the "active/running" state correctly
+  if (isPinned(app)) { launchPinnedApp(app); return; }
   const id = "win" + (++winCount);
   const win = createWindow(id, app);
   desktop.appendChild(win);
@@ -1501,18 +2073,24 @@ function launchApp(app) {
 let storeWinId = null;
 
 function openAppStore() {
-  // if already open, just focus it
+  // if already open, toggle minimize/focus like clicking its taskbar tile
   if (storeWinId && document.getElementById(storeWinId)) {
     const win = document.getElementById(storeWinId);
-    win.classList.remove("minimized");
-    focusWindow(storeWinId);
+    if (win.classList.contains("minimized")) {
+      win.classList.remove("minimized");
+      focusWindow(storeWinId);
+    } else if (parseInt(win.style.zIndex) === zTop) {
+      minimizeWindow(storeWinId);
+    } else {
+      focusWindow(storeWinId);
+    }
     return;
   }
   const id = "win" + (++winCount);
   storeWinId = id;
   const win = createWindow(id, STORE_APP, true);
   desktop.appendChild(win);
-  createTaskItem(id, STORE_APP);
+  openWindows.set(id, { taskEl: null, app: STORE_APP });
   focusWindow(id);
   renderStoreBody(id);
 }
@@ -1525,18 +2103,39 @@ function renderStoreBody(id) {
       <div class="store-header">
         <h2>App Store</h2>
         <input type="text" class="store-search" id="storeSearch-${id}" placeholder="Search apps..." autocomplete="off">
+        <div class="store-tabs" id="storeTabs-${id}"></div>
       </div>
       <div class="store-list" id="storeList-${id}"></div>
     </div>
   `;
   const listEl = body.querySelector("#storeList-" + id);
   const searchEl = body.querySelector("#storeSearch-" + id);
+  const tabsEl = body.querySelector("#storeTabs-" + id);
+
+  const TABS = [
+    { key: "all", label: "All" },
+    { key: "apps", label: "Apps" },
+    { key: "hubs", label: "Hubs" },
+    { key: "tools", label: "Tools" },
+    { key: "links", label: "Links" }
+  ];
+  let activeTab = "all";
+
+  function drawTabs() {
+    tabsEl.innerHTML = "";
+    TABS.forEach(t => {
+      const el = document.createElement("div");
+      el.className = "store-tab" + (t.key === activeTab ? " active" : "");
+      el.textContent = t.label;
+      el.onclick = () => { activeTab = t.key; drawTabs(); draw(); };
+      tabsEl.appendChild(el);
+    });
+  }
 
   function draw() {
     const q = searchEl.value.toLowerCase().trim();
-    const items = q
-      ? allApps.filter(a => a.name.toLowerCase().includes(q) || (a.desc || "").toLowerCase().includes(q))
-      : allApps;
+    let items = activeTab === "all" ? allApps : allApps.filter(a => a.category === activeTab);
+    if (q) items = items.filter(a => a.name.toLowerCase().includes(q));
     if (!items.length) {
       listEl.innerHTML = '<div class="store-empty">No apps found</div>';
       return;
@@ -1569,10 +2168,12 @@ function renderStoreBody(id) {
           }, delay);
         }
       };
+      card.oncontextmenu = (e) => { e.preventDefault(); showAppContextMenu(e, app); };
       listEl.appendChild(card);
     });
   }
   searchEl.addEventListener("input", draw);
+  drawTabs();
   draw();
 }
 
@@ -1582,15 +2183,21 @@ let settingsWinId = null;
 function openSettings() {
   if (settingsWinId && document.getElementById(settingsWinId)) {
     const win = document.getElementById(settingsWinId);
-    win.classList.remove("minimized");
-    focusWindow(settingsWinId);
+    if (win.classList.contains("minimized")) {
+      win.classList.remove("minimized");
+      focusWindow(settingsWinId);
+    } else if (parseInt(win.style.zIndex) === zTop) {
+      minimizeWindow(settingsWinId);
+    } else {
+      focusWindow(settingsWinId);
+    }
     return;
   }
   const id = "win" + (++winCount);
   settingsWinId = id;
   const win = createWindow(id, SETTINGS_APP, true);
   desktop.appendChild(win);
-  createTaskItem(id, SETTINGS_APP);
+  openWindows.set(id, { taskEl: null, app: SETTINGS_APP });
   focusWindow(id);
   renderSettingsBody(id);
 }
@@ -1767,6 +2374,13 @@ function createTaskItem(id, app) {
       focusWindow(id);
     }
   };
+  el.oncontextmenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // allow pinning straight from a running (unpinned) window's task item
+    if (app.url === "__store__" || app.url === "__settings__") return;
+    showTaskbarContextMenu(e, app, isPinned(app));
+  };
   tasklist.appendChild(el);
   openWindows.set(id, { el: document.getElementById.bind(document), taskEl: el, app });
 }
@@ -1779,14 +2393,18 @@ function focusWindow(id) {
   win.classList.add("focused");
   win.style.zIndex = ++zTop;
   const info = openWindows.get(id);
-  if (info) info.taskEl.classList.add("active");
+  if (info && info.taskEl) info.taskEl.classList.add("active");
+  // re-render pinned tiles so the correct pinned tile lights up as active
+  // when the focused window belongs to a pinned app
+  renderPinnedTaskbar();
 }
 
 function minimizeWindow(id) {
   const win = document.getElementById(id);
   win.classList.add("minimized");
   const info = openWindows.get(id);
-  if (info) info.taskEl.classList.remove("active");
+  if (info && info.taskEl) info.taskEl.classList.remove("active");
+  renderPinnedTaskbar();
 }
 
 function toggleMaximize(id) {
@@ -1798,10 +2416,13 @@ function closeWindow(id) {
   const win = document.getElementById(id);
   win.remove();
   const info = openWindows.get(id);
-  if (info) info.taskEl.remove();
+  if (info && info.taskEl) info.taskEl.remove();
   openWindows.delete(id);
   if (id === storeWinId) storeWinId = null;
   if (id === settingsWinId) settingsWinId = null;
+  // if the closed window belonged to a pinned app, its pinned tile should
+  // drop back to non-running/inactive state rather than being removed
+  renderPinnedTaskbar();
 }
 
 // ===================== CLOCK =====================
