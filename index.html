@@ -144,6 +144,14 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 17px; font-weight: 700;
     box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    flex-shrink: 0;
+  }
+  /* desktop icons scale their glyph with the chosen icon size */
+  .icon .icon-glyph {
+    width: var(--icon-glyph, 42px);
+    height: var(--icon-glyph, 42px);
+    font-size: var(--icon-glyph-font, 17px);
+    border-radius: calc(var(--icon-glyph, 42px) * 0.24);
   }
   .icon-glyph.green { background: rgba(34,197,94,0.18); color: #4ade80; }
   .icon-glyph.blue { background: rgba(59,130,246,0.18); color: #60a5fa; }
@@ -795,6 +803,7 @@ let notesApp = { name: "Notes", url: "https://raw.githubusercontent.com/Cra-Z-Ga
 
 // ===================== INSTALLED STATE (localStorage) =====================
 const LS_KEY = "vusos_installed";
+const LS_SEEDED_KEY = "vusos_seeded";
 function getInstalled() {
   try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
   catch { return []; }
@@ -820,6 +829,17 @@ function uninstallApp(app) {
   delete positions[appKey(app)];
   localStorage.setItem(POS_KEY, JSON.stringify(positions));
   renderIcons();
+}
+// On first-ever run, seed VUS Launcher + Notes into "installed" so they behave
+// exactly like any other app the user could remove/reinstall via the Store.
+function seedDefaultsIfNeeded() {
+  if (localStorage.getItem(LS_SEEDED_KEY)) return;
+  const list = getInstalled();
+  [launcherApp, notesApp].forEach(app => {
+    if (!list.some(a => appKey(a) === appKey(app))) list.push(app);
+  });
+  setInstalled(list);
+  localStorage.setItem(LS_SEEDED_KEY, "1");
 }
 
 // ===================== FOLDERS (localStorage) =====================
@@ -862,13 +882,18 @@ function findAppByKey(key) {
 
 // ===================== ICON SIZE (localStorage) =====================
 const SIZE_KEY = "vusos_icon_size";
-const ICON_SIZES = { small: 68, medium: 96, large: 128 };
+const ICON_SIZES = { small: 96, medium: 128, large: 160 };
 function getIconSize() { return localStorage.getItem(SIZE_KEY) || "medium"; }
 function setIconSize(size) { localStorage.setItem(SIZE_KEY, size); applyIconSize(); renderIcons(); }
 function applyIconSize() {
   const px = ICON_SIZES[getIconSize()] || 96;
   document.documentElement.style.setProperty("--icon-cell", px + "px");
   document.documentElement.style.setProperty("--icon-cell-h", (px + 4) + "px");
+  // scale the glyph square + its font proportionally to the cell size
+  const glyph = Math.round(px * 0.44);
+  const glyphFont = Math.round(px * 0.18);
+  document.documentElement.style.setProperty("--icon-glyph", glyph + "px");
+  document.documentElement.style.setProperty("--icon-glyph-font", glyphFont + "px");
 }
 
 // ===================== GENERAL SETTINGS (localStorage) =====================
@@ -920,10 +945,12 @@ fetch(APPS_JSON_URL)
     if (liveLauncher) launcherApp = liveLauncher;
     if (liveNotes) notesApp = liveNotes;
 
+    seedDefaultsIfNeeded();
     renderIcons();
   })
   .catch(err => {
     console.error("Failed to load apps.json", err);
+    seedDefaultsIfNeeded();
     renderIcons(); // still show built-ins even if apps.json fails
   });
 
@@ -940,7 +967,7 @@ function renderIcons() {
   wrap.innerHTML = "";
 
   const folders = getFolders();
-  const desktopApps = [launcherApp, notesApp, STORE_APP, SETTINGS_APP, ...getInstalled()];
+  const desktopApps = [STORE_APP, SETTINGS_APP, ...getInstalled()];
   const positions = getPositions();
   const cell = cellPx();
 
@@ -971,8 +998,14 @@ function renderIcons() {
   });
 }
 
+// isLocked: cannot be removed from the desktop, and cannot be dropped into a folder.
 function isLocked(app) {
-  return app === launcherApp || app === notesApp || app === STORE_APP || app === SETTINGS_APP;
+  return app === STORE_APP || app === SETTINGS_APP;
+}
+// isFoldable: whether this icon can be dragged into a folder. Store/Settings
+// and the two default built-ins (Launcher/Notes) stay desktop-only.
+function isFoldable(app) {
+  return app !== STORE_APP && app !== SETTINGS_APP && app !== launcherApp && app !== notesApp;
 }
 
 function buildAppIcon(app) {
@@ -993,7 +1026,7 @@ function buildAppIcon(app) {
     el.oncontextmenu = (e) => { e.preventDefault(); showAppContextMenu(e, app); };
   }
 
-  wireIconInteraction(el, appKey(app), isLocked(app), open);
+  wireIconInteraction(el, appKey(app), isLocked(app), isFoldable(app), open);
   return el;
 }
 
@@ -1008,13 +1041,13 @@ function buildFolderIcon(folder) {
   const open = () => openFolder(folder.id);
   el.oncontextmenu = (e) => { e.preventDefault(); showFolderContextMenu(e, folder.id); };
 
-  wireIconInteraction(el, "folder:" + folder.id, false, open);
+  wireIconInteraction(el, "folder:" + folder.id, false, true, open);
   return el;
 }
 
 // Wires a desktop icon's click/tap-to-open + drag-to-move/drop-into-folder
 // behavior in one place, so a drag never also triggers an open.
-function wireIconInteraction(el, key, locked, open) {
+function wireIconInteraction(el, key, locked, foldable, open) {
   let lastClickTime = 0;
   const onSimpleClick = () => {
     selectIcon(el);
@@ -1028,7 +1061,7 @@ function wireIconInteraction(el, key, locked, open) {
       lastClickTime = now;
     }
   };
-  attachDrag(el, key, locked, onSimpleClick);
+  attachDrag(el, key, locked, foldable, onSimpleClick);
 }
 
 function selectIcon(el) {
@@ -1037,7 +1070,7 @@ function selectIcon(el) {
 }
 
 // ===================== MANUAL DRAG (reposition + drop-into-folder) =====================
-function attachDrag(el, key, locked, onSimpleClick) {
+function attachDrag(el, key, locked, foldable, onSimpleClick) {
   let dragging = false;
   let startX, startY, startLeft, startTop, pressTime;
 
@@ -1049,7 +1082,6 @@ function attachDrag(el, key, locked, onSimpleClick) {
     dragging = false;
 
     function onMove(ev) {
-      if (locked) return; // locked items don't reposition, but still track press for click
       const dx = ev.clientX - startX, dy = ev.clientY - startY;
       if (!dragging && Math.hypot(dx, dy) > 4) {
         dragging = true;
@@ -1060,10 +1092,12 @@ function attachDrag(el, key, locked, onSimpleClick) {
       el.style.left = Math.max(0, startLeft + dx) + "px";
       el.style.top = Math.max(0, startTop + dy) + "px";
 
-      // highlight folder under cursor
+      // highlight folder under cursor (only if this item is allowed to be foldered)
       document.querySelectorAll(".icon").forEach(i => { if (i !== el) i.classList.remove("selected"); });
-      const under = elementUnderIcon(el, ev);
-      if (under && under.dataset.folderId) under.classList.add("selected");
+      if (foldable) {
+        const under = elementUnderIcon(el, ev);
+        if (under && under.dataset.folderId) under.classList.add("selected");
+      }
     }
 
     function onUp(ev) {
@@ -1080,11 +1114,13 @@ function attachDrag(el, key, locked, onSimpleClick) {
       }
 
       el.classList.remove("dragging");
-      const under = elementUnderIcon(el, ev);
-      if (under && under.dataset.folderId && under !== el) {
-        moveItemIntoFolder(key, under.dataset.folderId);
-        renderIcons();
-        return;
+      if (foldable) {
+        const under = elementUnderIcon(el, ev);
+        if (under && under.dataset.folderId && under !== el) {
+          moveItemIntoFolder(key, under.dataset.folderId);
+          renderIcons();
+          return;
+        }
       }
 
       // otherwise, reposition on desktop
@@ -1113,7 +1149,6 @@ function attachDrag(el, key, locked, onSimpleClick) {
     dragging = false;
   }, { passive: true });
   el.addEventListener("touchmove", (e) => {
-    if (locked) return;
     const touch = e.touches[0];
     const dx = touch.clientX - startX, dy = touch.clientY - startY;
     if (!dragging && Math.hypot(dx, dy) > 8) {
@@ -1134,6 +1169,17 @@ function attachDrag(el, key, locked, onSimpleClick) {
       return;
     }
     el.classList.remove("dragging");
+
+    if (foldable) {
+      const under = elementUnderIcon(el, e);
+      if (under && under.dataset.folderId && under !== el) {
+        moveItemIntoFolder(key, under.dataset.folderId);
+        renderIcons();
+        dragging = false;
+        return;
+      }
+    }
+
     let x = el.offsetLeft, y = el.offsetTop;
     if (getSettings().snapMode === "snap") {
       const cell = cellPx();
@@ -1687,12 +1733,19 @@ function loadAppContent(id, app) {
       return r.text();
     })
     .then(text => {
-      const blob = new Blob([text], { type: "text/html" });
-      const blobUrl = URL.createObjectURL(blob);
       const iframe = document.createElement("iframe");
-      iframe.src = blobUrl;
+      // start on a blank, same-origin document so document.write() below
+      // runs in a normal (non-CSP-sandboxed) context — GitHub's raw file
+      // responses carry a "CSP: sandbox" header that blocks scripts when
+      // the raw HTML is loaded via a blob: URL, so we write the fetched
+      // text directly into the iframe's own document instead.
+      iframe.src = "about:blank";
       body.innerHTML = "";
       body.appendChild(iframe);
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.open();
+      doc.write(text);
+      doc.close();
     })
     .catch(() => {
       body.innerHTML = `<div class="win-loading" style="color:var(--danger)">Failed to load ${escapeHtml(app.name)}</div>`;
@@ -1743,8 +1796,6 @@ function toggleMaximize(id) {
 
 function closeWindow(id) {
   const win = document.getElementById(id);
-  const iframe = win.querySelector("iframe");
-  if (iframe && iframe.src.startsWith("blob:")) URL.revokeObjectURL(iframe.src);
   win.remove();
   const info = openWindows.get(id);
   if (info) info.taskEl.remove();
