@@ -97,6 +97,9 @@
       radial-gradient(circle at 15% 15%, rgba(34,197,94,0.10), transparent 45%),
       radial-gradient(circle at 85% 80%, rgba(16,185,129,0.08), transparent 45%),
       var(--bg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     overflow: hidden;
   }
 
@@ -505,6 +508,15 @@
     font-family: var(--font);
   }
   .settings-wrap h2 { font-size: 18px; font-weight: 700; margin-bottom: 18px; }
+  .settings-section-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin: 22px 0 4px;
+  }
+  .settings-section-title:first-of-type { margin-top: 4px; }
   .settings-row {
     display: flex;
     align-items: center;
@@ -546,6 +558,147 @@
     outline: none;
     flex-shrink: 0;
   }
+  .settings-input {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 8px 10px;
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 12.5px;
+    outline: none;
+    flex-shrink: 0;
+    width: 200px;
+  }
+  .settings-input:focus { border-color: var(--accent); }
+
+  /* background mode picker */
+  .bg-mode-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .bg-mode-btn {
+    flex: 1;
+    min-width: 76px;
+    padding: 9px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--fg-muted);
+    font-family: var(--font);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .bg-mode-btn:hover { border-color: var(--border-hover); color: var(--fg); }
+  .bg-mode-btn.active {
+    background: var(--accent-glow);
+    border-color: rgba(34,197,94,0.4);
+    color: var(--accent);
+  }
+  .bg-panel {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    display: none;
+  }
+  .bg-panel.show { display: block; }
+  .bg-color-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .bg-color-swatch-wrap {
+    position: relative;
+    width: 52px; height: 52px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    flex-shrink: 0;
+  }
+  .bg-color-swatch-wrap input[type="color"] {
+    position: absolute;
+    top: -8px; left: -8px;
+    width: 68px; height: 68px;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    background: none;
+  }
+  .bg-color-swatch-wrap input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  .bg-color-swatch-wrap input[type="color"]::-webkit-color-swatch { border: none; }
+  .bg-color-hex {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--fg-muted);
+    flex: 1;
+  }
+  .bg-color-presets {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .bg-color-preset {
+    width: 24px; height: 24px;
+    border-radius: 7px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    flex-shrink: 0;
+  }
+  .bg-color-preset:hover { border-color: var(--fg-muted); }
+  .bg-color-preset.active { border-color: var(--fg); }
+  .bg-upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    padding: 22px 14px;
+    text-align: center;
+    cursor: pointer;
+  }
+  .bg-upload-zone:hover { border-color: var(--border-hover); background: rgba(255,255,255,0.03); }
+  .bg-upload-zone .bg-upload-icon { font-size: 22px; margin-bottom: 6px; }
+  .bg-upload-zone .bg-upload-text { font-size: 12.5px; color: var(--fg-muted); }
+  .bg-upload-zone .bg-upload-sub { font-size: 10.5px; color: var(--fg-dim); margin-top: 3px; }
+  .bg-preview {
+    margin-top: 12px;
+    width: 100%;
+    height: 90px;
+    border-radius: 8px;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid var(--border);
+    display: none;
+  }
+  .bg-preview.show { display: block; }
+  .bg-link-row { display: flex; gap: 8px; }
+  .bg-link-row input { flex: 1; }
+  .bg-apply-btn {
+    margin-top: 4px;
+    padding: 8px 14px;
+    border-radius: 7px;
+    border: 1px solid rgba(34,197,94,0.4);
+    background: var(--accent-glow);
+    color: var(--accent);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .bg-apply-btn:hover { background: rgba(34,197,94,0.25); }
+  .bg-error {
+    font-size: 11px;
+    color: var(--danger);
+    margin-top: 6px;
+    display: none;
+  }
+  .bg-error.show { display: block; }
+
   .store-wrap {
     height: 100%;
     display: flex;
@@ -755,7 +908,7 @@
 <!-- BOOT SCREEN -->
 <div id="boot">
   <div class="boot-logo">V</div>
-  <div class="boot-title">VUS-OS</div>
+  <div class="boot-title" id="bootTitle">VUS-OS</div>
   <div class="boot-bar-track"><div class="boot-bar-fill" id="bootFill"></div></div>
 </div>
 
@@ -781,7 +934,7 @@
 <div id="taskbar">
   <button id="start-btn">
     <span class="mark">V</span>
-    Start
+    <span id="startBtnLabel">Start</span>
   </button>
   <div id="taskbar-sep"></div>
   <div id="system-tiles"></div>
@@ -796,6 +949,62 @@
 <script>
 // ===================== CONFIG =====================
 const APPS_JSON_URL = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
+
+// ===================== SITE NAME (localStorage) =====================
+const SITE_NAME_KEY = "vusos_site_name";
+const DEFAULT_SITE_NAME = "VUS-OS";
+function getSiteName() {
+  return localStorage.getItem(SITE_NAME_KEY) || DEFAULT_SITE_NAME;
+}
+function setSiteName(name) {
+  const clean = (name || "").trim();
+  const final = clean || DEFAULT_SITE_NAME;
+  localStorage.setItem(SITE_NAME_KEY, final);
+  applySiteName();
+}
+function applySiteName() {
+  const name = getSiteName();
+  document.title = name;
+  const bootTitle = document.getElementById("bootTitle");
+  if (bootTitle) bootTitle.textContent = name;
+}
+applySiteName();
+
+// ===================== BACKGROUND (localStorage) =====================
+// { mode: "default" | "color" | "image" | "link", color, image (dataURL), link }
+const BG_KEY = "vusos_background";
+function getBackground() {
+  try { return Object.assign({ mode: "default", color: "#0a0e1a", image: "", link: "" }, JSON.parse(localStorage.getItem(BG_KEY))); }
+  catch { return { mode: "default", color: "#0a0e1a", image: "", link: "" }; }
+}
+function setBackground(patch) {
+  const bg = Object.assign(getBackground(), patch);
+  try {
+    localStorage.setItem(BG_KEY, JSON.stringify(bg));
+  } catch (e) {
+    // likely quota exceeded from a large image — surface via alert as a fallback
+    alert("Could not save background — the image may be too large for storage.");
+    return;
+  }
+  applyBackground();
+}
+function applyBackground() {
+  const bg = getBackground();
+  const desktopEl = document.getElementById("desktop");
+  const defaultGradient =
+    "radial-gradient(circle at 15% 15%, rgba(34,197,94,0.10), transparent 45%), " +
+    "radial-gradient(circle at 85% 80%, rgba(16,185,129,0.08), transparent 45%)";
+  if (bg.mode === "color" && bg.color) {
+    desktopEl.style.background = bg.color;
+  } else if (bg.mode === "image" && bg.image) {
+    desktopEl.style.background = `url("${bg.image}") center / cover no-repeat, var(--bg)`;
+  } else if (bg.mode === "link" && bg.link) {
+    desktopEl.style.background = `url("${bg.link}") center / cover no-repeat, var(--bg)`;
+  } else {
+    desktopEl.style.background = `${defaultGradient}, var(--bg)`;
+  }
+}
+applyBackground();
 
 // ===================== BOOT SEQUENCE =====================
 window.addEventListener("load", () => {
@@ -2206,9 +2415,22 @@ function renderSettingsBody(id) {
   const win = document.getElementById(id);
   const body = win.querySelector(".win-body");
   const s = getSettings();
+  const bg = getBackground();
+  const BG_PRESETS = ["#0a0e1a", "#111827", "#1e293b", "#0f172a", "#164e63", "#134e2e", "#3b0764", "#7c2d12", "#701a1a", "#0c0a09"];
+
   body.innerHTML = `
     <div class="settings-wrap">
       <h2>Settings</h2>
+
+      <div class="settings-section-title">General</div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Site name</div>
+          <div class="settings-row-desc">Shown in the boot screen and browser tab title. Saved across refreshes.</div>
+        </div>
+        <input type="text" class="settings-input" id="setSiteName" value="${escapeHtml(getSiteName())}" maxlength="40" placeholder="VUS-OS">
+      </div>
 
       <div class="settings-row">
         <div>
@@ -2243,11 +2465,183 @@ function renderSettingsBody(id) {
           <option value="large" ${getIconSize() === "large" ? "selected" : ""}>Large</option>
         </select>
       </div>
+
+      <div class="settings-section-title">Background</div>
+      <div class="settings-row" style="border-bottom:none; flex-direction:column; align-items:stretch;">
+        <div class="bg-mode-row" id="bgModeRow">
+          <button class="bg-mode-btn" data-mode="default">Default</button>
+          <button class="bg-mode-btn" data-mode="color">Solid color</button>
+          <button class="bg-mode-btn" data-mode="image">Upload image</button>
+          <button class="bg-mode-btn" data-mode="link">Image link</button>
+        </div>
+
+        <div class="bg-panel" data-panel="default">
+          <div style="font-size:12px;color:var(--fg-dim);">The default VUS-OS gradient background.</div>
+        </div>
+
+        <div class="bg-panel" data-panel="color">
+          <div class="bg-color-row">
+            <div class="bg-color-swatch-wrap">
+              <input type="color" id="bgColorPicker" value="${escapeHtml(bg.color || '#0a0e1a')}">
+            </div>
+            <div class="bg-color-hex" id="bgColorHex">${escapeHtml((bg.color || '#0a0e1a').toUpperCase())}</div>
+          </div>
+          <div class="bg-color-presets" id="bgColorPresets">
+            ${BG_PRESETS.map(c => `<div class="bg-color-preset" data-color="${c}" style="background:${c};"></div>`).join("")}
+          </div>
+        </div>
+
+        <div class="bg-panel" data-panel="image">
+          <div class="bg-upload-zone" id="bgUploadZone">
+            <div class="bg-upload-icon">🖼️</div>
+            <div class="bg-upload-text">Click to choose an image</div>
+            <div class="bg-upload-sub">Stored locally in your browser</div>
+          </div>
+          <input type="file" id="bgFileInput" accept="image/*" style="display:none;">
+          <div class="bg-preview" id="bgImagePreview"></div>
+          <div class="bg-error" id="bgImageError">Image too large — try a smaller file.</div>
+        </div>
+
+        <div class="bg-panel" data-panel="link">
+          <div class="bg-link-row">
+            <input type="text" class="settings-input" id="bgLinkInput" placeholder="https://example.com/image.jpg" style="width:100%;" value="${escapeHtml(bg.link || '')}">
+          </div>
+          <button class="bg-apply-btn" id="bgLinkApply">Apply</button>
+          <div class="bg-preview" id="bgLinkPreview"></div>
+          <div class="bg-error" id="bgLinkError">Couldn't load that image — check the link.</div>
+        </div>
+      </div>
     </div>
   `;
+
+  // ---- general settings wiring ----
+  body.querySelector("#setSiteName").addEventListener("change", (e) => setSiteName(e.target.value));
+  body.querySelector("#setSiteName").addEventListener("blur", (e) => setSiteName(e.target.value));
   body.querySelector("#setClickMode").onchange = (e) => setSetting("clickMode", e.target.value);
   body.querySelector("#setSnapMode").onchange = (e) => setSetting("snapMode", e.target.value);
   body.querySelector("#setIconSize").onchange = (e) => setIconSize(e.target.value);
+
+  // ---- background settings wiring ----
+  const modeBtns = body.querySelectorAll(".bg-mode-btn");
+  const panels = body.querySelectorAll(".bg-panel");
+
+  function setActiveMode(mode) {
+    modeBtns.forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+    panels.forEach(p => p.classList.toggle("show", p.dataset.panel === mode));
+  }
+  setActiveMode(bg.mode || "default");
+
+  modeBtns.forEach(btn => {
+    btn.onclick = () => {
+      const mode = btn.dataset.mode;
+      setActiveMode(mode);
+      // switching mode only takes visual effect once the mode actually has
+      // usable data; "default" and "color" apply immediately since color
+      // always has a value, image/link only apply once something is chosen
+      if (mode === "default") {
+        setBackground({ mode: "default" });
+      } else if (mode === "color") {
+        setBackground({ mode: "color" });
+      } else if (mode === "image" && bg.image) {
+        setBackground({ mode: "image" });
+      } else if (mode === "link" && bg.link) {
+        setBackground({ mode: "link" });
+      }
+    };
+  });
+
+  // solid color
+  const colorPicker = body.querySelector("#bgColorPicker");
+  const colorHex = body.querySelector("#bgColorHex");
+  const presetsWrap = body.querySelector("#bgColorPresets");
+  function refreshPresetActive(hex) {
+    presetsWrap.querySelectorAll(".bg-color-preset").forEach(p => {
+      p.classList.toggle("active", p.dataset.color.toLowerCase() === hex.toLowerCase());
+    });
+  }
+  refreshPresetActive(colorPicker.value);
+  colorPicker.addEventListener("input", () => {
+    const hex = colorPicker.value;
+    colorHex.textContent = hex.toUpperCase();
+    refreshPresetActive(hex);
+    setBackground({ mode: "color", color: hex });
+    setActiveMode("color");
+  });
+  presetsWrap.querySelectorAll(".bg-color-preset").forEach(p => {
+    p.onclick = () => {
+      const hex = p.dataset.color;
+      colorPicker.value = hex;
+      colorHex.textContent = hex.toUpperCase();
+      refreshPresetActive(hex);
+      setBackground({ mode: "color", color: hex });
+      setActiveMode("color");
+    };
+  });
+
+  // image upload
+  const uploadZone = body.querySelector("#bgUploadZone");
+  const fileInput = body.querySelector("#bgFileInput");
+  const imagePreview = body.querySelector("#bgImagePreview");
+  const imageError = body.querySelector("#bgImageError");
+  if (bg.image) {
+    imagePreview.style.backgroundImage = `url("${bg.image}")`;
+    imagePreview.classList.add("show");
+  }
+  uploadZone.onclick = () => fileInput.click();
+  fileInput.onchange = () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    imageError.classList.remove("show");
+    // ~4MB raw file cap keeps the base64 data URL comfortably under
+    // localStorage's typical 5MB-per-origin quota
+    if (file.size > 4 * 1024 * 1024) {
+      imageError.textContent = "Image too large — please use a file under 4MB.";
+      imageError.classList.add("show");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      imagePreview.style.backgroundImage = `url("${dataUrl}")`;
+      imagePreview.classList.add("show");
+      setBackground({ mode: "image", image: dataUrl });
+      setActiveMode("image");
+    };
+    reader.onerror = () => {
+      imageError.textContent = "Couldn't read that file — try another image.";
+      imageError.classList.add("show");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // image link
+  const linkInput = body.querySelector("#bgLinkInput");
+  const linkApply = body.querySelector("#bgLinkApply");
+  const linkPreview = body.querySelector("#bgLinkPreview");
+  const linkError = body.querySelector("#bgLinkError");
+  if (bg.link) {
+    linkPreview.style.backgroundImage = `url("${bg.link}")`;
+    linkPreview.classList.add("show");
+  }
+  function applyLink() {
+    const url = linkInput.value.trim();
+    linkError.classList.remove("show");
+    if (!url) return;
+    // validate the image actually loads before committing it as the background
+    const testImg = new Image();
+    testImg.onload = () => {
+      linkPreview.style.backgroundImage = `url("${url}")`;
+      linkPreview.classList.add("show");
+      setBackground({ mode: "link", link: url });
+      setActiveMode("link");
+    };
+    testImg.onerror = () => {
+      linkError.classList.add("show");
+    };
+    testImg.src = url;
+  }
+  linkApply.onclick = applyLink;
+  linkInput.addEventListener("keydown", (e) => { if (e.key === "Enter") applyLink(); });
 }
 
 function createWindow(id, app, isStore) {
