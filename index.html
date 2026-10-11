@@ -21,7 +21,8 @@ input,select,button{font-family:var(--font)}
 #bootTitle{font-size:15px;color:#bbb}
 
 #desktop{position:fixed;inset:0 0 var(--tb) 0;overflow:hidden}
-#icons{position:absolute;inset:0;padding:8px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(auto-fill,var(--rh,92px));grid-auto-columns:var(--cw,80px);gap:2px;align-content:start;justify-content:start}
+#icons{position:absolute;inset:0;touch-action:none}
+#icons .icon{position:absolute;width:calc(var(--cw,80px) - 4px);touch-action:none}
 .icon{display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 2px;border:1px solid transparent;cursor:default;text-align:center}
 .icon:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.15)}
 .icon.sel{background:color-mix(in srgb,var(--ac) 40%,transparent);border-color:var(--ac)}
@@ -116,7 +117,32 @@ input,select,button{font-family:var(--font)}
 .sws{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.sw{width:28px;height:28px;border:2px solid transparent;cursor:default}.sw.on{border-color:#fff}
 .fxw{height:100%;display:flex;flex-direction:column;background:var(--el)}
 .fxt{padding:6px;background:#2b2b2b;align-items:center}.fxp{font-size:12px;color:var(--mute);margin-left:8px}
-.fx{flex:1;overflow:auto;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,var(--cw,80px));grid-auto-rows:var(--rh,92px);gap:2px;align-content:start}
+.fx{flex:1;overflow:auto;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,var(--cw,80px));grid-auto-rows:var(--rh,92px);gap:2px;align-content:start;position:relative}
+.fx{position:relative}
+.marq{position:absolute;border:1px solid var(--ac);background:color-mix(in srgb,var(--ac) 30%,transparent);pointer-events:none;z-index:5}
+.icon.dragging{pointer-events:none;opacity:.65;z-index:5}
+.rn{width:100%;font:inherit;font-size:12px;background:#fff;color:#000;border:1px solid var(--ac);padding:1px 2px;text-align:center;outline:none;user-select:text}
+.fxb{flex:1;display:flex;min-height:0}
+.fxs{width:150px;flex-shrink:0;border-right:1px solid var(--bd);padding:6px 0}
+.fxs div{display:flex;gap:8px;align-items:center;padding:8px 14px;font-size:13px;cursor:default;border-left:3px solid transparent}
+.fxs div:hover{background:rgba(255,255,255,.08)}.fxs div.on{background:rgba(255,255,255,.1);border-left-color:var(--ac)}
+.fxs b{margin-left:auto;font-weight:400;font-size:11px;color:var(--mute)}
+.fxe{grid-column:1/-1;color:var(--dim);font-size:13px;padding:20px}
+.fxa{margin-left:auto;display:flex;gap:6px}
+#pins{display:flex;flex-shrink:0}
+.pin{width:48px;display:flex;align-items:center;justify-content:center;cursor:default;border-bottom:2px solid transparent;flex-shrink:0}
+.pin:hover{background:rgba(255,255,255,.14)}.pin.run{border-bottom-color:var(--ac2)}.pin.active{background:rgba(255,255,255,.2)}
+.dt{padding:18px 22px;overflow:auto;height:100%;background:var(--el)}
+.dt h2{display:flex;gap:12px;align-items:center;font-size:16px;font-weight:600;margin-bottom:14px;word-break:break-all}
+.dt table{width:100%;border-collapse:collapse;font-size:13px}
+.dt th{text-align:left;color:var(--mute);font-weight:400;padding:6px 12px 6px 0;width:130px;vertical-align:top}
+.dt td{padding:6px 0;word-break:break-all;user-select:text}.dt tr+tr>*{border-top:1px solid var(--bd)}.dt p{font-size:12px;color:var(--mute);margin-top:10px}
+.fx.list{display:block;padding:0}
+.fxh,.icon.row{display:grid;grid-template-columns:28px minmax(120px,1fr) 150px 180px 80px;gap:10px;align-items:center;padding:0 12px}
+.fxh{height:28px;font-size:11px;color:var(--mute);border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--el);z-index:2}
+.icon.row{height:30px;text-align:left}
+.icon.row .lbl{display:block;text-align:left;text-shadow:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.icon.row span{font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st-rail{width:48px;display:flex;flex-direction:column;justify-content:flex-end;background:rgba(0,0,0,.3);flex-shrink:0}
 .st-rail div{height:48px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:default}
 .st-rail div:hover{background:rgba(255,255,255,.14)}
@@ -136,6 +162,42 @@ input,select,button{font-family:var(--font)}
 #ctx div{padding:7px 28px 7px 14px;font-size:12.5px;cursor:default}
 #ctx div:hover{background:rgba(255,255,255,.1)}
 ::-webkit-scrollbar{width:12px;height:12px}::-webkit-scrollbar-thumb{background:#555}::-webkit-scrollbar-track{background:#2b2b2b}
+
+[data-theme=light]{--bg:#f3f3f3;--el:#fff;--card:#f0f0f0;--hover:#e6e6e6;--bd:#d4d4d4;--fg:#111;--mute:#555;--dim:#777}
+[data-theme=light] .win{border-color:#c8c8c8;box-shadow:0 8px 28px rgba(0,0,0,.25)}
+[data-theme=light] .bar{background:#f0f0f0}[data-theme=light] .win.focus .bar{background:#fff}
+[data-theme=light] .bar button{color:#111}[data-theme=light] .bar button:hover{background:rgba(0,0,0,.08)}[data-theme=light] .bar button.x:hover{background:var(--danger);color:#fff}
+[data-theme=light] #taskbar{background:rgba(236,236,236,.95)}
+[data-theme=light] #startBtn .win-logo i{background:#111}
+[data-theme=light] #searchBtn{background:#fff;border-color:#bbb;color:#555}
+[data-theme=light] #startBtn:hover,[data-theme=light] #startBtn.on,[data-theme=light] .sys:hover,[data-theme=light] .pin:hover,[data-theme=light] .task:hover,[data-theme=light] #showdesk:hover{background:rgba(0,0,0,.08)}
+[data-theme=light] .task{background:rgba(0,0,0,.05)}[data-theme=light] .task.active,[data-theme=light] .pin.active{background:rgba(0,0,0,.15)}
+[data-theme=light] #showdesk{border-left-color:#aaa}
+[data-theme=light] #start{background:rgba(246,246,246,.98);border-color:#c8c8c8}
+[data-theme=light] .st-l{border-right-color:#ddd}
+[data-theme=light] .st-l input{background:#fff;border-color:#bbb;color:#111}
+[data-theme=light] .st-rail{background:rgba(0,0,0,.05)}
+[data-theme=light] .st-rail div:hover,[data-theme=light] .item:hover,[data-theme=light] .fxs div:hover,[data-theme=light] .stn div:hover{background:rgba(0,0,0,.07)}
+[data-theme=light] .st-r h3{color:#333}
+[data-theme=light] #ctx{background:#fff;border-color:#c8c8c8;color:#111}[data-theme=light] #ctx div:hover{background:rgba(0,0,0,.07)}
+[data-theme=light] .dlgb{background:#fff;color:#111}
+[data-theme=light] .dlgf button{background:#e6e6e6;border-color:#bbb;color:#111}[data-theme=light] .dlgf button:hover{background:#d8d8d8}
+[data-theme=light] .dlgf button.danger{background:#a4262c;border-color:#a4262c;color:#fff}
+[data-theme=light] .pad input,[data-theme=light] .pad select,[data-theme=light] .stc input,[data-theme=light] .stc select{background:#fff;border-color:#999;color:#111}
+[data-theme=light] .tabs button,[data-theme=light] .card button,[data-theme=light] .item button,[data-theme=light] .stc button{background:#e6e6e6;border-color:#bbb;color:#111}
+[data-theme=light] .tabs button:hover,[data-theme=light] .card button:hover,[data-theme=light] .item button:hover,[data-theme=light] .stc button:hover{background:#d8d8d8}
+[data-theme=light] .tabs button.on,[data-theme=light] .card button.on,[data-theme=light] .item button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+[data-theme=light] .stn div.on,[data-theme=light] .fxs div.on{background:rgba(0,0,0,.07)}
+[data-theme=light] .fxt,[data-theme=light] .vt{background:#f0f0f0}
+[data-theme=light] .sbar{background:#ddd}[data-theme=light] .sw.on{border-color:#111}
+[data-theme=light] ::-webkit-scrollbar-thumb{background:#bbb}[data-theme=light] ::-webkit-scrollbar-track{background:#eee}
+.tm{display:flex;flex-direction:column;height:100%;background:var(--el)}
+.tmt,.tmf{padding:6px;background:var(--card)}.tmf{border-top:1px solid var(--bd);display:flex;justify-content:flex-end;gap:8px}
+.tmb{flex:1;overflow:auto;padding:12px 16px}.tmb h3{font-size:14px;font-weight:600;margin:14px 0 6px}.tmb h3:first-child{margin-top:0}.tmb p{font-size:12px;color:var(--mute);margin-top:6px}
+.tmtable{width:100%;border-collapse:collapse;font-size:13px}
+.tmtable th{text-align:left;color:var(--mute);font-weight:400;padding:6px 8px;border-bottom:1px solid var(--bd)}
+.tmtable td{padding:7px 8px}.tmtable tr:hover td{background:rgba(128,128,128,.12)}.tmtable tr.on td{background:color-mix(in srgb,var(--ac) 35%,transparent)}
+.tmb .sbar{height:10px;background:rgba(128,128,128,.3)}.tmb .sbar i{display:block;height:100%;background:var(--ac)}
 </style>
 </head>
 <body>
@@ -144,11 +206,13 @@ input,select,button{font-family:var(--font)}
 <div id="start"><div class="st-rail"></div><div class="st-l"><input id="startQ" placeholder="Type here to search" autocomplete="off"><div id="startList"></div></div><div class="st-r"><h3>Apps</h3><div id="tiles"></div></div></div>
 <div id="ctx"></div>
 <input type="file" id="up" multiple hidden>
+<input type="file" id="upd" webkitdirectory multiple hidden>
+<input type="file" id="upz" accept=".zip,application/zip" hidden>
 <div id="taskbar">
   <button id="startBtn" title="Start"><span class="win-logo"><i></i><i></i><i></i><i></i></span></button>
   <div id="searchBtn">🔍&nbsp; Type here to search</div>
   <div id="sys"></div>
-  <div id="tasks"></div>
+  <div id="pins"></div><div id="tasks"></div>
   <div id="clock"><div id="ck1"></div><div id="ck2"></div></div>
   <div id="showdesk" title="Show desktop"></div>
 </div>
@@ -202,9 +266,10 @@ function toggleInstall(a) {
 const refreshers = new Set(); // open File Explorer windows redraw through this
 function renderIcons() {
   const box = $("#icons"); box.innerHTML = "";
-  installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean)
-    .forEach(a => box.appendChild(iconEl(a, a.name, () => openApp(a), [["Remove from desktop", () => toggleInstall(a)]])));
+  installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).forEach(a => box.appendChild(iconEl(a, a.name, () => openApp(a),
+    [...appMenu(a), ["Remove from desktop", () => toggleInstall(a)]], { kind: "app", id: key(a), del: () => toggleInstall(a) })));
   fillDir(box, null, id => openApp(folderApp(id)));
+  layoutDesktop([...box.children]);
   refreshers.forEach(fn => fn());
 }
 
@@ -213,20 +278,28 @@ function ctx(e, items) {
   const m = $("#ctx");
   m.innerHTML = "";
   items.forEach(([label, fn]) => { const d = document.createElement("div"); d.textContent = label; d.onclick = ev => { ev.stopPropagation(); m.style.display = "none"; fn(e); }; m.appendChild(d); });
-  m.style.left = Math.min(e.clientX, innerWidth - 200) + "px";
-  m.style.top = Math.min(e.clientY, innerHeight - 80) + "px";
-  m.style.display = "block";
+  m.style.display = "block"; // measure first so the menu always stays fully on screen
+  m.style.left = Math.max(4, Math.min(e.clientX, innerWidth - m.offsetWidth - 4)) + "px";
+  m.style.top = Math.max(4, Math.min(e.clientY, innerHeight - m.offsetHeight - 4)) + "px";
 }
 document.addEventListener("click", () => $("#ctx").style.display = "none");
-$("#desktop").addEventListener("click", e => { if (!e.target.closest(".icon")) document.querySelectorAll(".icon.sel").forEach(i => i.classList.remove("sel")); });
-const newMenu = dir => [["New folder", () => newFolder(dir)], ["New text document", () => newFile("txt", dir)], ["New HTML document", () => newFile("html", dir)], ["New JSON file", () => newFile("json", dir)], ["Upload files...", () => pickUpload(dir)], ["Refresh", renderIcons]];
+$("#desktop").addEventListener("click", e => { if (marqMoved) { marqMoved = false; return; } if (!e.target.closest(".icon,.win")) clearSel(); }); // clicks inside windows keep the selection
+document.addEventListener("keydown", e => {
+  if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable) return;
+  const sel = selIcons();
+  if (e.key === "Delete" && sel.length) deleteSel(sel);
+  else if (e.key === "F2" && sel.length === 1 && sel[0].dataset.kind !== "app") inlineRename(sel[0], sel[0].dataset.kind, sel[0].dataset.id);
+});
+const newMenu = (dir, box) => [["New folder", () => newFolder(dir, box)], ["New text document", () => newFile("txt", dir, box)], ["Upload files...", () => pickUpload(dir, false)], ["Refresh", renderIcons]];
 let upDir = null;
-const pickUpload = dir => { upDir = dir; $("#up").click(); };
-$("#desktop").addEventListener("contextmenu", e => { if (e.target.closest(".icon,.win")) return; e.preventDefault(); ctx(e, newMenu(null)); });
+const pickUpload = (dir, mode) => { upDir = dir; $(mode === "zip" ? "#upz" : mode ? "#upd" : "#up").click(); };
+$("#desktop").addEventListener("contextmenu", e => { if (e.target.closest(".icon,.win")) return; e.preventDefault(); ctx(e, newMenu(null, $("#icons"))); });
 $("#up").onchange = e => { addFiles(e.target.files, upDir); e.target.value = ""; };
+$("#upd").onchange = e => { addFiles(e.target.files, upDir, true); e.target.value = ""; };
+$("#upz").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (f) await importZip(f, upDir); };
 $("#desktop").addEventListener("dragover", e => e.preventDefault());
 $("#desktop").addEventListener("drop", e => { e.preventDefault(); addFiles(e.dataTransfer.files, null); });
-$("#showdesk").onclick = () => wins.forEach(w => { w.el.classList.add("min"); w.task.classList.remove("active"); });
+$("#showdesk").onclick = () => { wins.forEach(w => { w.el.classList.add("min"); w.task.classList.remove("active"); }); renderPins(); };
 
 // ===================== WINDOWS =====================
 let z = 10, n = 0;
@@ -241,7 +314,7 @@ function openApp(app) {
   const id = "w" + (++n), el = document.createElement("div");
   const o = (n % 8) * 26;
   el.className = "win"; el.id = id;
-  Object.assign(el.style, { width: Math.min(760, innerWidth - 40) + "px", height: Math.min(520, innerHeight - 120) + "px", left: 20 + o + "px", top: 20 + o + "px" });
+  Object.assign(el.style, { width: Math.min(app.w || 760, innerWidth - 40) + "px", height: Math.min(app.h || 520, innerHeight - 120) + "px", left: 20 + o + "px", top: 20 + o + "px" });
   el.innerHTML = `<div class="bar">${glyph(app, 16)}<div class="wt">${esc(app.name)}</div><button data-a="min">—</button><button data-a="max">☐</button><button data-a="x" class="x">✕</button></div><div class="body"><div class="load">Loading ${esc(app.name)}...</div></div><div class="rs"></div>`;
   $("#desktop").appendChild(el);
 
@@ -249,13 +322,14 @@ function openApp(app) {
   task.className = "task";
   task.innerHTML = glyph(app, 20) + `<span>${esc(app.name)}</span>`;
   task.onclick = () => toggle(id);
+  task.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [...(catalog.includes(app) ? [[pinnedKeys().includes(key(app)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(app)]] : []), ["Close window", () => closeWin(id)]]); };
   $("#tasks").appendChild(task);
   wins.set(id, { id, app, el, task });
 
   const bar = el.querySelector(".bar");
   bar.onclick = e => {
     const a = e.target.dataset.a;
-    if (a === "min") { el.classList.add("min"); task.classList.remove("active"); }
+    if (a === "min") { el.classList.add("min"); task.classList.remove("active"); renderPins(); }
     if (a === "max") el.classList.toggle("max");
     if (a === "x") closeWin(id);
   };
@@ -292,6 +366,25 @@ function openApp(app) {
   load(app, el.querySelector(".body"), el);
 }
 
+// ===================== START PINS + TASKBAR PINS =====================
+const startKeys = () => { let l = LS("startPins", null); if (!l) { l = installed(); save("startPins", l); } return l; };
+const pinnedKeys = () => LS("pinned", []);
+function toggleStartPin(a) { const k = key(a), l = startKeys(); save("startPins", l.includes(k) ? l.filter(x => x !== k) : [...l, k]); if ($("#start").classList.contains("open")) drawStart(); }
+function togglePin(a) { const k = key(a), l = pinnedKeys(); save("pinned", l.includes(k) ? l.filter(x => x !== k) : [...l, k]); renderPins(); }
+const appMenu = a => [[startKeys().includes(key(a)) ? "Remove from Start" : "Add to Start", () => toggleStartPin(a)], [pinnedKeys().includes(key(a)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(a)], ["Details", () => openApp(detailsApp("app", key(a), a, a.name))]];
+function renderPins() {
+  const box = $("#pins"), pk = pinnedKeys(); box.innerHTML = "";
+  pk.map(k => catalog.find(a => key(a) === k)).filter(Boolean).forEach(a => {
+    const ws = [...wins.values()].filter(w => w.app === a), b = document.createElement("div");
+    b.className = "pin" + (ws.length ? " run" : "") + (ws.some(w => w.el.classList.contains("focus") && !w.el.classList.contains("min")) ? " active" : "");
+    b.title = a.name; b.innerHTML = glyph(a, 24);
+    b.onclick = () => ws.length ? toggle(ws[ws.length - 1].id) : openApp(a);
+    b.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [["Unpin from taskbar", () => togglePin(a)], ...(ws.length ? [["Close window", () => ws.forEach(w => closeWin(w.id))]] : [])]); };
+    box.appendChild(b);
+  });
+  wins.forEach(w => { w.task.style.display = pk.includes(key(w.app)) ? "none" : ""; }); // a pinned app's window lives on its pin
+}
+
 // Window snapping (off by default, turned on in Settings > System > Multitasking)
 function showSnap(z) {
   const s = $("#snap"); if (!z) { s.style.display = "none"; return; }
@@ -307,17 +400,19 @@ function snapWin(el, z) {
 function focus(id) {
   wins.forEach(w => { w.el.classList.toggle("focus", w.id === id); w.task.classList.toggle("active", w.id === id); });
   wins.get(id).el.style.zIndex = ++z;
+  renderPins();
 }
 function toggle(id) {
   const w = wins.get(id);
   if (w.el.classList.contains("min")) { w.el.classList.remove("min"); focus(id); }
-  else if (+w.el.style.zIndex === z) { w.el.classList.add("min"); w.task.classList.remove("active"); }
+  else if (+w.el.style.zIndex === z) { w.el.classList.add("min"); w.task.classList.remove("active"); renderPins(); }
   else focus(id);
 }
 function closeWin(id, force) {
   const w = wins.get(id); if (!w) return;
   if (!force && w.el.beforeClose && !w.el.beforeClose()) return;
   w.el.remove(); w.task.remove(); wins.delete(id);
+  renderPins();
 }
 
 // What a native app receives as its second argument.
@@ -443,7 +538,7 @@ function uniqueName(name, skipId, parent = null, list = fmeta()) {
   do { n = `${m[1]} (${i++})${m[2] || ""}`; } while (names.has(n.toLowerCase()));
   return n;
 }
-async function putFile(id, name, blob, parent) {
+async function putFile(id, name, blob, parent, saved) {
   const m = fmeta(), i = m.findIndex(f => f.id === id), old = i < 0 ? null : m[i];
   if (!bypassLimit && usage() + blob.size - (old ? old.size || 0 : 0) > limitBytes()) {
     const c = await winDialog(`Storage is full (${fmt(limitBytes())} limit).\n\nFree up space in Settings > System > Storage, or bypass the limit to save anyway. Bypassing can cause saves to fail or data to be lost if the browser runs out of space.`,
@@ -453,24 +548,61 @@ async function putFile(id, name, blob, parent) {
     bypassLimit = true; navigator.storage?.persist?.(); // bypass lasts until the page is reloaded
   }
   if (!(await dbSet(id, blob, "files"))) { alert("Couldn't save " + name + " (browser storage may be full)."); return false; }
-  const e = { id, name, size: blob.size, parent: parent !== undefined ? parent : old ? old.parent || null : null };
+  const e = { id, name, size: blob.size, parent: parent !== undefined ? parent : old ? old.parent || null : null, saved: saved !== undefined ? saved : old ? old.saved : false, mod: blob.lastModified || Date.now() };
   if (i < 0) m.push(e); else m[i] = e;
   save("files", m); renderIcons(); return true;
 }
-async function addFiles(list, parent = null) { list = Array.from(list); /* copy first: the input is cleared right after */ for (const f of list) await putFile(newId(), uniqueName(f.name, null, parent), f, parent); }
-function newFile(ext, parent = null) {
-  const name = prompt("File name (change the extension to make any file type):", uniqueName("New " + { txt: "Text Document", html: "HTML Document", json: "JSON File" }[ext] + "." + ext, null, parent));
-  if (name && name.trim()) putFile(newId(), uniqueName(name.trim(), null, parent), new Blob([""], { type: mimeOf(name) }), parent);
+function ensureFolders(parent, segs) { // folder structure for imported folders
+  let p = parent;
+  for (const sg of segs) {
+    let f = folders().find(x => sameDir(x, p) && x.name === sg);
+    if (!f) { f = { id: newId(), name: sg, parent: p, saved: false }; save("folders", [...folders(), f]); }
+    p = f.id;
+  }
+  return p;
 }
-function newFolder(parent = null) {
-  const n = prompt("Folder name:", uniqueName("New folder", null, parent, folders()));
-  if (n && n.trim()) { save("folders", [...folders(), { id: newId(), name: uniqueName(n.trim(), null, parent, folders()), parent }]); renderIcons(); }
+async function addFiles(list, parent = null, rel = false) {
+  list = Array.from(list); // copy first: the input is cleared right after
+  for (const f of list) {
+    let p = parent;
+    if (rel && f.webkitRelativePath) { const parts = f.webkitRelativePath.split("/"); parts.pop(); p = ensureFolders(parent, parts); }
+    await putFile(newId(), uniqueName(f.name, null, p), f, p);
+  }
 }
-function renameItem(kind, id) {
-  const key = kind === "folder" ? "folders" : "files", list = kind === "folder" ? folders() : fmeta(), it = list.find(x => x.id === id);
-  const n = prompt(kind === "folder" ? "Rename folder:" : "Rename (you can change the extension):", it.name);
-  if (!n || !n.trim() || n === it.name) return;
-  save(key, list.map(x => x.id === id ? { ...x, name: uniqueName(n.trim(), id, x.parent || null, list) } : x)); renderIcons();
+const findIcon = (box, kind, id) => (box || document).querySelector(`.icon[data-kind="${kind}"][data-id="${id}"]`);
+async function newFile(ext, parent = null, box = null) {
+  const id = newId();
+  if (await putFile(id, uniqueName("New Text Document." + ext, null, parent), new Blob([""], { type: mimeOf("x." + ext) }), parent)) inlineRename(findIcon(box, "file", id), "file", id);
+}
+function newFolder(parent = null, box = null) {
+  const id = newId();
+  save("folders", [...folders(), { id, name: uniqueName("New folder", null, parent, folders()), parent, saved: false }]); renderIcons();
+  inlineRename(findIcon(box, "folder", id), "folder", id);
+}
+function applyRename(kind, id, name) {
+  const k2 = kind === "folder" ? "folders" : "files", list = kind === "folder" ? folders() : fmeta();
+  save(k2, list.map(x => x.id === id ? { ...x, name: uniqueName(name, id, x.parent || null, list) } : x)); renderIcons();
+}
+// edit the name right under the icon, like Windows (Enter = ok, Esc = cancel)
+function inlineRename(el, kind, id) {
+  const it = (kind === "folder" ? folders() : fmeta()).find(x => x.id === id);
+  if (!el || !it) return;
+  const inp = document.createElement("input");
+  inp.className = "rn"; inp.value = it.name;
+  el.querySelector(".lbl").replaceWith(inp); inp.focus();
+  const dot = it.name.lastIndexOf("."); inp.setSelectionRange(0, kind === "file" && dot > 0 ? dot : it.name.length);
+  let done = false;
+  const finish = ok => { if (done) return; done = true; const n = inp.value.trim(); if (ok && n && n !== it.name) applyRename(kind, id, n); else renderIcons(); };
+  inp.onkeydown = e => { e.stopPropagation(); if (e.key === "Enter") finish(true); if (e.key === "Escape") finish(false); };
+  inp.onblur = () => finish(true);
+  inp.onpointerdown = inp.onclick = inp.ondblclick = e => e.stopPropagation();
+}
+function markSaved(kind, id) { // moves an item (and everything inside a folder) from Temporary to Saved
+  if (kind === "folder") {
+    const ids = [id, ...descendants(id)];
+    save("folders", folders().map(f => ids.includes(f.id) ? { ...f, saved: true } : f));
+    save("files", fmeta().map(f => ids.includes(f.parent) ? { ...f, saved: true } : f));
+  } else save("files", fmeta().map(f => f.id === id ? { ...f, saved: true } : f));
 }
 async function deleteFile(id) { await dbDel(id, "files"); save("files", fmeta().filter(f => f.id !== id)); renderIcons(); }
 async function deleteFolder(id) {
@@ -495,49 +627,182 @@ function dlBlob(name, blob) {
 }
 async function downloadFile(id) { const f = fmeta().find(x => x.id === id), b = await dbGet(id, "files"); if (b) dlBlob(f.name, b); }
 
-// one desktop/explorer icon with its click + right-click behaviour
-function iconEl(a, label, open, menu) {
+// ----- selection, drag, drag-select -----
+const clearSel = () => document.querySelectorAll(".icon.sel").forEach(i => i.classList.remove("sel"));
+const selIcons = () => [...document.querySelectorAll(".icon.sel")];
+const iconOf = e => e.target.closest(".icon");
+let marqMoved = false;
+async function deleteSel(sel) {
+  const n = sel.length;
+  if (!confirm(n === 1 ? `Delete ${sel[0].dataset.name}?` : `Delete ${n} items? (apps are only removed from the desktop)`)) return;
+  for (const i of sel) if (i._del) await i._del();
+  renderIcons();
+}
+function iconEl(a, label, open, menu, m) { // m = { kind: app|folder|file, id, del }
   const el = document.createElement("div");
-  el.className = "icon";
-  el.innerHTML = glyph(a) + `<div class="lbl">${esc(label)}</div>`;
+  el.className = "icon"; el.dataset.kind = m.kind; el.dataset.id = m.id; el.dataset.key = m.kind + ":" + m.id; el.dataset.name = label;
+  if (m.cols) { el.classList.add("row"); el.innerHTML = glyph(a, 20) + `<div class="lbl">${esc(label)}</div>` + m.cols.map(c => `<span>${esc(c)}</span>`).join(""); }
+  else el.innerHTML = glyph(a) + `<div class="lbl">${esc(label)}</div>`;
+  el._open = open; el._del = m.del;
   el.onclick = e => { // click selects, double-click opens (a single tap opens on touch screens)
-    document.querySelectorAll(".icon.sel").forEach(i => i.classList.remove("sel"));
-    el.classList.add("sel");
+    if (el._dragged) { el._dragged = false; return; }
+    if (e.ctrlKey || e.metaKey) { el.classList.toggle("sel"); return; }
+    clearSel(); el.classList.add("sel");
     if (e.detail >= 2 || matchMedia("(pointer:coarse)").matches) open();
   };
-  el.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [["Open", open], ...menu]); };
+  el.oncontextmenu = e => {
+    e.preventDefault(); e.stopPropagation();
+    if (!el.classList.contains("sel")) { clearSel(); el.classList.add("sel"); }
+    const sel = selIcons();
+    if (sel.length > 1) return ctx(e, [[`Open (${sel.length})`, () => sel.forEach(i => i._open())], [`Delete (${sel.length})`, () => deleteSel(sel)]]);
+    ctx(e, [["Open", open], ...menu]);
+  };
+  el.onpointerdown = e => { el._dragged = false; dragIcons(el, e); };
   return el;
 }
-// appends the folders + files that live in `dir` (null = desktop) into box
-function fillDir(box, dir, openFolder) {
-  folders().filter(f => sameDir(f, dir)).forEach(f => box.appendChild(iconEl({ name: f.name, icon: "📁", color: "amber" }, f.name, () => openFolder(f.id), [
-    ["Rename", () => renameItem("folder", f.id)], ["Move to...", e => moveMenu(e, "folder", f.id)],
-    ["Delete", () => { if (confirm(`Delete folder "${f.name}" and everything in it?`)) deleteFolder(f.id); }]])));
-  fmeta().filter(f => sameDir(f, dir)).forEach(f => box.appendChild(iconEl(fileApp(f), f.name, () => openApp(fileApp(f)), [
-    ["Download", () => downloadFile(f.id)], ["Rename", () => renameItem("file", f.id)], ["Move to...", e => moveMenu(e, "file", f.id)],
-    ["Delete", () => { if (confirm(`Delete ${f.name}?`)) deleteFile(f.id); }]])));
+const gridPx = () => { const px = ICON_PX[getSettings().iconSize] || 42; return { cw: px + 38, rh: px + 50 }; };
+function layoutDesktop(icons) { // every desktop icon sits in a grid cell; unplaced ones take the first free cell
+  const box = $("#icons"), { cw, rh } = gridPx(), P = 8;
+  const cols = Math.max(1, Math.floor((box.clientWidth - P) / cw)), rows = Math.max(1, Math.floor((box.clientHeight - P) / rh));
+  const pos = LS("pos", {}), taken = new Set(), todo = [];
+  const place = (el, p) => { el.style.left = P + p.c * cw + "px"; el.style.top = P + p.r * rh + "px"; };
+  icons.forEach(el => { const p = pos[el.dataset.key]; if (p && p.c < cols && p.r < rows && !taken.has(p.c + "," + p.r)) { taken.add(p.c + "," + p.r); place(el, p); } else todo.push(el); });
+  let c = 0, r = 0;
+  todo.forEach(el => { while (taken.has(c + "," + r)) { if (++r >= rows) { r = 0; c++; } } taken.add(c + "," + r); pos[el.dataset.key] = { c, r }; place(el, { c, r }); });
+  if (todo.length) save("pos", pos);
 }
+function dropOnDesktop(group, dx, dy) {
+  const { cw, rh } = gridPx(), box = $("#icons");
+  const cols = Math.max(1, Math.floor((box.clientWidth - 8) / cw)), rows = Math.max(1, Math.floor((box.clientHeight - 8) / rh));
+  const pos = LS("pos", {}), moving = new Set(group.map(i => i.dataset.key));
+  const taken = new Set([...box.children].filter(i => i.classList.contains("icon") && !moving.has(i.dataset.key) && pos[i.dataset.key]).map(i => pos[i.dataset.key].c + "," + pos[i.dataset.key].r));
+  const dc = Math.round(dx / cw), dr = Math.round(dy / rh);
+  group.forEach(i => {
+    const o = pos[i.dataset.key] || { c: 0, r: 0 };
+    let c = Math.min(Math.max(o.c + dc, 0), cols - 1), r = Math.min(Math.max(o.r + dr, 0), rows - 1);
+    if (taken.has(c + "," + r)) {
+      outer: for (let rad = 1; rad < cols + rows; rad++) for (let a = -rad; a <= rad; a++) for (let b = -rad; b <= rad; b++) {
+        const cc = c + a, rr = r + b;
+        if (cc >= 0 && cc < cols && rr >= 0 && rr < rows && !taken.has(cc + "," + rr)) { c = cc; r = rr; break outer; }
+      }
+    }
+    taken.add(c + "," + r); pos[i.dataset.key] = { c, r };
+  });
+  save("pos", pos); renderIcons();
+}
+function dragIcons(el, e) { // left-drag moves icons; clicking and right-clicking still work
+  if (e.button !== 0 || e.ctrlKey || e.metaKey) return;
+  const box = el.parentNode, free = box.id === "icons", sx = e.clientX, sy = e.clientY;
+  let on = false, group = [];
+  const mv = ev => {
+    const dx = ev.clientX - sx, dy = ev.clientY - sy;
+    if (!on) {
+      if (Math.hypot(dx, dy) < 6) return;
+      on = true; el._dragged = true;
+      if (!el.classList.contains("sel")) { clearSel(); el.classList.add("sel"); }
+      group = selIcons().filter(i => i.parentNode === box);
+      group.forEach(i => i.classList.add("dragging"));
+    }
+    group.forEach(i => { i.style.transform = `translate(${dx}px,${dy}px)`; });
+  };
+  const up = ev => {
+    document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up);
+    if (!on) return;
+    const dx = ev.clientX - sx, dy = ev.clientY - sy, hit = document.elementFromPoint(ev.clientX, ev.clientY);
+    const folder = hit && hit.closest(".icon[data-kind=folder]"), side = hit && hit.closest("[data-drop]");
+    group.forEach(i => { i.classList.remove("dragging"); i.style.transform = ""; });
+    const target = folder ? folder.dataset.id : side ? side.dataset.drop || null : undefined; // undefined = not dropped on a folder
+    if (target !== undefined) { group.forEach(i => { if (i.dataset.kind !== "app" && i.dataset.id !== target) moveTo(i.dataset.kind, i.dataset.id, target); }); return; }
+    if (free) dropOnDesktop(group, dx, dy);
+  };
+  document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+}
+function marquee(box) { // blue drag-select rectangle on empty space
+  box.addEventListener("pointerdown", e => {
+    if (e.button !== 0 || e.target !== box) return;
+    const r = box.getBoundingClientRect(), ox = e.clientX - r.left + box.scrollLeft, oy = e.clientY - r.top + box.scrollTop;
+    const base = e.ctrlKey || e.metaKey ? selIcons() : []; if (!base.length) clearSel();
+    const m = document.createElement("div"); m.className = "marq"; box.appendChild(m); marqMoved = false;
+    const mv = ev => {
+      const x = ev.clientX - r.left + box.scrollLeft, y = ev.clientY - r.top + box.scrollTop;
+      const L = Math.min(ox, x), T = Math.min(oy, y), W = Math.abs(x - ox), H = Math.abs(y - oy);
+      if (W + H > 4) marqMoved = true;
+      Object.assign(m.style, { left: L + "px", top: T + "px", width: W + "px", height: H + "px" });
+      box.querySelectorAll(".icon").forEach(i => { const hit = i.offsetLeft < L + W && i.offsetLeft + i.offsetWidth > L && i.offsetTop < T + H && i.offsetTop + i.offsetHeight > T; i.classList.toggle("sel", hit || base.includes(i)); });
+    };
+    const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); m.remove(); };
+    document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+  });
+}
+
+// appends folder + file icons (or details rows when list is true) into box
+function fillItems(box, fl, fi, openFolder, list) {
+  const short = t => t ? new Date(t).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "";
+  if (list) box.insertAdjacentHTML("beforeend", '<div class="fxh"><span></span><span>Name</span><span>Date modified</span><span>Type</span><span>Size</span></div>');
+  fl.forEach(f => {
+    const n = fmeta().filter(x => x.parent === f.id).length + folders().filter(x => x.parent === f.id).length;
+    box.appendChild(iconEl({ name: f.name, icon: "📁", color: "amber" }, f.name, () => openFolder(f.id), [
+      ...(f.saved === false ? [["Save", () => { markSaved("folder", f.id); renderIcons(); }]] : []),
+      ["Rename", e => inlineRename(iconOf(e), "folder", f.id)], ["Move to...", e => moveMenu(e, "folder", f.id)],
+      ["Delete", () => { if (confirm(`Delete folder "${f.name}" and everything in it?`)) deleteFolder(f.id); }],
+      ["Details", () => openApp(detailsApp("folder", f.id, null, f.name))]], { kind: "folder", id: f.id, del: () => deleteFolder(f.id), cols: list ? ["", "Folder", n + " item" + (n === 1 ? "" : "s")] : null }));
+  });
+  fi.forEach(f => box.appendChild(iconEl(fileApp(f), f.name, () => openApp(fileApp(f)), [
+    ["Download", () => downloadFile(f.id)],
+    ...(f.saved === false ? [["Save", () => { markSaved("file", f.id); renderIcons(); }]] : []),
+    ["Rename", e => inlineRename(iconOf(e), "file", f.id)], ["Move to...", e => moveMenu(e, "file", f.id)],
+    ["Delete", () => { if (confirm(`Delete ${f.name}?`)) deleteFile(f.id); }],
+    ["Details", () => openApp(detailsApp("file", f.id, null, f.name))]], { kind: "file", id: f.id, del: () => deleteFile(f.id), cols: list ? [short(f.mod), KIND_NAME[kindOf(f.name)] + (extOf(f.name) ? " (." + extOf(f.name) + ")" : ""), fmt(f.size || 0)] : null })));
+}
+const fillDir = (box, dir, openFolder) => fillItems(box, folders().filter(f => sameDir(f, dir)), fmeta().filter(f => sameDir(f, dir)), openFolder);
 function folderApp(id) {
   const f = folders().find(x => x.id === id);
   return { builtin: 1, name: f ? f.name : "Folder", icon: "📁", color: "amber", open: (root, os) => explorer(root, os, id) };
 }
-function explorer(root, os, dir) {
-  const cur = { dir };
-  root.innerHTML = '<div class="fxw"><div class="tabs fxt"><button data-a="up">↑ Up</button><span class="fxp"></span></div><div class="fx"></div></div>';
-  const grid = root.querySelector(".fx");
+// File Explorer: sidebar with Desktop / Temporary / Saved. New and uploaded items stay where you put them
+// but count as Temporary until you save them.
+function explorer(root, os, dir0) {
+  const cur = { loc: "dir", dir: dir0 };
+  root.innerHTML = '<div class="fxw"><div class="tabs fxt"><button data-a="up">↑ Up</button><button data-a="imp" title="Import files">⬆ Files</button><button data-a="impd" title="Import a folder">⬆ Folder</button><button data-a="impz" title="Import a .zip">⬆ Zip</button><button data-a="expz" title="Export selected items (or everything shown) as a .zip">⬇ Zip</button><button data-a="view"></button><span class="fxp"></span><span class="fxa"></span></div><div class="fxb"><div class="fxs"></div><div class="fx"></div></div></div>';
+  const grid = root.querySelector(".fx"), side = root.querySelector(".fxs"), act = root.querySelector(".fxa");
+  const unsaved = x => x.saved === false;
   const draw = () => {
     if (!root.isConnected) return refreshers.delete(draw); // window was closed
-    let d = cur.dir && folders().find(f => f.id === cur.dir);
-    if (cur.dir && !d) cur.dir = null;
-    root.querySelector(".fxp").textContent = pathOf(cur.dir);
-    os.setTitle(d ? d.name : "File Explorer");
-    grid.innerHTML = ""; fillDir(grid, cur.dir, id => { cur.dir = id; draw(); });
+    let d = cur.loc === "dir" && cur.dir && folders().find(f => f.id === cur.dir);
+    if (cur.loc === "dir" && cur.dir && !d) cur.dir = null;
+    const nTemp = folders().filter(unsaved).length + fmeta().filter(unsaved).length;
+    side.innerHTML = [["dir", "🖥️", "Desktop", ""], ["temp", "⏳", "Temporary", nTemp || ""], ["saved", "💾", "Saved", ""]].map(([k, i, l, n]) => `<div data-loc="${k}" ${k === "dir" ? 'data-drop=""' : ""} class="${k === cur.loc ? "on" : ""}">${i} ${l}<b>${n}</b></div>`).join("");
+    root.querySelector(".fxp").textContent = cur.loc === "temp" ? "Temporary" : cur.loc === "saved" ? "Saved" : pathOf(cur.dir);
+    act.innerHTML = cur.loc === "dir" ? "" : `<button data-a="all">Select all</button>${cur.loc === "temp" ? '<button data-a="save">Save selected</button>' : ""}<button data-a="del">Delete selected</button>`;
+    os.setTitle(cur.loc === "temp" ? "Temporary" : cur.loc === "saved" ? "Saved" : d ? d.name : "File Explorer");
+    const list = LS("fxview", "icons") === "list"; grid.classList.toggle("list", list);
+    root.querySelector("[data-a=view]").textContent = list ? "▦ Icons" : "☰ Details";
+    grid.innerHTML = "";
+    const f = cur.loc === "temp" ? [folders().filter(unsaved), fmeta().filter(unsaved)]
+      : cur.loc === "saved" ? [folders().filter(x => !unsaved(x)), fmeta().filter(x => !unsaved(x))]
+      : [folders().filter(x => sameDir(x, cur.dir)), fmeta().filter(x => sameDir(x, cur.dir))];
+    fillItems(grid, f[0], f[1], id => { cur.loc = "dir"; cur.dir = id; draw(); }, list);
+    if (!grid.querySelector(".icon")) grid.insertAdjacentHTML("beforeend", `<p class="fxe">${cur.loc === "temp" ? "Nothing temporary. New and uploaded items wait here until you save them." : cur.loc === "saved" ? "Nothing saved yet." : "This folder is empty. Right-click to create something, or drop files here."}</p>`);
   };
   refreshers.add(draw);
-  root.querySelector(".fxt").onclick = e => { if (e.target.dataset.a === "up") { const d = folders().find(f => f.id === cur.dir); cur.dir = d ? d.parent || null : null; draw(); } };
-  root.oncontextmenu = e => { if (e.target.closest(".icon")) return; e.preventDefault(); ctx(e, newMenu(cur.dir)); };
+  const here = () => cur.loc === "dir" ? cur.dir : null;
+  side.onclick = e => { const k = e.target.closest("[data-loc]"); if (k) { cur.loc = k.dataset.loc; cur.dir = null; draw(); } };
+  root.querySelector(".fxt").onclick = e => {
+    const a = e.target.dataset.a, sel = selIcons().filter(i => grid.contains(i));
+    if (a === "up") { if (cur.loc !== "dir") { cur.loc = "dir"; cur.dir = null; } else { const d = folders().find(f => f.id === cur.dir); cur.dir = d ? d.parent || null : null; } draw(); }
+    else if (a === "imp") pickUpload(here(), false);
+    else if (a === "impd") pickUpload(here(), true);
+    else if (a === "impz") pickUpload(here(), "zip");
+    else if (a === "expz") exportZip(sel.length ? sel : [...grid.querySelectorAll(".icon")]);
+    else if (a === "view") { save("fxview", LS("fxview", "icons") === "list" ? "icons" : "list"); draw(); }
+    else if (a === "all") grid.querySelectorAll(".icon").forEach(i => i.classList.add("sel"));
+    else if (a === "save") { sel.forEach(i => markSaved(i.dataset.kind, i.dataset.id)); renderIcons(); }
+    else if (a === "del" && sel.length) deleteSel(sel);
+  };
+  root.oncontextmenu = e => { if (e.target.closest(".icon")) return; e.preventDefault(); ctx(e, newMenu(here(), grid)); };
   grid.ondragover = e => e.preventDefault();
-  grid.ondrop = e => { e.preventDefault(); e.stopPropagation(); addFiles(e.dataTransfer.files, cur.dir); };
+  grid.ondrop = e => { e.preventDefault(); e.stopPropagation(); addFiles(e.dataTransfer.files, here()); };
+  marquee(grid);
   draw();
 }
 const EXPLORER = { builtin: 1, single: 1, name: "File Explorer", icon: "📁", color: "amber", open: (root, os) => explorer(root, os, null) };
@@ -555,7 +820,7 @@ async function viewer(root, os, f) {
   const media = k === "image" ? `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain">`
     : k === "audio" ? `<div class="vc"><div style="font-size:64px">🎵</div><div>${esc(f.name)}</div><audio controls autoplay src="${url}"></audio></div>`
     : k === "video" ? `<video controls autoplay src="${url}" style="width:100%;height:100%"></video>`
-    : `<iframe src="${url}" style="width:100%;height:100%;border:0;background:#fff"></iframe>`;
+    : `<iframe src="${url}" allow="autoplay; camera; microphone; fullscreen; clipboard-read; clipboard-write; geolocation; gamepad; midi; encrypted-media; picture-in-picture; display-capture; web-share" allowfullscreen style="width:100%;height:100%;border:0;background:#fff"></iframe>`;
   root.innerHTML = `<div class="vw"><div class="tabs vt"><button data-a="fs">⛶ Fullscreen</button><button data-a="tab">↗ Open in new tab</button><button data-a="dl">⬇ Download</button></div><div class="vb">${media}</div></div>`;
   root.querySelector(".vt").onclick = e => {
     const a = e.target.dataset.a;
@@ -592,7 +857,7 @@ async function notepad(root, os, id) {
 
   async function save() {
     if (!doc.id) return saveAs();
-    if (await putFile(doc.id, doc.name, blobOf(doc.name))) { doc.dirty = false; title(); return true; }
+    if (await putFile(doc.id, doc.name, blobOf(doc.name), undefined, true)) { doc.dirty = false; title(); return true; }
     return false;
   }
   function saveAs() { return new Promise(res => {
@@ -607,7 +872,7 @@ async function notepad(root, os, id) {
       const same = fmeta().find(x => x.name.toLowerCase() === name.toLowerCase() && (x.parent || null) === doc.parent);
       if (same && same.id !== doc.id && !confirm(name + " already exists. Replace it?")) return;
       const nid = same ? same.id : newId();
-      if (await putFile(nid, name, blobOf(name), doc.parent)) { Object.assign(doc, { id: nid, name, dirty: false }); title(); o.remove(); res(true); }
+      if (await putFile(nid, name, blobOf(name), doc.parent, true)) { Object.assign(doc, { id: nid, name, dirty: false }); title(); o.remove(); res(true); }
     };
     n.focus(); n.select();
   }); }
@@ -654,6 +919,130 @@ async function notepad(root, os, id) {
     else if (e.key === "Tab") { e.preventDefault(); ed.setRangeText("\t", ed.selectionStart, ed.selectionEnd, "end"); ed.oninput(); }
   };
   title();
+}
+
+// ===================== ZIP (own implementation, works offline) =====================
+const crcT = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = u8 => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = crcT[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+const deflateRaw = async u8 => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());
+async function makeZip(entries) { // entries: [{name, data: Uint8Array | null (folder), date}]
+  const enc = new TextEncoder(), chunks = [], central = []; let off = 0;
+  const u16 = n => new Uint8Array([n & 255, (n >> 8) & 255]), u32 = n => new Uint8Array([n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255]);
+  const cat = (...a) => { const o = new Uint8Array(a.reduce((t, x) => t + x.length, 0)); let p = 0; a.forEach(x => { o.set(x, p); p += x.length; }); return o; };
+  for (const e of entries) {
+    const name = enc.encode(e.name), raw = e.data || new Uint8Array(0), crc = crc32(raw);
+    let comp = raw, method = 0;
+    if (raw.length > 64) { try { const d = await deflateRaw(raw); if (d.length < raw.length) { comp = d; method = 8; } } catch { /* store it */ } }
+    const dt = new Date(e.date || Date.now()), yr = Math.max(1980, dt.getFullYear());
+    const tm = (dt.getHours() << 11) | (dt.getMinutes() << 5) | (dt.getSeconds() >> 1), dd = ((yr - 1980) << 9) | ((dt.getMonth() + 1) << 5) | dt.getDate();
+    const head = cat(u32(0x04034b50), u16(20), u16(0x0800), u16(method), u16(tm), u16(dd), u32(crc), u32(comp.length), u32(raw.length), u16(name.length), u16(0), name);
+    chunks.push(head, comp);
+    central.push(cat(u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(method), u16(tm), u16(dd), u32(crc), u32(comp.length), u32(raw.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(e.data ? 0 : 0x10), u32(off), name));
+    off += head.length + comp.length;
+  }
+  const cd = cat(...central);
+  return new Blob([...chunks, cd, cat(u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length), u32(cd.length), u32(off), u16(0))], { type: "application/zip" });
+}
+async function readZip(file) { // -> [{name, dir, data()}]
+  const buf = new Uint8Array(await file.arrayBuffer()), dv = new DataView(buf.buffer);
+  let e = buf.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error("not a zip");
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const out = [];
+  for (let i = 0; i < n; i++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error("bad zip");
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nl));
+    out.push({ name, dir: name.endsWith("/"), data: async () => {
+      const start = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true), raw = buf.subarray(start, start + csize);
+      if (method === 0) return raw;
+      if (method === 8) return new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+      throw new Error("unsupported compression");
+    } });
+    p += 46 + nl + xl + cl;
+  }
+  return out;
+}
+async function exportZip(icons) { // icons: the selected (or all shown) explorer icons
+  const items = icons.filter(i => i.dataset.kind !== "app");
+  if (!items.length) return alert("Nothing to export here.");
+  const entries = [];
+  const addFolder = (fid, prefix) => {
+    entries.push({ name: prefix });
+    fmeta().filter(f => f.parent === fid).forEach(f => entries.push({ file: f, name: prefix + f.name }));
+    folders().filter(f => f.parent === fid).forEach(f => addFolder(f.id, prefix + f.name + "/"));
+  };
+  items.forEach(i => { if (i.dataset.kind === "folder") addFolder(i.dataset.id, folders().find(f => f.id === i.dataset.id).name + "/"); else { const f = fmeta().find(x => x.id === i.dataset.id); entries.push({ file: f, name: f.name }); } });
+  for (const e of entries) if (e.file) { const b = await dbGet(e.file.id, "files"); e.data = new Uint8Array(b ? await b.arrayBuffer() : 0); e.date = e.file.mod; }
+  dlBlob("vus-export.zip", await makeZip(entries));
+}
+async function importZip(file, parent = null) {
+  try {
+    for (const e of await readZip(file)) {
+      const parts = e.name.split("/").filter(Boolean);
+      if (!parts.length || parts[0] === "__MACOSX" || parts[parts.length - 1] === ".DS_Store") continue;
+      if (e.dir) { ensureFolders(parent, parts); continue; }
+      const fname = parts.pop(), p = ensureFolders(parent, parts);
+      await putFile(newId(), uniqueName(fname, null, p), new File([await e.data()], fname, { type: mimeOf(fname) }), p);
+    }
+    renderIcons();
+  } catch (err) { alert("Couldn't read that zip file: " + err.message); }
+}
+
+// ===================== DETAILS (properties) =====================
+const KIND_NAME = { text: "Text document", html: "HTML document", image: "Image", audio: "Audio", video: "Video", pdf: "PDF document" };
+const kv = rows => `<table>${rows.filter(Boolean).map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("")}</table>`;
+const gcd = (a, b) => b ? gcd(b, a % b) : a;
+function ratio(w, h) {
+  const r = w / h;
+  for (const [a, b] of [[16, 9], [4, 3], [3, 2], [21, 9], [1, 1], [9, 16], [3, 4], [2, 3], [5, 4], [16, 10], [32, 9]]) if (Math.abs(r - a / b) / (a / b) < .012) return a + ":" + b;
+  const g = gcd(w, h); return w / g <= 50 ? `${w / g}:${h / g}` : r.toFixed(2) + ":1";
+}
+const dur = t => { t = Math.round(t); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), p = n => String(n).padStart(2, "0"); return (h ? h + ":" + p(m) : m) + ":" + p(t % 60); };
+const when = t => t ? new Date(t).toLocaleString() : "Unknown";
+const sizeStr = n => `${fmt(n || 0)} (${(n || 0).toLocaleString()} bytes)`;
+const detailsApp = (kind, id, a, name) => ({ builtin: 1, name: name + " properties", icon: "ℹ️", color: "cyan", w: 460, h: 540, open: (root, os) => details(root, kind, id, a) });
+
+async function mediaInfo(f, k, blob) { // extra rows that depend on what's inside the file
+  if (!blob) return [["Contents", "File data not found"]];
+  const url = URL.createObjectURL(new Blob([blob], { type: mimeOf(f.name) })), done = r => { URL.revokeObjectURL(url); return r; };
+  if (k === "image") return new Promise(res => { const i = new Image(); i.onload = () => res(done([["Dimensions", `${i.naturalWidth} × ${i.naturalHeight} px`], ["Aspect ratio", ratio(i.naturalWidth, i.naturalHeight)], ["Megapixels", (i.naturalWidth * i.naturalHeight / 1e6).toFixed(2) + " MP"]])); i.onerror = () => res(done([["Image", "Couldn't read this image"]])); i.src = url; });
+  if (k === "audio" || k === "video") return new Promise(res => {
+    const m = document.createElement(k), bad = () => { clearTimeout(t); res(done([["Media", "Couldn't read this file (unsupported format?)"]])); }, t = setTimeout(bad, 5000);
+    m.preload = "metadata";
+    m.onloadedmetadata = () => {
+      clearTimeout(t); const ok = isFinite(m.duration), r = [["Length", ok ? dur(m.duration) : "Unknown"]];
+      if (k === "video" && m.videoWidth) r.push(["Frame size", `${m.videoWidth} × ${m.videoHeight} px`], ["Aspect ratio", ratio(m.videoWidth, m.videoHeight)]);
+      if (ok && m.duration > 0) r.push(["Average bitrate", Math.round((f.size || 0) * 8 / m.duration / 1000) + " kbps"]);
+      res(done(r));
+    };
+    m.onerror = bad; m.src = url;
+  });
+  if ((f.size || 0) > 20e6) return done([]);
+  const t = await blob.text();
+  if (k === "pdf") { const n = (t.match(/\/Type\s*\/Page[^s]/g) || []).length; return done(n ? [["Pages (approx.)", n]] : []); }
+  const rows = [["Lines", (t ? t.split(/\r\n|\r|\n/).length : 0).toLocaleString()], ["Words", (t.trim() ? t.trim().split(/\s+/).length : 0).toLocaleString()], ["Characters", t.length.toLocaleString()]];
+  if (k === "html") { const m = t.match(/<title[^>]*>([\s\S]*?)<\/title>/i); if (m) rows.unshift(["Page title", esc(m[1].trim())]); }
+  if (extOf(f.name) === "json") { try { const j = JSON.parse(t); rows.unshift(["JSON", Array.isArray(j) ? `Valid, array of ${j.length}` : j && typeof j === "object" ? `Valid, object with ${Object.keys(j).length} keys` : "Valid"]); } catch { rows.unshift(["JSON", "Not valid JSON"]); } }
+  return done(rows);
+}
+async function details(root, kind, id, a) {
+  const show = h => { root.innerHTML = `<div class="dt">${h}</div>`; };
+  if (kind === "app") {
+    const m = metaAll()[a.name], head = `<h2>${glyph(a, 36)}${esc(a.name)}</h2>`, yn = v => v ? "Yes" : "No";
+    return show(head + kv([["Name", esc(a.name)], ["Type", isNative(a) ? "Native app (.js)" : "App"], ["Category", esc(a.category || "—")], ["Description", esc(a.desc || "—")], ["Source", esc(a.url)],
+      ["Saved copy", m ? `v${m.version} · ${fmt(m.size || 0)}` : "Not saved yet (it downloads the first time you open it)"], ["Latest version known", "v" + remoteVer(a.name)],
+      ["On the desktop", yn(isInstalled(a))], ["In Start", yn(startKeys().includes(key(a)))], ["Pinned to taskbar", yn(pinnedKeys().includes(key(a)))]]));
+  }
+  if (kind === "folder") {
+    const f = folders().find(x => x.id === id); if (!f) return show("<h2>Folder not found</h2>");
+    const ids = [id, ...descendants(id)], files = fmeta().filter(x => ids.includes(x.parent)), head = `<h2>${glyph({ name: f.name, icon: "📁", color: "amber" }, 36)}${esc(f.name)}</h2>`;
+    return show(head + kv([["Name", esc(f.name)], ["Type", "Folder"], ["Location", esc(pathOf(f.parent || null))], ["Contains", `${files.length} file${files.length === 1 ? "" : "s"}, ${ids.length - 1} folder${ids.length === 2 ? "" : "s"}`], ["Total size", sizeStr(files.reduce((n, x) => n + (x.size || 0), 0))], ["Status", f.saved === false ? "Temporary (not saved yet)" : "Saved"]]));
+  }
+  const f = fmeta().find(x => x.id === id); if (!f) return show("<h2>File not found</h2>");
+  const k = kindOf(f.name), ext = extOf(f.name), head = `<h2>${glyph(fileApp(f), 36)}${esc(f.name)}</h2>`;
+  const base = [["Name", esc(f.name)], ["Type", KIND_NAME[k] + (ext ? ` (.${esc(ext)})` : "")], ["MIME type", esc(mimeOf(f.name))], ["Size", sizeStr(f.size)], ["Location", esc(pathOf(f.parent || null))], ["Status", f.saved === false ? "Temporary (not saved yet)" : "Saved"], ["Modified", when(f.mod)]];
+  show(head + kv(base) + "<p>Reading file details…</p>");
+  show(head + kv([...base, ...(await mediaInfo(f, k, await dbGet(id, "files")))]));
 }
 
 // ===================== SYSTEM APPS =====================
@@ -707,6 +1096,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "⚙️", colo
         ${s.bgMode === "color" ? `<label>Color<input type="color" data-k="bgColor" value="${s.bgColor}"></label>` : ""}
         ${s.bgMode === "link" ? `<label>Image link<input type="text" data-k="bgLink" value="${esc(s.bgLink)}" placeholder="https://..."></label>` : ""}
         ${s.bgMode === "file" ? `<label>Picture<select data-k="bgFile">${opts([["", "Choose..."], ...imgs.map(f => [f.id, f.name])], s.bgFile)}</select></label>` : ""}
+        <h3>Theme</h3><label>Mode<select data-k="theme">${opts([["dark", "Dark"], ["light", "Light"]], s.theme)}</select></label>
         <h3>Accent color</h3><div class="sws">${SWATCH.map(c => `<div class="sw ${c === s.accent ? "on" : ""}" data-sw="${c}" style="background:${c}"></div>`).join("")}<input type="color" data-k="accent" value="${s.accent}"></div>
         <h3>Desktop icons</h3><label>Icon size<select data-k="iconSize">${opts([["small", "Small"], ["medium", "Medium"], ["large", "Large"]], s.iconSize)}</select></label>`;
     },
@@ -734,6 +1124,35 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "⚙️", colo
   draw();
 }};
 
+const TASKMGR = { builtin: 1, single: 1, name: "Task Manager", icon: "📊", color: "blue", w: 600, h: 460, open(root) {
+  let tab = "proc", sel = null;
+  root.innerHTML = '<div class="tm"><div class="tabs tmt"><button data-t="proc">Processes</button><button data-t="perf">Performance</button></div><div class="tmb"></div><div class="tabs tmf"><button data-a="switch">Switch to</button><button data-a="end">End task</button></div></div>';
+  const body = root.querySelector(".tmb"), foot = root.querySelector(".tmf");
+  const typeOf = a => [STORE, SETTINGS, UPDATES, EXPLORER, TASKMGR].includes(a) ? "System" : catalog.includes(a) ? "App" : "File";
+  const draw = async () => {
+    if (!root.isConnected) return clearInterval(timer);
+    root.querySelectorAll(".tmt button").forEach(b => b.classList.toggle("on", b.dataset.t === tab));
+    foot.style.display = tab === "proc" ? "" : "none";
+    if (tab === "proc") {
+      const ws = [...wins.values()];
+      body.innerHTML = `<table class="tmtable"><tr><th>Name</th><th>Status</th><th>Type</th></tr>${ws.map(w => `<tr data-id="${w.id}" class="${w.id === sel ? "on" : ""}"><td>${esc(w.app.name)}</td><td>${w.el.classList.contains("min") ? "Minimized" : "Running"}</td><td>${typeOf(w.app)}</td></tr>`).join("") || '<tr><td colspan="3">No open windows</td></tr>'}</table>`;
+    } else {
+      const u = usage(), lim = limitBytes(), est = await navigator.storage?.estimate?.().catch(() => null), mem = performance.memory;
+      body.innerHTML = `<h3>Storage</h3><div class="sbar"><i style="width:${Math.min(100, u / lim * 100)}%"></i></div><p>${fmt(u)} of ${fmt(lim)} (OS limit)${est ? ` · browser: ${fmt(est.usage)} of about ${fmt(est.quota)}` : ""}</p>
+        <h3>Memory</h3>${mem ? `<div class="sbar"><i style="width:${mem.usedJSHeapSize / mem.jsHeapSizeLimit * 100}%"></i></div><p>${fmt(mem.usedJSHeapSize)} used by this page (limit ${fmt(mem.jsHeapSizeLimit)})</p>` : "<p>This browser doesn't share memory details.</p>"}
+        <h3>System</h3>${kv([["Open windows", wins.size], ["Saved apps", Object.keys(metaAll()).length], ["Files and folders", fmeta().length + folders().length], ["Running for", dur(performance.now() / 1000)]])}`;
+    }
+  };
+  const timer = setInterval(draw, 1500);
+  root.querySelector(".tmt").onclick = e => { if (e.target.dataset.t) { tab = e.target.dataset.t; sel = null; draw(); } };
+  body.onclick = e => { const r = e.target.closest("tr[data-id]"); if (r) { sel = r.dataset.id; body.querySelectorAll("tr").forEach(x => x.classList.toggle("on", x === r)); } };
+  foot.onclick = e => {
+    const a = e.target.dataset.a, w = wins.get(sel); if (!w) return;
+    if (a === "end") { closeWin(sel, true); sel = null; draw(); } // like Windows: ends the task without asking to save
+    else if (a === "switch") { w.el.classList.remove("min"); focus(sel); }
+  };
+  draw();
+}};
 const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "🔄", color: "lime", open(root) {
   root.innerHTML = `<div class="pad"><h2>Updates</h2><div class="tabs"><button id="chk">Check now</button><button id="all">Update all</button></div><p id="st" style="font-size:12px;color:var(--mute)"></p><div id="rows"></div></div>`;
   const rows = root.querySelector("#rows"), st = root.querySelector("#st");
@@ -760,14 +1179,15 @@ const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "🔄", color: "
   check();
 }};
 
-const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: false }, LS("settings", {}));
+const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: false, theme: "dark" }, LS("settings", {}));
 let bgUrl = null;
 async function applyTheme() {
   const s = getSettings(), r = document.documentElement.style;
   document.title = s.site; const bt = $("#bootTitle"); if (bt) bt.textContent = s.site; // boot screen is removed after startup
-  r.setProperty("--ac", s.accent); r.setProperty("--ac2", `color-mix(in srgb, ${s.accent} 65%, white)`);
+  document.documentElement.dataset.theme = s.theme;
+  r.setProperty("--ac", s.accent); r.setProperty("--ac2", s.theme === "light" ? s.accent : `color-mix(in srgb, ${s.accent} 65%, white)`);
   const px = ICON_PX[s.iconSize] || 42; r.setProperty("--cw", px + 38 + "px"); r.setProperty("--rh", px + 50 + "px");
-  let bg = "radial-gradient(ellipse at 70% 40%,rgba(80,190,255,.55),transparent 55%),linear-gradient(135deg,#031a3a,#0a4a96 55%,#1688d9)";
+  let bg = s.theme === "light" ? "radial-gradient(ellipse at 70% 40%,rgba(255,255,255,.6),transparent 55%),linear-gradient(135deg,#8cc4f4,#3a90dc 55%,#a8d8ff)" : "radial-gradient(ellipse at 70% 40%,rgba(80,190,255,.55),transparent 55%),linear-gradient(135deg,#031a3a,#0a4a96 55%,#1688d9)";
   if (bgUrl) { URL.revokeObjectURL(bgUrl); bgUrl = null; }
   if (s.bgMode === "color") bg = s.bgColor;
   else if (s.bgMode === "link" && s.bgLink) bg = `url("${s.bgLink}") center/cover no-repeat, #000`;
@@ -810,15 +1230,17 @@ function drawStart() {
     d.className = "item";
     d.innerHTML = glyph(a, 30) + `<div style="overflow:hidden"><b>${esc(a.name)}</b></div>`;
     d.onclick = () => { openApp(a); toggleStart(false); };
+    d.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [["Open", () => { openApp(a); toggleStart(false); }], ...appMenu(a), [isInstalled(a) ? "Remove from desktop" : "Add to desktop", () => toggleInstall(a)]]); };
     box.appendChild(d);
   });
   const tiles = $("#tiles"); tiles.innerHTML = "";
-  installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).forEach(a => {
+  startKeys().map(k => catalog.find(a => key(a) === k)).filter(Boolean).forEach(a => {
     const [bg, fg] = solid(a);
     const d = document.createElement("div");
     d.className = "tile"; d.style.background = bg; d.style.color = fg;
     d.innerHTML = `<span class="ti">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</span><span class="tn">${esc(a.name)}</span>`;
     d.onclick = () => { openApp(a); toggleStart(false); };
+    d.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [["Open", () => { openApp(a); toggleStart(false); }], ["Remove from Start", () => toggleStartPin(a)], [pinnedKeys().includes(key(a)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(a)]]); };
     tiles.appendChild(d);
   });
 }
@@ -826,15 +1248,18 @@ function drawStart() {
 function tick() { const d = new Date(); $("#ck1").textContent = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: !getSettings().hour24 }); $("#ck2").textContent = d.toLocaleDateString(); }
 setInterval(tick, 15000); tick();
 
+$("#taskbar").addEventListener("contextmenu", e => { e.preventDefault(); ctx(e, [["Task Manager", () => openApp(TASKMGR)], ["Settings", () => openApp(SETTINGS)]]); });
+
 // ===================== BOOT =====================
 applyTheme();
+marquee($("#icons"));
 const minBoot = new Promise(r => setTimeout(r, 1800));
 Promise.all([loadCatalog(), minBoot]).then(() => {
   if (!LS("seeded", false)) {
     save("installed", SEED.map(nm => catalog.find(a => a.name === nm)).filter(Boolean).map(key));
     save("seeded", true);
   }
-  renderIcons();
+  renderIcons(); renderPins();
   autoUpdate(); // background; skipped when auto update is off
   $("#boot").classList.add("hide");
   setTimeout(() => $("#boot").remove(), 550);
