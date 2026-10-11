@@ -98,6 +98,10 @@ input,select,button{font-family:var(--font)}
 .card div{display:flex;align-items:center;gap:10px;font-size:14px}
 .card p{font-size:12px;color:var(--mute);line-height:1.4}
 .card button{align-self:flex-start}
+.vw{height:100%;display:flex;flex-direction:column;background:#111}
+.vt{padding:6px;background:#2b2b2b}
+.vb{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#000}
+.vc{display:flex;flex-direction:column;align-items:center;gap:12px;color:#fff;padding:20px;text-align:center}
 
 #ctx{position:fixed;z-index:900;min-width:200px;background:#2b2b2b;border:1px solid #454545;padding:2px 0;display:none;box-shadow:0 8px 20px rgba(0,0,0,.5)}
 #ctx div{padding:7px 28px 7px 14px;font-size:12.5px;cursor:default}
@@ -110,6 +114,7 @@ input,select,button{font-family:var(--font)}
 <div id="desktop"><div id="icons"></div></div>
 <div id="start"><div class="st-l"><input id="startQ" placeholder="Type here to search" autocomplete="off"><div id="startList"></div></div><div class="st-r"><h3>Apps</h3><div id="tiles"></div></div></div>
 <div id="ctx"></div>
+<input type="file" id="up" multiple hidden>
 <div id="taskbar">
   <button id="startBtn" title="Start"><span class="win-logo"><i></i><i></i><i></i><i></i></span></button>
   <div id="searchBtn">🔍&nbsp; Type here to search</div>
@@ -167,19 +172,26 @@ function toggleInstall(a) {
 }
 function renderIcons() {
   const box = $("#icons"); box.innerHTML = "";
-  installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).forEach(a => {
+  const add = (a, label, open, menu) => {
     const el = document.createElement("div");
     el.className = "icon";
-    el.innerHTML = glyph(a) + `<div class="lbl">${esc(a.name)}</div>`;
+    el.innerHTML = glyph(a) + `<div class="lbl">${esc(label)}</div>`;
     // Windows-style: click selects, double-click opens (a single tap opens on touch screens)
     el.onclick = e => {
       document.querySelectorAll(".icon.sel").forEach(i => i.classList.remove("sel"));
       el.classList.add("sel");
-      if (e.detail >= 2 || matchMedia("(pointer:coarse)").matches) openApp(a);
+      if (e.detail >= 2 || matchMedia("(pointer:coarse)").matches) open();
     };
-    el.oncontextmenu = e => { e.preventDefault(); ctx(e, [["Open", () => openApp(a)], ["Remove from desktop", () => toggleInstall(a)]]); };
+    el.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [["Open", open], ...menu]); };
     box.appendChild(el);
-  });
+  };
+  installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean)
+    .forEach(a => add(a, a.name, () => openApp(a), [["Remove from desktop", () => toggleInstall(a)]]));
+  fmeta().forEach(f => add(fileApp(f), f.name, () => openApp(fileApp(f)), [
+    ["Download", () => downloadFile(f.id)],
+    ["Rename", () => renameFile(f.id)],
+    ["Delete", () => { if (confirm(`Delete ${f.name}?`)) deleteFile(f.id); }]
+  ]));
 }
 
 // ===================== CONTEXT MENU =====================
@@ -193,6 +205,14 @@ function ctx(e, items) {
 }
 document.addEventListener("click", () => $("#ctx").style.display = "none");
 $("#desktop").addEventListener("click", e => { if (!e.target.closest(".icon")) document.querySelectorAll(".icon.sel").forEach(i => i.classList.remove("sel")); });
+$("#desktop").addEventListener("contextmenu", e => {
+  if (e.target.closest(".icon,.win")) return;
+  e.preventDefault();
+  ctx(e, [["New text document", () => newFile("txt")], ["New HTML document", () => newFile("html")], ["New JSON file", () => newFile("json")], ["Upload files...", () => $("#up").click()], ["Refresh", renderIcons]]);
+});
+$("#up").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+$("#desktop").addEventListener("dragover", e => e.preventDefault());
+$("#desktop").addEventListener("drop", e => { e.preventDefault(); addFiles(e.dataTransfer.files); });
 $("#showdesk").onclick = () => wins.forEach(w => { w.el.classList.add("min"); w.task.classList.remove("active"); });
 
 // ===================== WINDOWS =====================
@@ -273,9 +293,10 @@ function makeOS(app, win) {
 // ===================== CODE CACHE + UPDATES =====================
 // Code is saved in IndexedDB the first time an app opens. After that it opens from the saved copy.
 // Small metadata {name: {url, version}} lives in localStorage.
-const idb = new Promise((res, rej) => { const r = indexedDB.open("vos2", 1); r.onupgradeneeded = () => r.result.createObjectStore("code"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-const dbGet = async k => { try { const d = await idb; return await new Promise(res => { const q = d.transaction("code").objectStore("code").get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); } catch { return undefined; } };
-const dbSet = async (k, v) => { try { const d = await idb; return await new Promise(res => { const t = d.transaction("code", "readwrite"); t.objectStore("code").put(v, k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
+const idb = new Promise((res, rej) => { const r = indexedDB.open("vos2", 2); r.onupgradeneeded = () => { ["code", "files"].forEach(n => { if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n); }); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const dbGet = async (k, st = "code") => { try { const d = await idb; return await new Promise(res => { const q = d.transaction(st).objectStore(st).get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); } catch { return undefined; } };
+const dbSet = async (k, v, st = "code") => { try { const d = await idb; return await new Promise(res => { const t = d.transaction(st, "readwrite"); t.objectStore(st).put(v, k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
+const dbDel = async (k, st = "files") => { try { const d = await idb; return await new Promise(res => { const t = d.transaction(st, "readwrite"); t.objectStore(st).delete(k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
 
 let remote = null; // last versions.json we managed to fetch
 async function getVersions(force) {
@@ -331,6 +352,159 @@ async function load(app, body, win) {
     console.error(e);
     body.innerHTML = `<div class="load err">Failed to load ${esc(app.name)}</div>`;
   }
+}
+
+// ===================== FILES (desktop files saved in this browser) =====================
+// Metadata [{id,name,size}] in localStorage, file contents (Blobs) in IndexedDB "files".
+const EXT = {};
+const reg = (kind, mime, list) => list.split(" ").forEach(e => EXT[e] = [kind, mime]);
+reg("html", "text/html", "html htm xhtml");
+reg("image", "image/png", "png"); reg("image", "image/jpeg", "jpg jpeg jfif pjpeg"); reg("image", "image/gif", "gif"); reg("image", "image/webp", "webp");
+reg("image", "image/svg+xml", "svg"); reg("image", "image/bmp", "bmp"); reg("image", "image/x-icon", "ico cur"); reg("image", "image/avif", "avif");
+reg("audio", "audio/mpeg", "mp3"); reg("audio", "audio/wav", "wav"); reg("audio", "audio/ogg", "ogg oga opus"); reg("audio", "audio/mp4", "m4a"); reg("audio", "audio/flac", "flac"); reg("audio", "audio/aac", "aac"); reg("audio", "audio/webm", "weba");
+reg("video", "video/mp4", "mp4 m4v"); reg("video", "video/webm", "webm"); reg("video", "video/ogg", "ogv"); reg("video", "video/quicktime", "mov");
+reg("pdf", "application/pdf", "pdf");
+reg("text", "application/json", "json"); reg("text", "text/css", "css"); reg("text", "text/javascript", "js mjs"); reg("text", "text/markdown", "md markdown");
+reg("text", "text/csv", "csv"); reg("text", "text/xml", "xml");
+reg("text", "text/plain", "txt log ini cfg conf env yaml yml toml sql ts tsx jsx py java c cpp h hpp cs go rs rb php sh bat cmd ps1 lua kt swift r vue svelte scss sass less tex srt vtt gitignore");
+const extOf = n => (n.includes(".") ? n.split(".").pop() : "").toLowerCase();
+const kindOf = n => (EXT[extOf(n)] || ["text"])[0]; // unknown extensions open in Notepad
+const mimeOf = n => (EXT[extOf(n)] || [0, "application/octet-stream"])[1];
+const KIND_ICON = { text: ["📄", "blue"], html: ["🌐", "orange"], image: ["🖼️", "cyan"], audio: ["🎵", "rose"], video: ["🎬", "violet"], pdf: ["📕", "red"] };
+const fmeta = () => LS("files", []);
+const newId = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+
+function uniqueName(name, skipId) {
+  const names = new Set(fmeta().filter(f => f.id !== skipId).map(f => f.name.toLowerCase()));
+  if (!names.has(name.toLowerCase())) return name;
+  const m = name.match(/^(.*?)(\.[^.]*)?$/);
+  let i = 2, n;
+  do { n = `${m[1]} (${i++})${m[2] || ""}`; } while (names.has(n.toLowerCase()));
+  return n;
+}
+async function putFile(id, name, blob) {
+  if (!(await dbSet(id, blob, "files"))) { alert("Couldn't save " + name + " (browser storage may be full)."); return false; }
+  const m = fmeta(), i = m.findIndex(f => f.id === id), e = { id, name, size: blob.size };
+  if (i < 0) m.push(e); else m[i] = e;
+  save("files", m); renderIcons(); return true;
+}
+async function addFiles(list) { for (const f of list) await putFile(newId(), uniqueName(f.name), f); }
+async function newFile(ext) {
+  const name = prompt("File name (change the extension to make any file type):", uniqueName("New " + { txt: "Text Document", html: "HTML Document", json: "JSON File" }[ext] + "." + ext));
+  if (name && name.trim()) putFile(newId(), uniqueName(name.trim()), new Blob([""], { type: mimeOf(name) }));
+}
+function renameFile(id) {
+  const f = fmeta().find(x => x.id === id);
+  const n = prompt("Rename (you can change the extension):", f.name);
+  if (!n || !n.trim() || n === f.name) return;
+  save("files", fmeta().map(x => x.id === id ? { ...x, name: uniqueName(n.trim(), id) } : x)); renderIcons();
+}
+async function deleteFile(id) { await dbDel(id, "files"); save("files", fmeta().filter(f => f.id !== id)); renderIcons(); }
+function dlBlob(name, blob) {
+  const u = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = u; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(u), 2000);
+}
+async function downloadFile(id) { const f = fmeta().find(x => x.id === id), b = await dbGet(id, "files"); if (b) dlBlob(f.name, b); }
+
+function fileApp(f) {
+  const k = kindOf(f.name), [icon, color] = KIND_ICON[k];
+  return { builtin: 1, name: f.name, icon, color, open: (root, os) => k === "text" ? notepad(root, os, f.id) : viewer(root, os, f) };
+}
+
+// Floating player for html / images / audio / video / pdf
+async function viewer(root, os, f) {
+  const b0 = await dbGet(f.id, "files");
+  if (!b0) { root.innerHTML = '<div class="load err">File not found</div>'; return; }
+  const k = kindOf(f.name), blob = new Blob([b0], { type: mimeOf(f.name) }), url = URL.createObjectURL(blob);
+  const media = k === "image" ? `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain">`
+    : k === "audio" ? `<div class="vc"><div style="font-size:64px">🎵</div><div>${esc(f.name)}</div><audio controls autoplay src="${url}"></audio></div>`
+    : k === "video" ? `<video controls autoplay src="${url}" style="width:100%;height:100%"></video>`
+    : `<iframe src="${url}" style="width:100%;height:100%;border:0;background:#fff"></iframe>`;
+  root.innerHTML = `<div class="vw"><div class="tabs vt"><button data-a="fs">⛶ Fullscreen</button><button data-a="tab">↗ Open in new tab</button><button data-a="dl">⬇ Download</button></div><div class="vb">${media}</div></div>`;
+  root.querySelector(".vt").onclick = e => {
+    const a = e.target.dataset.a;
+    if (a === "fs") root.querySelector(".vb").requestFullscreen?.();
+    if (a === "tab") window.open(url, "_blank");
+    if (a === "dl") dlBlob(f.name, blob);
+  };
+  os.setTitle(f.name);
+}
+
+// Notepad with a File menu: New, Open, Save, Save As (with type list), Download, Exit
+const TYPES = [["Text Documents (*.txt)", "txt"], ["HTML (*.html)", "html"], ["JSON (*.json)", "json"], ["Markdown (*.md)", "md"], ["JavaScript (*.js)", "js"], ["CSS (*.css)", "css"], ["CSV (*.csv)", "csv"], ["All Files (*.*)", ""]];
+async function notepad(root, os, id) {
+  const f = id && fmeta().find(x => x.id === id);
+  const doc = { id: f ? f.id : null, name: f ? f.name : "Untitled.txt", dirty: false };
+  root.innerHTML = `<style>.np{position:relative;height:100%;display:flex;flex-direction:column;background:#fff;color:#000;font-size:12px}
+.npm{display:flex;background:#f0f0f0;border-bottom:1px solid #ddd}
+.npm span{padding:4px 10px;cursor:default}.npm span:hover{background:#cce8ff}
+.npe{flex:1;resize:none;border:0;outline:0;padding:4px 6px;font:14px Consolas,monospace;color:#000;background:#fff;tab-size:4;user-select:text}
+.nps{padding:3px 10px;background:#f0f0f0;border-top:1px solid #ddd;color:#444}
+.npd{position:absolute;z-index:5;display:none;background:#f2f2f2;border:1px solid #ccc;box-shadow:2px 2px 4px rgba(0,0,0,.3);min-width:180px}
+.npi{padding:5px 24px 5px 12px;cursor:default}.npi:hover{background:#cce8ff}
+.npo{position:absolute;inset:0;background:rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;z-index:9}
+.npb{background:#f0f0f0;border:1px solid #888;padding:14px;min-width:300px;max-width:92%;max-height:90%;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.npb label{display:flex;gap:8px;align-items:center}.npb input,.npb select{flex:1;padding:4px;border:1px solid #888;background:#fff;color:#000}
+.npb .b{display:flex;gap:8px;justify-content:flex-end}.npb button{padding:4px 16px;border:1px solid #999;background:#e1e1e1;color:#000}
+.npb button:hover{background:#cce8ff;border-color:#0078d7}
+.npl div{padding:4px 8px;cursor:default}.npl div:hover{background:#cce8ff}</style><div class="np"><div class="npm"><span data-m="file">File</span><span data-m="fmt">Format</span></div><textarea class="npe" spellcheck="false"></textarea><div class="nps"></div><div class="npd"></div></div>`;
+  const q = s => root.querySelector(s), ed = q(".npe"), st = q(".nps"), dd = q(".npd");
+  if (f) { const b = await dbGet(f.id, "files"); ed.value = b ? await b.text() : ""; }
+  const title = () => { os.setTitle((doc.dirty ? "*" : "") + doc.name + " - Notepad"); st.textContent = ed.value.length.toLocaleString() + " characters"; };
+  const modal = html => { const o = document.createElement("div"); o.className = "npo"; o.innerHTML = `<div class="npb">${html}</div>`; q(".np").appendChild(o); return o; };
+  const blobOf = name => new Blob([ed.value], { type: mimeOf(name) });
+
+  async function save() {
+    if (!doc.id) return saveAs();
+    if (await putFile(doc.id, doc.name, blobOf(doc.name))) { doc.dirty = false; title(); }
+  }
+  function saveAs() {
+    const o = modal(`<b>Save As</b><label>File name:<input class="n" value="${esc(doc.name)}"></label><label>Save as type:<select class="t">${TYPES.map(([l, e]) => `<option value="${e}">${l}</option>`).join("")}</select></label><div class="b"><button class="ok">Save</button><button class="no">Cancel</button></div>`);
+    const n = o.querySelector(".n"), t = o.querySelector(".t");
+    t.value = TYPES.some(x => x[1] === extOf(doc.name)) ? extOf(doc.name) : "";
+    t.onchange = () => { n.value = n.value.replace(/\.\w{1,8}$/, "") + (t.value ? "." + t.value : ""); };
+    o.querySelector(".no").onclick = () => o.remove();
+    o.querySelector(".ok").onclick = async () => {
+      let name = n.value.trim(); if (!name) return;
+      if (t.value && !/\.\w{1,8}$/.test(name)) name += "." + t.value; // typed extension wins, otherwise use the chosen type
+      const same = fmeta().find(x => x.name.toLowerCase() === name.toLowerCase());
+      if (same && same.id !== doc.id && !confirm(name + " already exists. Replace it?")) return;
+      const nid = same ? same.id : newId();
+      if (await putFile(nid, name, blobOf(name))) { Object.assign(doc, { id: nid, name, dirty: false }); title(); o.remove(); }
+    };
+    n.focus(); n.select();
+  }
+  function newDoc() {
+    if (doc.dirty && !confirm("Discard unsaved changes?")) return;
+    Object.assign(doc, { id: null, name: "Untitled.txt", dirty: false }); ed.value = ""; title();
+  }
+  function openDlg() {
+    const o = modal(`<b>Open</b><div class="npl">${fmeta().map(x => `<div data-i="${x.id}">${esc(x.name)}</div>`).join("") || "No files yet. Right-click the desktop to create or upload one."}</div><div class="b"><button class="no">Cancel</button></div>`);
+    o.onclick = async e => {
+      if (e.target === o || e.target.classList.contains("no")) return o.remove();
+      const i = e.target.dataset.i; if (!i) return;
+      const x = fmeta().find(z => z.id === i), b = await dbGet(i, "files");
+      ed.value = b ? await b.text() : ""; Object.assign(doc, { id: i, name: x.name, dirty: false }); o.remove(); title();
+    };
+  }
+  const menus = {
+    file: [["New", newDoc], ["Open...", openDlg], ["Save", save], ["Save As...", saveAs], ["Download", () => dlBlob(doc.name, blobOf(doc.name))], ["Exit", os.close]],
+    fmt: [[() => (ed.wrap === "off" ? "Word Wrap" : "✓ Word Wrap"), () => { ed.wrap = ed.wrap === "off" ? "soft" : "off"; }]]
+  };
+  q(".npm").onclick = e => {
+    const m = e.target.dataset.m; if (!m) return;
+    e.stopPropagation(); dd.innerHTML = "";
+    menus[m].forEach(([l, fn]) => { const d = document.createElement("div"); d.className = "npi"; d.textContent = typeof l === "function" ? l() : l; d.onclick = () => { dd.style.display = "none"; fn(); }; dd.appendChild(d); });
+    dd.style.left = e.target.offsetLeft + "px"; dd.style.top = e.target.offsetHeight + "px"; dd.style.display = "block";
+  };
+  root.onclick = () => { dd.style.display = "none"; };
+  ed.oninput = () => { doc.dirty = true; title(); };
+  ed.onkeydown = e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); save(); }
+    else if ((e.ctrlKey || e.metaKey) && e.key === "o") { e.preventDefault(); openDlg(); }
+    else if (e.key === "Tab") { e.preventDefault(); ed.setRangeText("\t", ed.selectionStart, ed.selectionEnd, "end"); ed.oninput(); }
+  };
+  title();
 }
 
 // ===================== SYSTEM APPS =====================
