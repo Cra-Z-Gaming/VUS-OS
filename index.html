@@ -21,10 +21,10 @@ input,select,button{font-family:var(--font)}
 #bootTitle{font-size:15px;color:#bbb}
 
 #desktop{position:fixed;inset:0 0 var(--tb) 0;overflow:hidden}
-#icons{position:absolute;inset:0;padding:8px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(auto-fill,92px);grid-auto-columns:80px;gap:2px;align-content:start;justify-content:start}
+#icons{position:absolute;inset:0;padding:8px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(auto-fill,var(--rh,92px));grid-auto-columns:var(--cw,80px);gap:2px;align-content:start;justify-content:start}
 .icon{display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 2px;border:1px solid transparent;cursor:default;text-align:center}
 .icon:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.15)}
-.icon.sel{background:rgba(0,120,215,.35);border-color:rgba(0,120,215,.8)}
+.icon.sel{background:color-mix(in srgb,var(--ac) 40%,transparent);border-color:var(--ac)}
 .lbl{font-size:12px;line-height:1.2;color:#fff;text-shadow:0 1px 2px #000,0 0 4px rgba(0,0,0,.6);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
 
 .win{position:absolute;min-width:300px;min-height:200px;background:var(--el);border:1px solid #3a3a3a;box-shadow:0 8px 28px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden}
@@ -60,7 +60,7 @@ input,select,button{font-family:var(--font)}
 #showdesk{width:6px;border-left:1px solid #555;flex-shrink:0}
 #showdesk:hover{background:rgba(255,255,255,.2)}
 
-#start{position:fixed;left:0;bottom:var(--tb);width:640px;max-width:100%;height:min(600px,calc(100% - var(--tb)));background:rgba(31,31,31,.97);backdrop-filter:blur(30px);border:1px solid #3a3a3a;border-bottom:0;display:none;z-index:600}
+#start{position:fixed;left:0;bottom:var(--tb);width:690px;max-width:100%;height:min(600px,calc(100% - var(--tb)));background:rgba(31,31,31,.97);backdrop-filter:blur(30px);border:1px solid #3a3a3a;border-bottom:0;display:none;z-index:600}
 #start.open{display:flex}
 .st-l{width:290px;display:flex;flex-direction:column;border-right:1px solid #2e2e2e;min-width:0}
 .st-l input{margin:10px;padding:9px 10px;background:#2b2b2b;border:1px solid #444;color:#fff;font-size:13px;outline:none;user-select:text}
@@ -98,6 +98,28 @@ input,select,button{font-family:var(--font)}
 .card div{display:flex;align-items:center;gap:10px;font-size:14px}
 .card p{font-size:12px;color:var(--mute);line-height:1.4}
 .card button{align-self:flex-start}
+.st{display:flex;height:100%;background:var(--el)}
+.stn{width:170px;flex-shrink:0;border-right:1px solid var(--bd);padding:8px 0;overflow-y:auto}
+.stn div{padding:10px 14px;cursor:default;font-size:13px;border-left:3px solid transparent}
+.stn div:hover{background:rgba(255,255,255,.08)}.stn div.on{border-left-color:var(--ac);background:rgba(255,255,255,.06)}
+.stc{flex:1;min-width:0;overflow-y:auto;padding:20px 26px;display:flex;flex-direction:column;gap:10px}
+.stc h2{font-size:22px;font-weight:600}.stc h3{font-size:14px;font-weight:600;margin-top:14px}
+.stc label{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 0;font-size:13px;border-bottom:1px solid var(--bd)}
+.stc input,.stc select{background:#333;border:1px solid #666;padding:6px 10px;color:#fff;font-size:13px;outline:none;border-radius:0;user-select:text}
+.stc input[type=checkbox]{width:18px;height:18px;accent-color:var(--ac)}.stc input[type=color]{padding:0;width:44px;height:28px}
+.stc button{padding:6px 14px;border:1px solid #666;background:#333;color:#fff;font-size:12px;cursor:default;align-self:flex-start}
+.stc button:hover{background:#444}.stc p{font-size:12px;color:var(--mute)}
+.sth{display:flex;flex-wrap:wrap;gap:10px}
+.stt{display:flex;flex-direction:column;gap:6px;width:150px;height:96px;padding:12px;background:var(--card);border:1px solid transparent;cursor:default;font-size:13px}
+.stt:hover{border-color:var(--ac)}.stt span{font-size:26px}
+.sbar{height:10px;background:#444}.sbar i{display:block;height:100%;background:var(--ac)}
+.sws{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.sw{width:28px;height:28px;border:2px solid transparent;cursor:default}.sw.on{border-color:#fff}
+.fxw{height:100%;display:flex;flex-direction:column;background:var(--el)}
+.fxt{padding:6px;background:#2b2b2b;align-items:center}.fxp{font-size:12px;color:var(--mute);margin-left:8px}
+.fx{flex:1;overflow:auto;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,var(--cw,80px));grid-auto-rows:var(--rh,92px);gap:2px;align-content:start}
+.st-rail{width:48px;display:flex;flex-direction:column;justify-content:flex-end;background:rgba(0,0,0,.3);flex-shrink:0}
+.st-rail div{height:48px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:default}
+.st-rail div:hover{background:rgba(255,255,255,.14)}
 .vw{height:100%;display:flex;flex-direction:column;background:#111}
 .vt{padding:6px;background:#2b2b2b}
 .vb{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#000}
@@ -112,7 +134,7 @@ input,select,button{font-family:var(--font)}
 <body>
 <div id="boot"><div class="win-logo"><i></i><i></i><i></i><i></i></div><div class="spin"></div><div id="bootTitle">VUS-OS</div></div>
 <div id="desktop"><div id="icons"></div></div>
-<div id="start"><div class="st-l"><input id="startQ" placeholder="Type here to search" autocomplete="off"><div id="startList"></div></div><div class="st-r"><h3>Apps</h3><div id="tiles"></div></div></div>
+<div id="start"><div class="st-rail"></div><div class="st-l"><input id="startQ" placeholder="Type here to search" autocomplete="off"><div id="startList"></div></div><div class="st-r"><h3>Apps</h3><div id="tiles"></div></div></div>
 <div id="ctx"></div>
 <input type="file" id="up" multiple hidden>
 <div id="taskbar">
@@ -147,7 +169,7 @@ const key = a => a.name + "|" + a.url;
 const isNative = a => a.type === "native" || /\.js(\?|$)/.test(a.url || "");
 const COLORS = { green:["34,197,94","#4ade80"], blue:["59,130,246","#60a5fa"], amber:["245,158,11","#fbbf24"], rose:["244,63,94","#fb7185"], violet:["139,92,246","#a78bfa"], cyan:["6,182,212","#22d3ee"], lime:["132,204,22","#a3e635"], orange:["249,115,22","#fb923c"], red:["239,68,68","#f87171"], purple:["168,85,247","#c084fc"], black:["148,163,184","#cbd5e1"], white:["255,255,255","#f1f5f9"] };
 const solid = a => { const c = (COLORS[a.color] || COLORS.green)[0]; return c === "255,255,255" ? ["#e6e6e6", "#000"] : [`rgb(${c})`, "#fff"]; };
-const glyph = (a, s = 42) => { const [bg, fg] = solid(a); return `<div class="gl" style="width:${s}px;height:${s}px;font-size:${Math.round(s * .42)}px;background:${bg};color:${fg}">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</div>`; };
+const glyph = (a, s = ICON_PX[getSettings().iconSize] || 42) => { const [bg, fg] = solid(a); return `<div class="gl" style="width:${s}px;height:${s}px;font-size:${Math.round(s * .42)}px;background:${bg};color:${fg}">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</div>`; };
 
 // ===================== CATALOG (apps + tools only) =====================
 let catalog = [...NATIVE];
@@ -170,49 +192,33 @@ function toggleInstall(a) {
   save("installed", list);
   renderIcons();
 }
+const refreshers = new Set(); // open File Explorer windows redraw through this
 function renderIcons() {
   const box = $("#icons"); box.innerHTML = "";
-  const add = (a, label, open, menu) => {
-    const el = document.createElement("div");
-    el.className = "icon";
-    el.innerHTML = glyph(a) + `<div class="lbl">${esc(label)}</div>`;
-    // Windows-style: click selects, double-click opens (a single tap opens on touch screens)
-    el.onclick = e => {
-      document.querySelectorAll(".icon.sel").forEach(i => i.classList.remove("sel"));
-      el.classList.add("sel");
-      if (e.detail >= 2 || matchMedia("(pointer:coarse)").matches) open();
-    };
-    el.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [["Open", open], ...menu]); };
-    box.appendChild(el);
-  };
   installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean)
-    .forEach(a => add(a, a.name, () => openApp(a), [["Remove from desktop", () => toggleInstall(a)]]));
-  fmeta().forEach(f => add(fileApp(f), f.name, () => openApp(fileApp(f)), [
-    ["Download", () => downloadFile(f.id)],
-    ["Rename", () => renameFile(f.id)],
-    ["Delete", () => { if (confirm(`Delete ${f.name}?`)) deleteFile(f.id); }]
-  ]));
+    .forEach(a => box.appendChild(iconEl(a, a.name, () => openApp(a), [["Remove from desktop", () => toggleInstall(a)]])));
+  fillDir(box, null, id => openApp(folderApp(id)));
+  refreshers.forEach(fn => fn());
 }
 
 // ===================== CONTEXT MENU =====================
 function ctx(e, items) {
   const m = $("#ctx");
   m.innerHTML = "";
-  items.forEach(([label, fn]) => { const d = document.createElement("div"); d.textContent = label; d.onclick = () => { fn(); m.style.display = "none"; }; m.appendChild(d); });
+  items.forEach(([label, fn]) => { const d = document.createElement("div"); d.textContent = label; d.onclick = ev => { ev.stopPropagation(); m.style.display = "none"; fn(e); }; m.appendChild(d); });
   m.style.left = Math.min(e.clientX, innerWidth - 200) + "px";
   m.style.top = Math.min(e.clientY, innerHeight - 80) + "px";
   m.style.display = "block";
 }
 document.addEventListener("click", () => $("#ctx").style.display = "none");
 $("#desktop").addEventListener("click", e => { if (!e.target.closest(".icon")) document.querySelectorAll(".icon.sel").forEach(i => i.classList.remove("sel")); });
-$("#desktop").addEventListener("contextmenu", e => {
-  if (e.target.closest(".icon,.win")) return;
-  e.preventDefault();
-  ctx(e, [["New text document", () => newFile("txt")], ["New HTML document", () => newFile("html")], ["New JSON file", () => newFile("json")], ["Upload files...", () => $("#up").click()], ["Refresh", renderIcons]]);
-});
-$("#up").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+const newMenu = dir => [["New folder", () => newFolder(dir)], ["New text document", () => newFile("txt", dir)], ["New HTML document", () => newFile("html", dir)], ["New JSON file", () => newFile("json", dir)], ["Upload files...", () => pickUpload(dir)], ["Refresh", renderIcons]];
+let upDir = null;
+const pickUpload = dir => { upDir = dir; $("#up").click(); };
+$("#desktop").addEventListener("contextmenu", e => { if (e.target.closest(".icon,.win")) return; e.preventDefault(); ctx(e, newMenu(null)); });
+$("#up").onchange = e => { addFiles(e.target.files, upDir); e.target.value = ""; };
 $("#desktop").addEventListener("dragover", e => e.preventDefault());
-$("#desktop").addEventListener("drop", e => { e.preventDefault(); addFiles(e.dataTransfer.files); });
+$("#desktop").addEventListener("drop", e => { e.preventDefault(); addFiles(e.dataTransfer.files, null); });
 $("#showdesk").onclick = () => wins.forEach(w => { w.el.classList.add("min"); w.task.classList.remove("active"); });
 
 // ===================== WINDOWS =====================
@@ -313,7 +319,7 @@ async function fetchCode(app) {
 }
 async function saveCode(app, text) {
   if (!(await dbSet(app.name, text))) return;
-  const m = metaAll(); m[app.name] = { url: app.url, version: remoteVer(app.name) }; save("meta", m);
+  const m = metaAll(); m[app.name] = { url: app.url, version: remoteVer(app.name), size: text.length }; save("meta", m);
 }
 async function getCode(app) {
   const m = metaAll()[app.name];
@@ -374,37 +380,118 @@ const KIND_ICON = { text: ["📄", "blue"], html: ["🌐", "orange"], image: ["�
 const fmeta = () => LS("files", []);
 const newId = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 
-function uniqueName(name, skipId) {
-  const names = new Set(fmeta().filter(f => f.id !== skipId).map(f => f.name.toLowerCase()));
+const folders = () => LS("folders", []);
+const sameDir = (x, d) => (x.parent || null) === d;
+const usage = () => fmeta().reduce((n, f) => n + (f.size || 0), 0) + Object.values(metaAll()).reduce((n, m) => n + (m.size || 0), 0);
+const limitBytes = () => (getSettings().limitMB || 512) * 1048576;
+const fmt = b => b < 1024 ? b + " B" : b < 1048576 ? (b / 1024).toFixed(1) + " KB" : b < 1073741824 ? (b / 1048576).toFixed(1) + " MB" : (b / 1073741824).toFixed(2) + " GB";
+function pathOf(id) {
+  const p = []; let f = folders().find(x => x.id === id);
+  while (f) { p.unshift(f.name); const par = f.parent; f = folders().find(x => x.id === par); }
+  return ["Desktop", ...p].join(" › ");
+}
+const descendants = id => { const out = []; const walk = d => folders().filter(f => sameDir(f, d)).forEach(f => { out.push(f.id); walk(f.id); }); walk(id); return out; };
+
+function uniqueName(name, skipId, parent = null, list = fmeta()) {
+  const names = new Set(list.filter(f => f.id !== skipId && sameDir(f, parent)).map(f => f.name.toLowerCase()));
   if (!names.has(name.toLowerCase())) return name;
   const m = name.match(/^(.*?)(\.[^.]*)?$/);
   let i = 2, n;
   do { n = `${m[1]} (${i++})${m[2] || ""}`; } while (names.has(n.toLowerCase()));
   return n;
 }
-async function putFile(id, name, blob) {
+async function putFile(id, name, blob, parent) {
+  const m = fmeta(), i = m.findIndex(f => f.id === id), old = i < 0 ? null : m[i];
+  if (usage() + blob.size - (old ? old.size || 0 : 0) > limitBytes()) { alert(`Storage is full (${fmt(limitBytes())} limit). Free up space in Settings > System > Storage.`); return false; }
   if (!(await dbSet(id, blob, "files"))) { alert("Couldn't save " + name + " (browser storage may be full)."); return false; }
-  const m = fmeta(), i = m.findIndex(f => f.id === id), e = { id, name, size: blob.size };
+  const e = { id, name, size: blob.size, parent: parent !== undefined ? parent : old ? old.parent || null : null };
   if (i < 0) m.push(e); else m[i] = e;
   save("files", m); renderIcons(); return true;
 }
-async function addFiles(list) { for (const f of list) await putFile(newId(), uniqueName(f.name), f); }
-async function newFile(ext) {
-  const name = prompt("File name (change the extension to make any file type):", uniqueName("New " + { txt: "Text Document", html: "HTML Document", json: "JSON File" }[ext] + "." + ext));
-  if (name && name.trim()) putFile(newId(), uniqueName(name.trim()), new Blob([""], { type: mimeOf(name) }));
+async function addFiles(list, parent = null) { for (const f of list) await putFile(newId(), uniqueName(f.name, null, parent), f, parent); }
+function newFile(ext, parent = null) {
+  const name = prompt("File name (change the extension to make any file type):", uniqueName("New " + { txt: "Text Document", html: "HTML Document", json: "JSON File" }[ext] + "." + ext, null, parent));
+  if (name && name.trim()) putFile(newId(), uniqueName(name.trim(), null, parent), new Blob([""], { type: mimeOf(name) }), parent);
 }
-function renameFile(id) {
-  const f = fmeta().find(x => x.id === id);
-  const n = prompt("Rename (you can change the extension):", f.name);
-  if (!n || !n.trim() || n === f.name) return;
-  save("files", fmeta().map(x => x.id === id ? { ...x, name: uniqueName(n.trim(), id) } : x)); renderIcons();
+function newFolder(parent = null) {
+  const n = prompt("Folder name:", uniqueName("New folder", null, parent, folders()));
+  if (n && n.trim()) { save("folders", [...folders(), { id: newId(), name: uniqueName(n.trim(), null, parent, folders()), parent }]); renderIcons(); }
+}
+function renameItem(kind, id) {
+  const key = kind === "folder" ? "folders" : "files", list = kind === "folder" ? folders() : fmeta(), it = list.find(x => x.id === id);
+  const n = prompt(kind === "folder" ? "Rename folder:" : "Rename (you can change the extension):", it.name);
+  if (!n || !n.trim() || n === it.name) return;
+  save(key, list.map(x => x.id === id ? { ...x, name: uniqueName(n.trim(), id, x.parent || null, list) } : x)); renderIcons();
 }
 async function deleteFile(id) { await dbDel(id, "files"); save("files", fmeta().filter(f => f.id !== id)); renderIcons(); }
+async function deleteFolder(id) {
+  const ids = [id, ...descendants(id)];
+  for (const f of fmeta().filter(f => ids.includes(f.parent))) await dbDel(f.id, "files");
+  save("files", fmeta().filter(f => !ids.includes(f.parent)));
+  save("folders", folders().filter(f => !ids.includes(f.id))); renderIcons();
+}
+function moveTo(kind, id, parent) {
+  if (kind === "folder" && (parent === id || descendants(id).includes(parent))) return alert("Can't move a folder into itself.");
+  const key = kind === "folder" ? "folders" : "files", list = kind === "folder" ? folders() : fmeta();
+  save(key, list.map(x => x.id === id ? { ...x, parent, name: uniqueName(x.name, id, parent, list) } : x)); renderIcons();
+}
+function moveMenu(e, kind, id) {
+  const ok = f => kind !== "folder" || (f.id !== id && !descendants(id).includes(f.id));
+  ctx(e, [["Desktop", () => moveTo(kind, id, null)], ...folders().filter(ok).map(f => [pathOf(f.id).replace("Desktop › ", "📁 "), () => moveTo(kind, id, f.id)])]);
+}
+async function clearCache(name) { await dbDel(name, "code"); const m = metaAll(); delete m[name]; save("meta", m); }
 function dlBlob(name, blob) {
   const u = URL.createObjectURL(blob), a = document.createElement("a");
   a.href = u; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(u), 2000);
 }
 async function downloadFile(id) { const f = fmeta().find(x => x.id === id), b = await dbGet(id, "files"); if (b) dlBlob(f.name, b); }
+
+// one desktop/explorer icon with its click + right-click behaviour
+function iconEl(a, label, open, menu) {
+  const el = document.createElement("div");
+  el.className = "icon";
+  el.innerHTML = glyph(a) + `<div class="lbl">${esc(label)}</div>`;
+  el.onclick = e => { // click selects, double-click opens (a single tap opens on touch screens)
+    document.querySelectorAll(".icon.sel").forEach(i => i.classList.remove("sel"));
+    el.classList.add("sel");
+    if (e.detail >= 2 || matchMedia("(pointer:coarse)").matches) open();
+  };
+  el.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [["Open", open], ...menu]); };
+  return el;
+}
+// appends the folders + files that live in `dir` (null = desktop) into box
+function fillDir(box, dir, openFolder) {
+  folders().filter(f => sameDir(f, dir)).forEach(f => box.appendChild(iconEl({ name: f.name, icon: "📁", color: "amber" }, f.name, () => openFolder(f.id), [
+    ["Rename", () => renameItem("folder", f.id)], ["Move to...", e => moveMenu(e, "folder", f.id)],
+    ["Delete", () => { if (confirm(`Delete folder "${f.name}" and everything in it?`)) deleteFolder(f.id); }]])));
+  fmeta().filter(f => sameDir(f, dir)).forEach(f => box.appendChild(iconEl(fileApp(f), f.name, () => openApp(fileApp(f)), [
+    ["Download", () => downloadFile(f.id)], ["Rename", () => renameItem("file", f.id)], ["Move to...", e => moveMenu(e, "file", f.id)],
+    ["Delete", () => { if (confirm(`Delete ${f.name}?`)) deleteFile(f.id); }]])));
+}
+function folderApp(id) {
+  const f = folders().find(x => x.id === id);
+  return { builtin: 1, name: f ? f.name : "Folder", icon: "📁", color: "amber", open: (root, os) => explorer(root, os, id) };
+}
+function explorer(root, os, dir) {
+  const cur = { dir };
+  root.innerHTML = '<div class="fxw"><div class="tabs fxt"><button data-a="up">↑ Up</button><span class="fxp"></span></div><div class="fx"></div></div>';
+  const grid = root.querySelector(".fx");
+  const draw = () => {
+    if (!root.isConnected) return refreshers.delete(draw); // window was closed
+    let d = cur.dir && folders().find(f => f.id === cur.dir);
+    if (cur.dir && !d) cur.dir = null;
+    root.querySelector(".fxp").textContent = pathOf(cur.dir);
+    os.setTitle(d ? d.name : "File Explorer");
+    grid.innerHTML = ""; fillDir(grid, cur.dir, id => { cur.dir = id; draw(); });
+  };
+  refreshers.add(draw);
+  root.querySelector(".fxt").onclick = e => { if (e.target.dataset.a === "up") { const d = folders().find(f => f.id === cur.dir); cur.dir = d ? d.parent || null : null; draw(); } };
+  root.oncontextmenu = e => { if (e.target.closest(".icon")) return; e.preventDefault(); ctx(e, newMenu(cur.dir)); };
+  grid.ondragover = e => e.preventDefault();
+  grid.ondrop = e => { e.preventDefault(); e.stopPropagation(); addFiles(e.dataTransfer.files, cur.dir); };
+  draw();
+}
+const EXPLORER = { builtin: 1, single: 1, name: "File Explorer", icon: "📁", color: "amber", open: (root, os) => explorer(root, os, null) };
 
 function fileApp(f) {
   const k = kindOf(f.name), [icon, color] = KIND_ICON[k];
@@ -434,7 +521,7 @@ async function viewer(root, os, f) {
 const TYPES = [["Text Documents (*.txt)", "txt"], ["HTML (*.html)", "html"], ["JSON (*.json)", "json"], ["Markdown (*.md)", "md"], ["JavaScript (*.js)", "js"], ["CSS (*.css)", "css"], ["CSV (*.csv)", "csv"], ["All Files (*.*)", ""]];
 async function notepad(root, os, id) {
   const f = id && fmeta().find(x => x.id === id);
-  const doc = { id: f ? f.id : null, name: f ? f.name : "Untitled.txt", dirty: false };
+  const doc = { id: f ? f.id : null, name: f ? f.name : "Untitled.txt", dirty: false, parent: f ? f.parent || null : null };
   root.innerHTML = `<style>.np{position:relative;height:100%;display:flex;flex-direction:column;background:#fff;color:#000;font-size:12px}
 .npm{display:flex;background:#f0f0f0;border-bottom:1px solid #ddd}
 .npm span{padding:4px 10px;cursor:default}.npm span:hover{background:#cce8ff}
@@ -467,10 +554,10 @@ async function notepad(root, os, id) {
     o.querySelector(".ok").onclick = async () => {
       let name = n.value.trim(); if (!name) return;
       if (t.value && !/\.\w{1,8}$/.test(name)) name += "." + t.value; // typed extension wins, otherwise use the chosen type
-      const same = fmeta().find(x => x.name.toLowerCase() === name.toLowerCase());
+      const same = fmeta().find(x => x.name.toLowerCase() === name.toLowerCase() && (x.parent || null) === doc.parent);
       if (same && same.id !== doc.id && !confirm(name + " already exists. Replace it?")) return;
       const nid = same ? same.id : newId();
-      if (await putFile(nid, name, blobOf(name))) { Object.assign(doc, { id: nid, name, dirty: false }); title(); o.remove(); }
+      if (await putFile(nid, name, blobOf(name), doc.parent)) { Object.assign(doc, { id: nid, name, dirty: false }); title(); o.remove(); }
     };
     n.focus(); n.select();
   }
@@ -484,7 +571,7 @@ async function notepad(root, os, id) {
       if (e.target === o || e.target.classList.contains("no")) return o.remove();
       const i = e.target.dataset.i; if (!i) return;
       const x = fmeta().find(z => z.id === i), b = await dbGet(i, "files");
-      ed.value = b ? await b.text() : ""; Object.assign(doc, { id: i, name: x.name, dirty: false }); o.remove(); title();
+      ed.value = b ? await b.text() : ""; Object.assign(doc, { id: i, name: x.name, dirty: false, parent: x.parent || null }); o.remove(); title();
     };
   }
   const menus = {
@@ -530,20 +617,58 @@ const STORE = { builtin: 1, single: 1, name: "App Store", icon: "🛒", color: "
   draw();
 }};
 
+const ICON_PX = { small: 36, medium: 42, large: 56 };
+const SWATCH = ["#0078d7", "#e81123", "#00b294", "#8764b8", "#ff8c00", "#107c10", "#e3008c", "#767676"];
 const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "⚙️", color: "cyan", open(root) {
-  const s = getSettings();
-  root.innerHTML = `<div class="pad"><h2>Settings</h2>
-    <label>Site name<input type="text" id="s1" value="${esc(s.site)}" maxlength="40"></label>
-    <label>Background<select id="s2"><option value="default">Default</option><option value="color">Solid color</option><option value="link">Image link</option></select></label>
-    <label>Color<input type="color" id="s3" value="${s.bgColor}"></label>
-    <label>Image link<input type="text" id="s4" value="${esc(s.bgLink)}" placeholder="https://..."></label>
-    <label>Auto update apps<input type="checkbox" id="s5" ${s.autoUpdate ? "checked" : ""}></label></div>`;
-  root.querySelector("#s2").value = s.bgMode;
-  root.oninput = e => {
-    save("settings", { site: root.querySelector("#s1").value.trim() || "VUS-OS", bgMode: root.querySelector("#s2").value, bgColor: root.querySelector("#s3").value, bgLink: root.querySelector("#s4").value.trim(), autoUpdate: root.querySelector("#s5").checked });
-    applyTheme();
-    if (e.target.id === "s5" && e.target.checked) autoUpdate();
+  const NAV = [["home", "🏠", "Home"], ["system", "💻", "System"], ["person", "🎨", "Personalization"], ["apps", "🧩", "Apps"], ["time", "🕒", "Time & language"]];
+  let page = "home";
+  root.innerHTML = '<div class="st"><div class="stn"></div><div class="stc"></div></div>';
+  const nav = root.querySelector(".stn"), box = root.querySelector(".stc");
+  const set = p => { save("settings", { ...getSettings(), ...p }); applyTheme(); tick(); if (p.autoUpdate === true) autoUpdate(); };
+  const opts = (list, cur) => list.map(([v, l]) => `<option value="${esc(String(v))}" ${String(v) === String(cur) ? "selected" : ""}>${esc(l)}</option>`).join("");
+  const pages = {
+    home: () => `<h2>Settings</h2><div class="sth">${NAV.slice(1).map(([k, i, l]) => `<div class="stt" data-go="${k}"><span>${i}</span>${l}</div>`).join("")}</div>`,
+    system: () => {
+      const s = getSettings(), u = usage(), lim = limitBytes();
+      const items = [...fmeta().map(f => ({ n: f.name, size: f.size || 0, act: "delf", id: f.id, b: "Delete" })),
+        ...Object.entries(metaAll()).map(([n, m]) => ({ n: n + " (saved app)", size: m.size || 0, act: "delc", id: n, b: "Clear" }))].sort((a, b) => b.size - a.size).slice(0, 12);
+      return `<h2>System</h2><h3>Storage</h3><div class="sbar"><i style="width:${Math.min(100, u / lim * 100)}%"></i></div><p>${fmt(u)} used of ${fmt(lim)}</p><p id="est"></p>
+        <label>Storage limit<select data-k="limitMB" data-n="1" data-r="1">${opts([[128, "128 MB"], [256, "256 MB"], [512, "512 MB"], [1024, "1 GB"], [2048, "2 GB"]], s.limitMB)}</select></label>
+        <h3>Biggest items</h3>${items.map(x => `<div class="item row"><div style="flex:1;overflow:hidden"><b>${esc(x.n)}</b><small>${fmt(x.size)}</small></div><button data-act="${x.act}" data-i="${esc(x.id)}">${x.b}</button></div>`).join("") || "<p>Nothing stored yet.</p>"}
+        <h3>About</h3><label>Site name<input type="text" data-k="site" value="${esc(s.site)}" maxlength="40"></label>`;
+    },
+    person: () => {
+      const s = getSettings(), imgs = fmeta().filter(f => kindOf(f.name) === "image");
+      return `<h2>Personalization</h2><h3>Background</h3>
+        <label>Background<select data-k="bgMode" data-r="1">${opts([["default", "Default"], ["color", "Solid color"], ["link", "Image link"], ["file", "Picture from Files"]], s.bgMode)}</select></label>
+        ${s.bgMode === "color" ? `<label>Color<input type="color" data-k="bgColor" value="${s.bgColor}"></label>` : ""}
+        ${s.bgMode === "link" ? `<label>Image link<input type="text" data-k="bgLink" value="${esc(s.bgLink)}" placeholder="https://..."></label>` : ""}
+        ${s.bgMode === "file" ? `<label>Picture<select data-k="bgFile">${opts([["", "Choose..."], ...imgs.map(f => [f.id, f.name])], s.bgFile)}</select></label>` : ""}
+        <h3>Accent color</h3><div class="sws">${SWATCH.map(c => `<div class="sw ${c === s.accent ? "on" : ""}" data-sw="${c}" style="background:${c}"></div>`).join("")}<input type="color" data-k="accent" value="${s.accent}"></div>
+        <h3>Desktop icons</h3><label>Icon size<select data-k="iconSize">${opts([["small", "Small"], ["medium", "Medium"], ["large", "Large"]], s.iconSize)}</select></label>`;
+    },
+    apps: () => `<h2>Apps</h2><label>Update apps automatically<input type="checkbox" data-k="autoUpdate" ${getSettings().autoUpdate ? "checked" : ""}></label><button data-act="upd">Open Updates</button>
+      <h3>On the desktop</h3>${installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).map(a => `<div class="item row">${glyph(a, 28)}<div style="flex:1"><b>${esc(a.name)}</b></div><button data-act="rm" data-i="${esc(key(a))}">Remove</button></div>`).join("") || "<p>No apps on the desktop.</p>"}`,
+    time: () => `<h2>Time & language</h2><label>Use 24-hour clock<input type="checkbox" data-k="hour24" ${getSettings().hour24 ? "checked" : ""}></label>`
   };
+  const draw = () => {
+    nav.innerHTML = NAV.map(([k, i, l]) => `<div data-go="${k}" class="${k === page ? "on" : ""}">${i}&nbsp; ${l}</div>`).join("");
+    box.innerHTML = pages[page]();
+    if (page === "system") navigator.storage?.estimate?.().then(e => { const el = box.querySelector("#est"); if (el) el.textContent = `This browser reports ${fmt(e.usage)} used of about ${fmt(e.quota)} available.`; });
+  };
+  root.onclick = e => {
+    const t = e.target.closest("[data-go],[data-act],[data-sw]"); if (!t) return;
+    const d = t.dataset;
+    if (d.go) { page = d.go; draw(); }
+    else if (d.sw) { set({ accent: d.sw }); draw(); }
+    else if (d.act === "delf") { if (confirm("Delete this file?")) deleteFile(d.i).then(draw); }
+    else if (d.act === "delc") clearCache(d.i).then(draw);
+    else if (d.act === "upd") openApp(UPDATES);
+    else if (d.act === "rm") { toggleInstall(catalog.find(a => key(a) === d.i)); draw(); }
+  };
+  root.oninput = e => { const t = e.target, k = t.dataset.k; if (k) set({ [k]: t.type === "checkbox" ? t.checked : t.dataset.n ? +t.value : t.value }); };
+  root.onchange = e => { if (e.target.dataset.r) draw(); };
+  draw();
 }};
 
 const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "🔄", color: "lime", open(root) {
@@ -572,18 +697,24 @@ const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "🔄", color: "
   check();
 }};
 
-const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", autoUpdate: true }, LS("settings", {}));
-function applyTheme() {
-  const s = getSettings();
+const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512 }, LS("settings", {}));
+let bgUrl = null;
+async function applyTheme() {
+  const s = getSettings(), r = document.documentElement.style;
   document.title = s.site; $("#bootTitle").textContent = s.site;
-  const d = $("#desktop").style;
-  d.background = s.bgMode === "color" ? s.bgColor
-    : s.bgMode === "link" && s.bgLink ? `url("${s.bgLink}") center/cover no-repeat, var(--bg)`
-    : "radial-gradient(ellipse at 70% 40%,rgba(80,190,255,.55),transparent 55%),linear-gradient(135deg,#031a3a,#0a4a96 55%,#1688d9)";
+  r.setProperty("--ac", s.accent); r.setProperty("--ac2", `color-mix(in srgb, ${s.accent} 65%, white)`);
+  const px = ICON_PX[s.iconSize] || 42; r.setProperty("--cw", px + 38 + "px"); r.setProperty("--rh", px + 50 + "px");
+  let bg = "radial-gradient(ellipse at 70% 40%,rgba(80,190,255,.55),transparent 55%),linear-gradient(135deg,#031a3a,#0a4a96 55%,#1688d9)";
+  if (bgUrl) { URL.revokeObjectURL(bgUrl); bgUrl = null; }
+  if (s.bgMode === "color") bg = s.bgColor;
+  else if (s.bgMode === "link" && s.bgLink) bg = `url("${s.bgLink}") center/cover no-repeat, #000`;
+  else if (s.bgMode === "file" && s.bgFile) { const b = await dbGet(s.bgFile, "files"); if (b) { bgUrl = URL.createObjectURL(b); bg = `url("${bgUrl}") center/cover no-repeat, #000`; } }
+  $("#desktop").style.background = bg;
+  renderIcons();
 }
 
 // ===================== TASKBAR + START MENU =====================
-[[STORE, "store"], [UPDATES, "updates"], [SETTINGS, "settings"]].forEach(([app, cls]) => {
+[[EXPLORER, "files"], [STORE, "store"], [UPDATES, "updates"], [SETTINGS, "settings"]].forEach(([app, cls]) => {
   const t = document.createElement("div");
   t.className = "sys " + cls; t.title = app.name; t.textContent = app.icon;
   t.onclick = () => openApp(app);
@@ -599,6 +730,11 @@ $("#startBtn").onclick = e => { e.stopPropagation(); toggleStart(!start.classLis
 $("#searchBtn").onclick = e => { e.stopPropagation(); toggleStart(true); };
 document.addEventListener("click", e => { if (!start.contains(e.target) && start.classList.contains("open")) toggleStart(false); });
 $("#startQ").oninput = drawStart;
+[["📁", "File Explorer", () => openApp(EXPLORER)], ["⚙️", "Settings", () => openApp(SETTINGS)], ["⏻", "Power", e => ctx(e, [["Restart", () => location.reload()]])]].forEach(([i, t, fn]) => {
+  const d = document.createElement("div"); d.textContent = i; d.title = t;
+  d.onclick = e => { e.stopPropagation(); if (t === "Power") fn(e); else { fn(); toggleStart(false); } };
+  $(".st-rail").appendChild(d);
+});
 function drawStart() {
   const t = $("#startQ").value.toLowerCase().trim();
   const list = catalog.filter(a => !t || a.name.toLowerCase().includes(t)).sort((a, b) => a.name.localeCompare(b.name));
@@ -624,7 +760,7 @@ function drawStart() {
   });
 }
 
-function tick() { const d = new Date(); $("#ck1").textContent = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); $("#ck2").textContent = d.toLocaleDateString(); }
+function tick() { const d = new Date(); $("#ck1").textContent = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: !getSettings().hour24 }); $("#ck2").textContent = d.toLocaleDateString(); }
 setInterval(tick, 15000); tick();
 
 // ===================== BOOT =====================
