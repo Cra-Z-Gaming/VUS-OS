@@ -1,0 +1,2834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VUS-OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-elevated: #111827;
+    --card: rgba(17, 24, 39, 0.7);
+    --card-hover: rgba(30, 41, 59, 0.8);
+    --border: rgba(51, 65, 85, 0.5);
+    --border-hover: rgba(74, 222, 128, 0.35);
+    --fg: #f1f5f9;
+    --fg-muted: #94a3b8;
+    --fg-dim: #475569;
+    --accent: #22c55e;
+    --accent-glow: rgba(34, 197, 94, 0.15);
+    --danger: #ef4444;
+    --radius: 12px;
+    --font: 'Space Grotesk', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+    --taskbar-h: 56px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font);
+    user-select: none;
+  }
+
+  /* ================= BOOT SCREEN ================= */
+  #boot {
+    position: fixed; inset: 0;
+    z-index: 1000;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    transition: opacity 0.5s ease;
+  }
+  #boot.hide { opacity: 0; pointer-events: none; }
+
+  .boot-logo {
+    width: 72px; height: 72px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--accent), #10b981);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 32px; color: #000;
+    box-shadow: 0 0 40px rgba(34,197,94,0.35);
+    animation: bootPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes bootPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+  }
+
+  .boot-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--fg-muted);
+  }
+
+  .boot-bar-track {
+    width: 260px;
+    height: 6px;
+    border-radius: 4px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .boot-bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), #10b981);
+    box-shadow: 0 0 12px rgba(34,197,94,0.5);
+    transition: width 2s linear;
+  }
+
+  /* ================= DESKTOP ================= */
+  #desktop {
+    position: fixed;
+    inset: 0;
+    bottom: var(--taskbar-h);
+    background:
+      radial-gradient(circle at 15% 15%, rgba(34,197,94,0.10), transparent 45%),
+      radial-gradient(circle at 85% 80%, rgba(16,185,129,0.08), transparent 45%),
+      var(--bg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    overflow: hidden;
+  }
+
+  #icons {
+    position: absolute;
+    inset: 0;
+    padding: 14px;
+  }
+
+  .icon {
+    position: absolute;
+    width: var(--icon-cell, 84px);
+    height: var(--icon-cell-h, 88px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 8px 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .icon.dragging { opacity: 0.4; }
+
+  #grid-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.15s;
+    background-image:
+      linear-gradient(to right, rgba(34,197,94,0.18) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(34,197,94,0.18) 1px, transparent 1px);
+  }
+  #grid-overlay.show { opacity: 1; }
+  .icon:hover, .icon.selected {
+    background: rgba(255,255,255,0.06);
+    outline: 1px solid var(--border-hover);
+  }
+  .icon-glyph {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 700;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    flex-shrink: 0;
+  }
+  /* desktop icons scale their glyph with the chosen icon size */
+  .icon .icon-glyph {
+    width: var(--icon-glyph, 42px);
+    height: var(--icon-glyph, 42px);
+    font-size: var(--icon-glyph-font, 17px);
+    border-radius: calc(var(--icon-glyph, 42px) * 0.24);
+  }
+  .icon-glyph.green { background: rgba(34,197,94,0.18); color: #4ade80; }
+  .icon-glyph.blue { background: rgba(59,130,246,0.18); color: #60a5fa; }
+  .icon-glyph.amber { background: rgba(245,158,11,0.18); color: #fbbf24; }
+  .icon-glyph.rose { background: rgba(244,63,94,0.18); color: #fb7185; }
+  .icon-glyph.violet { background: rgba(139,92,246,0.18); color: #a78bfa; }
+  .icon-glyph.cyan { background: rgba(6,182,212,0.18); color: #22d3ee; }
+  .icon-glyph.lime { background: rgba(132,204,22,0.18); color: #a3e635; }
+  .icon-glyph.orange { background: rgba(249,115,22,0.18); color: #fb923c; }
+  .icon-glyph.red { background: rgba(239,68,68,0.18); color: #f87171; }
+  .icon-glyph.black { background: rgba(148,163,184,0.18); color: #cbd5e1; }
+  .icon-glyph.white { background: rgba(255,255,255,0.14); color: #f1f5f9; }
+
+  .icon-label {
+    font-size: 11.5px;
+    line-height: 1.25;
+    color: var(--fg);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+  }
+
+  /* ================= WINDOWS ================= */
+  .win {
+    position: absolute;
+    min-width: 320px;
+    min-height: 220px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .win.focused {
+    border-color: var(--border-hover);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.6), 0 0 0 1px rgba(34,197,94,0.15);
+  }
+  .win.minimized { display: none; }
+  .win.maximized {
+    top: 0 !important; left: 0 !important;
+    width: 100% !important; height: 100% !important;
+    border-radius: 0;
+  }
+
+  .win-titlebar {
+    height: 42px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px 0 14px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    cursor: grab;
+  }
+  .win-titlebar:active { cursor: grabbing; }
+
+  .win-icon {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .win-title {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .win-btn {
+    width: 30px; height: 30px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: var(--fg-muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 15px;
+  }
+  .win-btn:hover { background: rgba(255,255,255,0.08); color: var(--fg); }
+  .win-btn.close:hover { background: var(--danger); color: #fff; }
+
+  .win-body {
+    flex: 1;
+    position: relative;
+    background: #000;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .win-body iframe {
+    width: 100%; height: 100%;
+    border: none;
+    display: block;
+  }
+  .win-body .win-loading {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--fg-dim);
+    font-size: 13px;
+    font-family: var(--mono);
+    background: var(--bg-elevated);
+  }
+
+  .win-resize {
+    position: absolute;
+    right: 0; bottom: 0;
+    width: 16px; height: 16px;
+    cursor: nwse-resize;
+    z-index: 2;
+  }
+  .win-resize::after {
+    content: '';
+    position: absolute;
+    right: 4px; bottom: 4px;
+    width: 8px; height: 8px;
+    border-right: 2px solid var(--fg-dim);
+    border-bottom: 2px solid var(--fg-dim);
+  }
+
+  /* ================= TASKBAR ================= */
+  #taskbar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: var(--taskbar-h);
+    background: rgba(17,24,39,0.85);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    z-index: 500;
+  }
+
+  #start-btn {
+    display: flex; align-items: center; gap: 8px;
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--fg);
+    font-family: var(--font);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  #start-btn:hover { border-color: var(--border-hover); background: var(--card-hover); }
+  #start-btn .mark {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, var(--accent), #10b981);
+    color: #000;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+
+  #taskbar-sep {
+    width: 1px; height: 28px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  /* system tiles (App Store / Settings) — permanently pinned, visually
+     distinct from ordinary app tiles: square glyph-style buttons rather
+     than a labeled pill, tinted with their own accent color at rest. */
+  #system-tiles {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    padding-right: 2px;
+  }
+  .sys-tile {
+    width: 40px; height: 40px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .sys-tile.store {
+    background: rgba(139,92,246,0.14);
+    color: #a78bfa;
+  }
+  .sys-tile.store:hover { background: rgba(139,92,246,0.22); }
+  .sys-tile.store.active {
+    border-color: rgba(139,92,246,0.5);
+    background: rgba(139,92,246,0.26);
+    box-shadow: 0 0 0 1px rgba(139,92,246,0.15);
+  }
+  .sys-tile.settings {
+    background: rgba(6,182,212,0.14);
+    color: #22d3ee;
+  }
+  .sys-tile.settings:hover { background: rgba(6,182,212,0.22); }
+  .sys-tile.settings.active {
+    border-color: rgba(6,182,212,0.5);
+    background: rgba(6,182,212,0.26);
+    box-shadow: 0 0 0 1px rgba(6,182,212,0.15);
+  }
+  .sys-tile.running::after {
+    content: '';
+    position: absolute;
+    bottom: 3px; left: 50%;
+    transform: translateX(-50%);
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  #tasklist {
+    flex: 1;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    height: 100%;
+    align-items: center;
+    scrollbar-width: none;
+  }
+  #tasklist::-webkit-scrollbar { display: none; }
+
+  .task-item {
+    display: flex; align-items: center; gap: 8px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--fg-muted);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    max-width: 180px;
+    flex-shrink: 0;
+  }
+  .task-item span {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .task-item .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--fg-dim);
+    flex-shrink: 0;
+  }
+  .task-item.active {
+    border-color: var(--border-hover);
+    color: var(--fg);
+    background: var(--card-hover);
+  }
+  .task-item.active .dot { background: var(--accent); box-shadow: 0 0 6px rgba(34,197,94,0.6); }
+  .task-item.pinned .dot { background: var(--fg-dim); }
+  .task-item.pinned.active .dot { background: var(--accent); box-shadow: 0 0 6px rgba(34,197,94,0.6); }
+  .task-item .pin-mark {
+    font-size: 9px;
+    color: var(--fg-dim);
+    flex-shrink: 0;
+  }
+
+  #clock {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--fg-muted);
+    padding: 0 12px;
+    flex-shrink: 0;
+    text-align: right;
+    line-height: 1.3;
+  }
+  #clock .date { font-size: 10.5px; color: var(--fg-dim); }
+
+  /* ================= START MENU ================= */
+  #start-menu {
+    position: fixed;
+    left: 10px;
+    bottom: calc(var(--taskbar-h) + 8px);
+    width: 340px;
+    max-height: 60vh;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    z-index: 600;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #start-menu.open { display: flex; }
+
+  .start-search {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .start-search input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 13px;
+    outline: none;
+  }
+  .start-search input:focus { border-color: var(--accent); }
+
+  .start-list {
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .start-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .start-item:hover { background: rgba(255,255,255,0.06); }
+  .start-item-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .start-item-text { flex: 1; overflow: hidden; }
+  .start-item-name { font-size: 13px; font-weight: 600; color: var(--fg); }
+  .start-item-desc {
+    font-size: 11px; color: var(--fg-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ================= SETTINGS APP ================= */
+  .settings-wrap {
+    height: 100%;
+    overflow-y: auto;
+    padding: 20px 24px;
+    background: var(--bg-elevated);
+    font-family: var(--font);
+  }
+  .settings-wrap h2 { font-size: 18px; font-weight: 700; margin-bottom: 18px; }
+  .settings-section-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin: 22px 0 4px;
+  }
+  .settings-section-title:first-of-type { margin-top: 4px; }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row-label { font-size: 13.5px; font-weight: 600; color: var(--fg); }
+  .settings-row-desc { font-size: 11.5px; color: var(--fg-dim); margin-top: 2px; }
+  .settings-toggle {
+    width: 42px; height: 24px;
+    border-radius: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .settings-toggle.on { background: var(--accent); border-color: var(--accent); }
+  .settings-toggle-dot {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    transition: left 0.15s;
+  }
+  .settings-toggle.on .settings-toggle-dot { left: 20px; }
+  .settings-select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 10px;
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 12.5px;
+    outline: none;
+    flex-shrink: 0;
+  }
+  .settings-input {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 8px 10px;
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 12.5px;
+    outline: none;
+    flex-shrink: 0;
+    width: 200px;
+  }
+  .settings-input:focus { border-color: var(--accent); }
+
+  /* background mode picker */
+  .bg-mode-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .bg-mode-btn {
+    flex: 1;
+    min-width: 76px;
+    padding: 9px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--fg-muted);
+    font-family: var(--font);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .bg-mode-btn:hover { border-color: var(--border-hover); color: var(--fg); }
+  .bg-mode-btn.active {
+    background: var(--accent-glow);
+    border-color: rgba(34,197,94,0.4);
+    color: var(--accent);
+  }
+  .bg-panel {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    display: none;
+  }
+  .bg-panel.show { display: block; }
+  .bg-color-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .bg-color-swatch-wrap {
+    position: relative;
+    width: 52px; height: 52px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    flex-shrink: 0;
+  }
+  .bg-color-swatch-wrap input[type="color"] {
+    position: absolute;
+    top: -8px; left: -8px;
+    width: 68px; height: 68px;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    background: none;
+  }
+  .bg-color-swatch-wrap input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  .bg-color-swatch-wrap input[type="color"]::-webkit-color-swatch { border: none; }
+  .bg-color-hex {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--fg-muted);
+    flex: 1;
+  }
+  .bg-color-presets {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .bg-color-preset {
+    width: 24px; height: 24px;
+    border-radius: 7px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    flex-shrink: 0;
+  }
+  .bg-color-preset:hover { border-color: var(--fg-muted); }
+  .bg-color-preset.active { border-color: var(--fg); }
+  .bg-upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    padding: 22px 14px;
+    text-align: center;
+    cursor: pointer;
+  }
+  .bg-upload-zone:hover { border-color: var(--border-hover); background: rgba(255,255,255,0.03); }
+  .bg-upload-zone .bg-upload-icon { font-size: 22px; margin-bottom: 6px; }
+  .bg-upload-zone .bg-upload-text { font-size: 12.5px; color: var(--fg-muted); }
+  .bg-upload-zone .bg-upload-sub { font-size: 10.5px; color: var(--fg-dim); margin-top: 3px; }
+  .bg-preview {
+    margin-top: 12px;
+    width: 100%;
+    height: 90px;
+    border-radius: 8px;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid var(--border);
+    display: none;
+  }
+  .bg-preview.show { display: block; }
+  .bg-link-row { display: flex; gap: 8px; }
+  .bg-link-row input { flex: 1; }
+  .bg-apply-btn {
+    margin-top: 4px;
+    padding: 8px 14px;
+    border-radius: 7px;
+    border: 1px solid rgba(34,197,94,0.4);
+    background: var(--accent-glow);
+    color: var(--accent);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .bg-apply-btn:hover { background: rgba(34,197,94,0.25); }
+  .bg-error {
+    font-size: 11px;
+    color: var(--danger);
+    margin-top: 6px;
+    display: none;
+  }
+  .bg-error.show { display: block; }
+
+  .store-wrap {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-elevated);
+    color: var(--fg);
+    font-family: var(--font);
+    min-height: 0;
+  }
+  .store-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .store-header h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .store-search {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 13px;
+    outline: none;
+  }
+  .store-search:focus { border-color: var(--accent); }
+  .store-tabs {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .store-tab {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--fg-muted);
+    cursor: pointer;
+    font-family: var(--font);
+  }
+  .store-tab:hover { border-color: var(--border-hover); color: var(--fg); }
+  .store-tab.active {
+    background: var(--accent-glow);
+    border-color: rgba(34,197,94,0.35);
+    color: var(--accent);
+  }
+  .store-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 20px 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+    align-content: start;
+  }
+  .store-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .store-card-top { display: flex; align-items: center; gap: 10px; }
+  .store-card-icon {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .store-card-name { font-size: 13.5px; font-weight: 600; flex: 1; }
+  .store-card-desc {
+    font-size: 11.5px;
+    color: var(--fg-muted);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .store-card-btn {
+    align-self: flex-start;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--fg-muted);
+    cursor: pointer;
+    font-family: var(--font);
+  }
+  .store-card-btn:hover { border-color: var(--border-hover); color: var(--fg); }
+  .store-card-btn.installed {
+    background: var(--accent-glow);
+    border-color: rgba(34,197,94,0.35);
+    color: var(--accent);
+  }
+  .store-card-btn.installed:hover {
+    background: rgba(239,68,68,0.12);
+    border-color: rgba(239,68,68,0.35);
+    color: var(--danger);
+  }
+  .store-empty {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 40px 0;
+    color: var(--fg-dim);
+    font-size: 13px;
+  }
+
+  /* ================= CONTEXT MENU ================= */
+  .ctx-menu {
+    position: fixed;
+    z-index: 900;
+    min-width: 190px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+    padding: 6px;
+    display: none;
+    font-family: var(--font);
+  }
+  .ctx-menu.open { display: block; }
+  .ctx-item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--fg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ctx-item:hover { background: rgba(255,255,255,0.07); }
+  .ctx-item.danger:hover { background: rgba(239,68,68,0.15); color: #f87171; }
+  .ctx-sep { height: 1px; background: var(--border); margin: 5px 4px; }
+  .ctx-sub {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--fg);
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: default;
+  }
+  .ctx-swatches { display: flex; gap: 6px; padding: 6px 10px 4px; flex-wrap: wrap; }
+  .ctx-swatch {
+    width: 20px; height: 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .ctx-swatch:hover { border-color: var(--fg-muted); }
+  .ctx-swatch.active { border-color: var(--fg); }
+  .ctx-rename-input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--accent);
+    border-radius: 5px;
+    padding: 5px 8px;
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 12.5px;
+    outline: none;
+  }
+
+  /* ================= FOLDER WINDOW ================= */
+  .folder-wrap {
+    height: 100%;
+    padding: 14px;
+    background: var(--bg-elevated);
+    display: grid;
+    grid-auto-flow: row;
+    grid-template-columns: repeat(auto-fill, 84px);
+    gap: 4px;
+    align-content: start;
+    overflow-y: auto;
+  }
+  .folder-empty {
+    grid-column: 1/-1;
+    text-align: center;
+    color: var(--fg-dim);
+    font-size: 13px;
+    padding: 30px 0;
+  }
+
+  /* scrollbars */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- BOOT SCREEN -->
+<div id="boot">
+  <div class="boot-logo">V</div>
+  <div class="boot-title" id="bootTitle">VUS-OS</div>
+  <div class="boot-bar-track"><div class="boot-bar-fill" id="bootFill"></div></div>
+</div>
+
+<!-- DESKTOP -->
+<div id="desktop">
+  <div id="grid-overlay"></div>
+  <div id="icons"></div>
+  <!-- windows get appended here -->
+</div>
+
+<!-- START MENU -->
+<div id="start-menu">
+  <div class="start-search">
+    <input type="text" id="startSearch" placeholder="Search apps and folders..." autocomplete="off">
+  </div>
+  <div class="start-list" id="startList"></div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div class="ctx-menu" id="ctxMenu"></div>
+
+<!-- TASKBAR -->
+<div id="taskbar">
+  <button id="start-btn">
+    <span class="mark">V</span>
+    <span id="startBtnLabel">Start</span>
+  </button>
+  <div id="taskbar-sep"></div>
+  <div id="system-tiles"></div>
+  <div id="taskbar-sep"></div>
+  <div id="tasklist"></div>
+  <div id="clock">
+    <div class="time" id="clockTime">--:--</div>
+    <div class="date" id="clockDate">--</div>
+  </div>
+</div>
+
+<script>
+// ===================== CONFIG =====================
+const APPS_JSON_URL = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
+
+// ===================== SITE NAME (localStorage) =====================
+const SITE_NAME_KEY = "vusos_site_name";
+const DEFAULT_SITE_NAME = "VUS-OS";
+function getSiteName() {
+  return localStorage.getItem(SITE_NAME_KEY) || DEFAULT_SITE_NAME;
+}
+function setSiteName(name) {
+  const clean = (name || "").trim();
+  const final = clean || DEFAULT_SITE_NAME;
+  localStorage.setItem(SITE_NAME_KEY, final);
+  applySiteName();
+}
+function applySiteName() {
+  const name = getSiteName();
+  document.title = name;
+  const bootTitle = document.getElementById("bootTitle");
+  if (bootTitle) bootTitle.textContent = name;
+}
+applySiteName();
+
+// ===================== BACKGROUND (localStorage) =====================
+// { mode: "default" | "color" | "image" | "link", color, image (dataURL), link }
+const BG_KEY = "vusos_background";
+function getBackground() {
+  try { return Object.assign({ mode: "default", color: "#0a0e1a", image: "", link: "" }, JSON.parse(localStorage.getItem(BG_KEY))); }
+  catch { return { mode: "default", color: "#0a0e1a", image: "", link: "" }; }
+}
+function setBackground(patch) {
+  const bg = Object.assign(getBackground(), patch);
+  try {
+    localStorage.setItem(BG_KEY, JSON.stringify(bg));
+  } catch (e) {
+    // likely quota exceeded from a large image — surface via alert as a fallback
+    alert("Could not save background — the image may be too large for storage.");
+    return;
+  }
+  applyBackground();
+}
+function applyBackground() {
+  const bg = getBackground();
+  const desktopEl = document.getElementById("desktop");
+  const defaultGradient =
+    "radial-gradient(circle at 15% 15%, rgba(34,197,94,0.10), transparent 45%), " +
+    "radial-gradient(circle at 85% 80%, rgba(16,185,129,0.08), transparent 45%)";
+  if (bg.mode === "color" && bg.color) {
+    desktopEl.style.background = bg.color;
+  } else if (bg.mode === "image" && bg.image) {
+    desktopEl.style.background = `url("${bg.image}") center / cover no-repeat, var(--bg)`;
+  } else if (bg.mode === "link" && bg.link) {
+    desktopEl.style.background = `url("${bg.link}") center / cover no-repeat, var(--bg)`;
+  } else {
+    desktopEl.style.background = `${defaultGradient}, var(--bg)`;
+  }
+}
+applyBackground();
+
+// ===================== BOOT SEQUENCE =====================
+window.addEventListener("load", () => {
+  const fill = document.getElementById("bootFill");
+  // force reflow so the transition actually animates from 0
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => { fill.style.width = "100%"; });
+  });
+  setTimeout(() => {
+    document.getElementById("boot").classList.add("hide");
+    setTimeout(() => document.getElementById("boot").remove(), 550);
+  }, 2000);
+});
+
+// ===================== UTIL =====================
+function escapeHtml(str) {
+  return (str || "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+function initials(name) {
+  return (name || "?").trim().substring(0, 2).toUpperCase();
+}
+let zTop = 10;
+const appKey = app => app.name + "|" + app.url;
+
+// ===================== BUILT-IN APPS =====================
+// Always-on desktop apps. VUS Launcher pulled live from apps.json's "home"
+// entry once loaded; Notes points at the VUS Hub Notes tool; Store is local.
+const STORE_APP = { name: "App Store", url: "__store__", desc: "Browse and install VUS apps", icon: "🛒", color: "violet" };
+const SETTINGS_APP = { name: "Settings", url: "__settings__", desc: "VUS-OS preferences", icon: "⚙️", color: "cyan" };
+let launcherApp = { name: "VUS Launcher", url: "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/main/VUSL", desc: "Main game hub", icon: "🎮", color: "green" };
+let notesApp = { name: "Notes", url: "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/Notes", desc: "Keep text saved easily", icon: "📝", color: "amber" };
+
+// ===================== INSTALLED STATE (localStorage) =====================
+const LS_KEY = "vusos_installed";
+const LS_SEEDED_KEY = "vusos_seeded";
+function getInstalled() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
+  catch { return []; }
+}
+function setInstalled(list) {
+  localStorage.setItem(LS_KEY, JSON.stringify(list));
+}
+function isInstalled(app) {
+  return getInstalled().some(a => appKey(a) === appKey(app));
+}
+function installApp(app) {
+  const list = getInstalled();
+  if (!list.some(a => appKey(a) === appKey(app))) {
+    list.push(app);
+    setInstalled(list);
+    placeNewItemAtFreeCell(appKey(app));
+  }
+  renderIcons();
+}
+function uninstallApp(app) {
+  setInstalled(getInstalled().filter(a => appKey(a) !== appKey(app)));
+  removeFromAllFolders(appKey(app));
+  const positions = getPositions();
+  delete positions[appKey(app)];
+  localStorage.setItem(POS_KEY, JSON.stringify(positions));
+  renderIcons();
+}
+// On first-ever run, seed VUS Launcher + Notes into "installed" so they behave
+// exactly like any other app the user could remove/reinstall via the Store.
+function seedDefaultsIfNeeded() {
+  if (localStorage.getItem(LS_SEEDED_KEY)) return;
+  const list = getInstalled();
+  [launcherApp, notesApp].forEach(app => {
+    if (!list.some(a => appKey(a) === appKey(app))) list.push(app);
+  });
+  setInstalled(list);
+  localStorage.setItem(LS_SEEDED_KEY, "1");
+}
+
+// ===================== FOLDERS (localStorage) =====================
+// folder = { id, name, color, items: [appKey,...] }  (items can also reference other folder ids, prefixed "folder:")
+const FOLDERS_KEY = "vusos_folders";
+function getFolders() {
+  try { return JSON.parse(localStorage.getItem(FOLDERS_KEY)) || []; }
+  catch { return []; }
+}
+function setFolders(list) { localStorage.setItem(FOLDERS_KEY, JSON.stringify(list)); }
+function createFolder() {
+  const list = getFolders();
+  const id = "folder_" + Date.now();
+  list.push({ id, name: "New Folder", color: "amber", items: [] });
+  setFolders(list);
+  placeNewItemAtFreeCell("folder:" + id);
+  renderIcons();
+}
+function updateFolder(id, patch) {
+  const list = getFolders();
+  const f = list.find(x => x.id === id);
+  if (f) Object.assign(f, patch);
+  setFolders(list);
+  renderIcons();
+}
+function deleteFolder(id) {
+  setFolders(getFolders().filter(x => x.id !== id));
+  renderIcons();
+}
+function removeFromAllFolders(itemKey) {
+  const list = getFolders();
+  list.forEach(f => { f.items = f.items.filter(k => k !== itemKey); });
+  setFolders(list);
+}
+function findAppByKey(key) {
+  if (key.startsWith("folder:")) return null;
+  return allApps.find(a => appKey(a) === key) ||
+    getInstalled().find(a => appKey(a) === key) ||
+    [launcherApp, notesApp].find(a => appKey(a) === key) || null;
+}
+
+// ===================== ICON SIZE (localStorage) =====================
+const SIZE_KEY = "vusos_icon_size";
+const ICON_SIZES = { small: 96, medium: 128, large: 160 };
+function getIconSize() { return localStorage.getItem(SIZE_KEY) || "medium"; }
+function setIconSize(size) { localStorage.setItem(SIZE_KEY, size); applyIconSize(); refreshDesktopIcons(); }
+function applyIconSize() {
+  const px = ICON_SIZES[getIconSize()] || 96;
+  document.documentElement.style.setProperty("--icon-cell", px + "px");
+  document.documentElement.style.setProperty("--icon-cell-h", (px + 4) + "px");
+  // scale the glyph square + its font proportionally to the cell size
+  const glyph = Math.round(px * 0.44);
+  const glyphFont = Math.round(px * 0.18);
+  document.documentElement.style.setProperty("--icon-glyph", glyph + "px");
+  document.documentElement.style.setProperty("--icon-glyph-font", glyphFont + "px");
+}
+
+// ===================== GENERAL SETTINGS (localStorage) =====================
+const SETTINGS_KEY = "vusos_settings";
+function getSettings() {
+  try { return Object.assign({ clickMode: "single", snapMode: "snap" }, JSON.parse(localStorage.getItem(SETTINGS_KEY))); }
+  catch { return { clickMode: "single", snapMode: "snap" }; }
+}
+function setSetting(key, val) {
+  const s = getSettings();
+  s[key] = val;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+
+// ===================== ICON POSITIONS (localStorage) =====================
+const POS_KEY = "vusos_positions";
+function getPositions() {
+  try { return JSON.parse(localStorage.getItem(POS_KEY)) || {}; }
+  catch { return {}; }
+}
+function setPosition(itemKey, x, y) {
+  const pos = getPositions();
+  pos[itemKey] = { x, y };
+  localStorage.setItem(POS_KEY, JSON.stringify(pos));
+}
+function cellPx() { return ICON_SIZES[getIconSize()] || 96; }
+function snapCoord(px, cell) { return Math.round(px / cell) * cell; }
+
+// ===================== GRID HELPERS =====================
+// Column/row spacing matches what renderIcons()'s auto-placement used to use.
+function gridStep() {
+  const cell = cellPx();
+  return { colStep: cell + 2, rowStep: cell + 4 };
+}
+// Convert a pixel position to the nearest valid (col,row) grid cell, clamped
+// so the icon can never sit off-screen on any edge.
+function pxToCell(x, y) {
+  const { colStep, rowStep } = gridStep();
+  const cols = Math.max(1, Math.floor((desktop.clientWidth - 14) / colStep));
+  const rows = Math.max(1, Math.floor((desktop.clientHeight - 28) / rowStep));
+  let col = Math.round((x - 14) / colStep);
+  let row = Math.round((y - 14) / rowStep);
+  col = Math.min(Math.max(col, 0), cols - 1);
+  row = Math.min(Math.max(row, 0), rows - 1);
+  return { col, row };
+}
+function cellToPx(col, row) {
+  const { colStep, rowStep } = gridStep();
+  return { x: 14 + col * colStep, y: 14 + row * rowStep };
+}
+// Clamp an arbitrary pixel position so the full icon box stays on screen —
+// strict against the top and left edges (never negative), and also capped
+// against the right/bottom edges using the current icon cell size.
+function clampToDesktop(x, y) {
+  const cell = cellPx();
+  const cellH = cell + 4;
+  const maxX = Math.max(0, desktop.clientWidth - cell);
+  const maxY = Math.max(0, desktop.clientHeight - cellH);
+  return {
+    x: Math.min(Math.max(x, 0), maxX),
+    y: Math.min(Math.max(y, 0), maxY)
+  };
+}
+
+// Returns the set of grid cells (as "c,r" strings) currently occupied by
+// EVERY existing desktop item's persisted position, excluding `excludeKey`.
+// Unlike iconKeyAtCell (which reads the live DOM and therefore only works
+// after a render has happened), this reads straight from localStorage plus
+// the known auto-placement fallback, so it's safe to call before a new
+// item has ever been rendered.
+function occupiedCellsExcluding(excludeKey) {
+  const folders = getFolders();
+  const desktopApps = [...getInstalled()];
+  const allKeys = [...desktopApps.map(a => appKey(a)), ...folders.map(f => "folder:" + f.id)];
+  const positions = getPositions();
+  const occupied = new Set();
+  const cell = cellPx();
+  let autoIndex = 0;
+  const perCol = Math.max(1, Math.floor((desktop.clientHeight - 28) / (cell + 4)));
+  allKeys.forEach(key => {
+    if (key === excludeKey) return;
+    let px;
+    if (positions[key]) {
+      px = positions[key];
+    } else {
+      // mirrors nextAutoPos() in renderIcons()
+      const col = Math.floor(autoIndex / perCol);
+      const row = autoIndex % perCol;
+      autoIndex++;
+      px = { x: 14 + col * (cell + 2), y: 14 + row * (cell + 4) };
+    }
+    const { col, row } = pxToCell(px.x, px.y);
+    occupied.add(col + "," + row);
+  });
+  return occupied;
+}
+
+// Finds the nearest free grid cell to the top-left (0,0) origin — used to
+// place a brand-new item (freshly installed app, newly created folder) onto
+// the desktop without overlapping anything already there.
+function placeNewItemAtFreeCell(key) {
+  const occupied = occupiedCellsExcluding(key);
+  const { colStep, rowStep } = gridStep();
+  const cols = Math.max(1, Math.floor((desktop.clientWidth - 14) / colStep));
+  const rows = Math.max(1, Math.floor((desktop.clientHeight - 28) / rowStep));
+  // scan column-major (matches the visual fill order of nextAutoPos）
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < rows; r++) {
+      const k = c + "," + r;
+      if (!occupied.has(k)) {
+        const { x, y } = cellToPx(c, r);
+        setPosition(key, x, y);
+        return;
+      }
+    }
+  }
+  // grid is completely full — fall back to (0,0), it'll just overlap
+  const { x, y } = cellToPx(0, 0);
+  setPosition(key, x, y);
+}
+
+// ===================== LOAD APPS.JSON =====================
+let allApps = [];
+
+fetch(APPS_JSON_URL)
+  .then(r => r.json())
+  .then(data => {
+    // "home" (the launcher tile) is folded into the "apps" category for
+    // store/filter purposes — it's still just an app to the user.
+    const sectionToCategory = { home: "apps", apps: "apps", tools: "tools", hubs: "hubs", links: "links" };
+    const seen = new Set();
+    Object.keys(sectionToCategory).forEach(sec => {
+      (data[sec] || []).forEach(app => {
+        if (!app.name || !app.url) return;
+        const key = app.name + "|" + app.url;
+        if (seen.has(key)) return;
+        seen.add(key);
+        allApps.push(Object.assign({}, app, { category: sectionToCategory[sec] }));
+      });
+    });
+    // prefer live data for the built-in launcher/notes if present
+    const liveLauncher = allApps.find(a => a.name === "VUS Launcher");
+    const liveNotes = allApps.find(a => a.name === "Notes");
+    if (liveLauncher) launcherApp = liveLauncher;
+    if (liveNotes) notesApp = liveNotes;
+
+    seedDefaultsIfNeeded();
+    renderIcons();
+    renderPinnedTaskbar();
+    // Auto plain-refresh once, on first load, so icons always start in
+    // correct grid spots with no overlaps and nothing off-screen.
+    refreshDesktopIcons();
+  })
+  .catch(err => {
+    console.error("Failed to load apps.json", err);
+    seedDefaultsIfNeeded();
+    renderIcons(); // still show built-ins even if apps.json fails
+    renderPinnedTaskbar();
+    refreshDesktopIcons();
+  });
+
+// ===================== DESKTOP ICONS =====================
+const gridOverlay = document.getElementById("grid-overlay");
+
+function itemIdentityKey(app, folder) {
+  return folder ? "folder:" + folder.id : appKey(app);
+}
+
+function renderIcons() {
+  applyIconSize();
+  const wrap = document.getElementById("icons");
+  wrap.innerHTML = "";
+
+  const folders = getFolders();
+  const desktopApps = [...getInstalled()];
+  const positions = getPositions();
+  const cell = cellPx();
+
+  let autoIndex = 0;
+  function nextAutoPos() {
+    const perCol = Math.max(1, Math.floor((desktop.clientHeight - 28) / (cell + 4)));
+    const col = Math.floor(autoIndex / perCol);
+    const row = autoIndex % perCol;
+    autoIndex++;
+    return { x: 14 + col * (cell + 2), y: 14 + row * (cell + 4) };
+  }
+
+  function place(el, key) {
+    const pos = positions[key] || nextAutoPos();
+    el.style.left = pos.x + "px";
+    el.style.top = pos.y + "px";
+  }
+
+  desktopApps.forEach(app => {
+    const el = buildAppIcon(app);
+    place(el, appKey(app));
+    wrap.appendChild(el);
+  });
+  folders.forEach(f => {
+    const el = buildFolderIcon(f);
+    place(el, "folder:" + f.id);
+    wrap.appendChild(el);
+  });
+}
+
+// ===================== REFRESH =====================
+// Plain grid refresh: snap every existing desktop item to the nearest valid
+// grid cell (never off-screen), resolve overlaps by walking the grid in
+// order and assigning each item the next free cell, and drop position
+// records for items that no longer exist. This does NOT reshuffle items
+// into a totally fresh layout — each item stays as close as possible to
+// its current spot, just corrected onto the grid / into view / de-overlapped.
+function refreshDesktopIcons() {
+  const folders = getFolders();
+  const desktopApps = [...getInstalled()];
+  const validKeys = new Set([
+    ...desktopApps.map(a => appKey(a)),
+    ...folders.map(f => "folder:" + f.id)
+  ]);
+
+  const positions = getPositions();
+  // drop stale entries (apps that were uninstalled / folders deleted)
+  Object.keys(positions).forEach(k => {
+    if (!validKeys.has(k)) delete positions[k];
+  });
+
+  const { colStep, rowStep } = gridStep();
+  const cols = Math.max(1, Math.floor((desktop.clientWidth - 14) / colStep));
+  const rows = Math.max(1, Math.floor((desktop.clientHeight - 28) / rowStep));
+  const occupied = new Set();
+  const cellKey = (c, r) => c + "," + r;
+
+  function nearestFreeCell(wantCol, wantRow) {
+    // BFS outward from the wanted cell for the closest unoccupied, in-bounds cell
+    const seen = new Set();
+    const queue = [{ c: wantCol, r: wantRow, d: 0 }];
+    seen.add(cellKey(wantCol, wantRow));
+    while (queue.length) {
+      const { c, r } = queue.shift();
+      if (c >= 0 && c < cols && r >= 0 && r < rows && !occupied.has(cellKey(c, r))) {
+        return { c, r };
+      }
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dc, dr]) => {
+        const nc = c + dc, nr = r + dr;
+        const k = cellKey(nc, nr);
+        if (!seen.has(k)) { seen.add(k); queue.push({ c: nc, r: nr }); }
+      });
+      // safety cap
+      if (seen.size > (cols * rows + 50)) break;
+    }
+    // fallback: first free cell scanning row-major
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (!occupied.has(cellKey(c, r))) return { c, r };
+      }
+    }
+    return { c: 0, r: 0 };
+  }
+
+  // Process items ordered by their current position (top-to-bottom,
+  // left-to-right) so placement order feels stable and predictable.
+  const allKeys = [...desktopApps.map(a => appKey(a)), ...folders.map(f => "folder:" + f.id)];
+  const withPos = allKeys.map(key => {
+    const pos = positions[key];
+    if (pos) {
+      const { col, row } = pxToCell(pos.x, pos.y);
+      return { key, col, row, hadPos: true };
+    }
+    return { key, col: 0, row: 0, hadPos: false };
+  });
+  withPos.sort((a, b) => (a.row - b.row) || (a.col - b.col));
+
+  withPos.forEach(item => {
+    const free = nearestFreeCell(item.col, item.row);
+    occupied.add(cellKey(free.c, free.r));
+    const { x, y } = cellToPx(free.c, free.r);
+    positions[item.key] = { x, y };
+  });
+
+  localStorage.setItem(POS_KEY, JSON.stringify(positions));
+  renderIcons();
+}
+
+// ===================== SORT =====================
+// Fully repacks every desktop item into the grid, column-major (fills a
+// column top-to-bottom, then moves to the next column — matching how
+// nextAutoPos() in renderIcons() lays things out), in the order determined
+// by `mode`:
+//   "alpha"    - alphabetical by name (folders + apps together, A→Z)
+//   "leftright"- by current position, left-to-right then top-to-bottom
+//   "topbottom"- by current position, top-to-bottom then left-to-right
+function sortDesktopIcons(mode) {
+  const folders = getFolders();
+  const desktopApps = [...getInstalled()];
+  const positions = getPositions();
+
+  const items = [
+    ...desktopApps.map(a => ({ key: appKey(a), name: a.name })),
+    ...folders.map(f => ({ key: "folder:" + f.id, name: f.name }))
+  ].map(item => {
+    const pos = positions[item.key];
+    const cell = pos ? pxToCell(pos.x, pos.y) : { col: 0, row: 0 };
+    return { ...item, col: cell.col, row: cell.row };
+  });
+
+  if (mode === "alpha") {
+    items.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  } else if (mode === "topbottom") {
+    items.sort((a, b) => (a.row - b.row) || (a.col - b.col) || a.name.localeCompare(b.name));
+  } else { // "leftright" (default)
+    items.sort((a, b) => (a.col - b.col) || (a.row - b.row) || a.name.localeCompare(b.name));
+  }
+
+  const { colStep, rowStep } = gridStep();
+  const rows = Math.max(1, Math.floor((desktop.clientHeight - 28) / rowStep));
+  const cols = Math.max(1, Math.floor((desktop.clientWidth - 14) / colStep));
+
+  items.forEach((item, i) => {
+    let col, row;
+    if (mode === "topbottom") {
+      // row-major: fill the top row left-to-right, then wrap to the next row
+      col = i % cols;
+      row = Math.floor(i / cols);
+    } else {
+      // column-major: fill the left column top-to-bottom, then wrap to the next column
+      col = Math.floor(i / rows);
+      row = i % rows;
+    }
+    positions[item.key] = { x: 14 + col * colStep, y: 14 + row * rowStep };
+  });
+
+  localStorage.setItem(POS_KEY, JSON.stringify(positions));
+  renderIcons();
+}
+
+// isLocked: cannot be removed from the desktop, and cannot be dropped into a folder.
+// (App Store and Settings no longer live on the desktop at all — they're
+// permanent system tiles in the taskbar — so nothing on the desktop is locked.)
+function isLocked(app) {
+  return false;
+}
+// isFoldable: whether this icon can be dragged into a folder. The two
+// default built-ins (Launcher/Notes) stay desktop-only.
+function isFoldable(app) {
+  return app !== launcherApp && app !== notesApp;
+}
+
+function buildAppIcon(app) {
+  const el = document.createElement("div");
+  el.className = "icon";
+  el.dataset.key = appKey(app);
+  el.innerHTML = `
+    <div class="icon-glyph ${app.color || 'green'}">${escapeHtml(app.icon || initials(app.name))}</div>
+    <div class="icon-label">${escapeHtml(app.name)}</div>
+  `;
+  const open = () => {
+    if (app.url === "__store__") openAppStore();
+    else if (app.url === "__settings__") openSettings();
+    else launchApp(app);
+  };
+
+  if (!isLocked(app)) {
+    el.oncontextmenu = (e) => { e.preventDefault(); showAppContextMenu(e, app); };
+  }
+
+  wireIconInteraction(el, appKey(app), isLocked(app), isFoldable(app), open);
+  return el;
+}
+
+function buildFolderIcon(folder) {
+  const el = document.createElement("div");
+  el.className = "icon";
+  el.dataset.folderId = folder.id;
+  el.innerHTML = `
+    <div class="icon-glyph ${folder.color || 'amber'}">📁</div>
+    <div class="icon-label">${escapeHtml(folder.name)}</div>
+  `;
+  const open = () => openFolder(folder.id);
+  el.oncontextmenu = (e) => { e.preventDefault(); showFolderContextMenu(e, folder.id); };
+
+  wireIconInteraction(el, "folder:" + folder.id, false, true, open);
+  return el;
+}
+
+// Wires a desktop icon's click/tap-to-open + drag-to-move/drop-into-folder
+// behavior in one place, so a drag never also triggers an open.
+function wireIconInteraction(el, key, locked, foldable, open) {
+  let lastClickTime = 0;
+  const onSimpleClick = () => {
+    selectIcon(el);
+    const mode = getSettings().clickMode;
+    if (mode === "single") {
+      open();
+    } else {
+      // double-click mode: open only if two quick clicks land close in time
+      const now = Date.now();
+      if (now - lastClickTime < 350) open();
+      lastClickTime = now;
+    }
+  };
+  attachDrag(el, key, locked, foldable, onSimpleClick);
+}
+
+function selectIcon(el) {
+  document.querySelectorAll(".icon.selected").forEach(i => i.classList.remove("selected"));
+  el.classList.add("selected");
+}
+
+// ===================== MANUAL DRAG (reposition + drop-into-folder + swap) =====================
+function attachDrag(el, key, locked, foldable, onSimpleClick) {
+  let dragging = false;
+  let startX, startY, startLeft, startTop, pressTime;
+
+  el.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    startX = e.clientX; startY = e.clientY;
+    startLeft = el.offsetLeft; startTop = el.offsetTop;
+    pressTime = Date.now();
+    dragging = false;
+
+    function onMove(ev) {
+      const dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if (!dragging && Math.hypot(dx, dy) > 4) {
+        dragging = true;
+        el.classList.add("dragging");
+        if (getSettings().snapMode === "snap") gridOverlay.classList.add("show");
+      }
+      if (!dragging) return;
+      // Strict bounds while dragging: never allow the icon past the top or
+      // left edge, and cap it against the right/bottom edge too.
+      const clamped = clampToDesktop(startLeft + dx, startTop + dy);
+      el.style.left = clamped.x + "px";
+      el.style.top = clamped.y + "px";
+
+      // highlight folder under cursor (only if this item is allowed to be foldered)
+      document.querySelectorAll(".icon").forEach(i => { if (i !== el) i.classList.remove("selected"); });
+      if (foldable) {
+        const under = elementUnderIcon(el, ev);
+        if (under && under.dataset.folderId) under.classList.add("selected");
+      }
+    }
+
+    function onUp(ev) {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      gridOverlay.classList.remove("show");
+      const heldMs = Date.now() - pressTime;
+
+      if (!dragging) {
+        el.classList.remove("dragging");
+        // treat as a simple click if released quickly and didn't drag
+        if (heldMs < 500) onSimpleClick();
+        return;
+      }
+
+      el.classList.remove("dragging");
+      if (foldable) {
+        const under = elementUnderIcon(el, ev);
+        if (under && under.dataset.folderId && under !== el) {
+          moveItemIntoFolder(key, under.dataset.folderId);
+          renderIcons();
+          return;
+        }
+      }
+
+      finishIconDrop(el, key, startLeft, startTop);
+    }
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
+
+  // touch support (simplified: press-drag)
+  el.addEventListener("touchstart", (e) => {
+    const touch = e.touches[0];
+    startX = touch.clientX; startY = touch.clientY;
+    startLeft = el.offsetLeft; startTop = el.offsetTop;
+    pressTime = Date.now();
+    dragging = false;
+  }, { passive: true });
+  el.addEventListener("touchmove", (e) => {
+    const touch = e.touches[0];
+    const dx = touch.clientX - startX, dy = touch.clientY - startY;
+    if (!dragging && Math.hypot(dx, dy) > 8) {
+      dragging = true;
+      el.classList.add("dragging");
+      if (getSettings().snapMode === "snap") gridOverlay.classList.add("show");
+    }
+    if (!dragging) return;
+    const clamped = clampToDesktop(startLeft + dx, startTop + dy);
+    el.style.left = clamped.x + "px";
+    el.style.top = clamped.y + "px";
+  }, { passive: true });
+  el.addEventListener("touchend", (e) => {
+    gridOverlay.classList.remove("show");
+    const heldMs = Date.now() - pressTime;
+    if (!dragging) {
+      el.classList.remove("dragging");
+      if (heldMs < 500) onSimpleClick();
+      return;
+    }
+    el.classList.remove("dragging");
+
+    if (foldable) {
+      const under = elementUnderIcon(el, e);
+      if (under && under.dataset.folderId && under !== el) {
+        moveItemIntoFolder(key, under.dataset.folderId);
+        renderIcons();
+        dragging = false;
+        return;
+      }
+    }
+
+    finishIconDrop(el, key, startLeft, startTop);
+    dragging = false;
+  }, true);
+}
+
+// Returns the storage key (app key or "folder:id") for whichever rendered
+// desktop icon is currently sitting in the given (col,row) grid cell,
+// excluding `excludeKey`. Reads from the live DOM rather than the positions
+// store, since a never-dragged icon may only have an auto-placed position
+// that was never persisted to localStorage.
+function iconKeyAtCell(col, row, excludeKey) {
+  const icons = document.querySelectorAll("#icons > .icon");
+  for (const icon of icons) {
+    const iconKey = icon.dataset.key || (icon.dataset.folderId ? "folder:" + icon.dataset.folderId : null);
+    if (!iconKey || iconKey === excludeKey) continue;
+    const pc = pxToCell(icon.offsetLeft, icon.offsetTop);
+    if (pc.col === col && pc.row === row) return iconKey;
+  }
+  return null;
+}
+
+// Shared drop logic for mouse + touch: snaps the dropped icon to a grid
+// cell. If another item already occupies that cell, swap the two items'
+// positions (the occupant takes the spot this icon was dragged from). If
+// for any reason a swap can't be resolved, fall back to placing this icon
+// in the closest free cell instead of allowing an overlap.
+function finishIconDrop(el, key, startLeft, startTop) {
+  const clamped = clampToDesktop(el.offsetLeft, el.offsetTop);
+  let x = clamped.x, y = clamped.y;
+
+  if (getSettings().snapMode === "snap") {
+    const { col, row } = pxToCell(x, y);
+    const target = cellToPx(col, row);
+    x = target.x; y = target.y;
+
+    const occupantKey = iconKeyAtCell(col, row, key);
+
+    if (occupantKey && !isKeyLocked(occupantKey)) {
+      // swap: the occupant moves to wherever this icon started the drag
+      const startClamped = clampToDesktop(
+        startLeft !== undefined ? startLeft : el.offsetLeft,
+        startTop !== undefined ? startTop : el.offsetTop
+      );
+      const startCell = pxToCell(startClamped.x, startClamped.y);
+      const startPos = cellToPx(startCell.col, startCell.row);
+
+      const positions = getPositions();
+      positions[occupantKey] = { x: startPos.x, y: startPos.y };
+      positions[key] = { x, y };
+      localStorage.setItem(POS_KEY, JSON.stringify(positions));
+      renderIcons();
+      return;
+    }
+
+    if (occupantKey) {
+      // occupant can't be moved (e.g. locked) — place this icon in the
+      // closest free cell instead of overlapping it
+      const free = nearestFreeCellExcluding(col, row, key);
+      const freePos = cellToPx(free.c, free.r);
+      x = freePos.x; y = freePos.y;
+    }
+  }
+
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+  setPosition(key, x, y);
+}
+
+// No desktop icons are locked anymore (App Store / Settings moved to the
+// taskbar), but this hook is kept in case future built-ins need it.
+function isKeyLocked(key) {
+  return false;
+}
+
+// BFS outward from (wantCol,wantRow) for the nearest in-bounds grid cell
+// that isn't occupied by any rendered icon other than `excludeKey`.
+function nearestFreeCellExcluding(wantCol, wantRow, excludeKey) {
+  const { colStep, rowStep } = gridStep();
+  const cols = Math.max(1, Math.floor((desktop.clientWidth - 14) / colStep));
+  const rows = Math.max(1, Math.floor((desktop.clientHeight - 28) / rowStep));
+  const cellKey = (c, r) => c + "," + r;
+  const seen = new Set([cellKey(wantCol, wantRow)]);
+  const queue = [{ c: wantCol, r: wantRow }];
+  while (queue.length) {
+    const { c, r } = queue.shift();
+    if (c >= 0 && c < cols && r >= 0 && r < rows && !iconKeyAtCell(c, r, excludeKey)) {
+      return { c, r };
+    }
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dc, dr]) => {
+      const nc = c + dc, nr = r + dr;
+      const k = cellKey(nc, nr);
+      if (!seen.has(k)) { seen.add(k); queue.push({ c: nc, r: nr }); }
+    });
+    if (seen.size > (cols * rows + 50)) break;
+  }
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (!iconKeyAtCell(c, r, excludeKey)) return { c, r };
+    }
+  }
+  return { c: wantCol, r: wantRow };
+}
+
+function elementUnderIcon(dragEl, ev) {
+  dragEl.style.pointerEvents = "none";
+  const clientX = ev.clientX !== undefined ? ev.clientX : (ev.changedTouches && ev.changedTouches[0].clientX);
+  const clientY = ev.clientY !== undefined ? ev.clientY : (ev.changedTouches && ev.changedTouches[0].clientY);
+  const el = document.elementFromPoint(clientX, clientY);
+  dragEl.style.pointerEvents = "";
+  return el ? el.closest(".icon") : null;
+}
+
+function moveItemIntoFolder(key, folderId) {
+  // remove position record so it re-autoplaces if it ever leaves the folder
+  const positions = getPositions();
+  delete positions[key];
+  localStorage.setItem(POS_KEY, JSON.stringify(positions));
+
+  const list = getFolders();
+  const target = list.find(f => f.id === folderId);
+  if (!target) return;
+  if (!target.items.includes(key)) target.items.push(key);
+  setFolders(list);
+}
+
+// ===================== FOLDER WINDOW =====================
+function openFolder(folderId) {
+  const folder = getFolders().find(f => f.id === folderId);
+  if (!folder) return;
+  const id = "win" + (++winCount);
+  const pseudoApp = { name: folder.name, icon: "📁", color: folder.color };
+  const win = createWindow(id, pseudoApp, true);
+  win.dataset.folderId = folderId;
+  desktop.appendChild(win);
+  createTaskItem(id, pseudoApp);
+  focusWindow(id);
+  renderFolderBody(id, folderId);
+}
+
+function renderFolderBody(winId, folderId) {
+  const win = document.getElementById(winId);
+  const body = win.querySelector(".win-body");
+  const folder = getFolders().find(f => f.id === folderId);
+  if (!folder) { body.innerHTML = '<div class="folder-empty">Folder was deleted</div>'; return; }
+
+  const wrap = document.createElement("div");
+  wrap.className = "folder-wrap";
+
+  if (!folder.items.length) {
+    wrap.innerHTML = '<div class="folder-empty">Empty — drag apps or folders here from the desktop</div>';
+  } else {
+    folder.items.forEach(key => {
+      if (key.startsWith("folder:")) {
+        const subId = key.replace("folder:", "");
+        const sub = getFolders().find(f => f.id === subId);
+        if (!sub) return;
+        const el = buildFolderIconStatic(sub, folderId, winId);
+        wrap.appendChild(el);
+      } else {
+        const app = findAppByKey(key);
+        if (!app) return;
+        const el = buildAppIconStatic(app, folderId, winId);
+        wrap.appendChild(el);
+      }
+    });
+  }
+  body.innerHTML = "";
+  body.appendChild(wrap);
+}
+
+// static (non-draggable, grid-flow) icons used inside folder windows
+function buildAppIconStatic(app, folderId, winId) {
+  const el = document.createElement("div");
+  el.className = "icon";
+  el.style.position = "static";
+  el.innerHTML = `
+    <div class="icon-glyph ${app.color || 'green'}">${escapeHtml(app.icon || initials(app.name))}</div>
+    <div class="icon-label">${escapeHtml(app.name)}</div>
+  `;
+  const open = () => app.url === "__store__" ? openAppStore() : (app.url === "__settings__" ? openSettings() : launchApp(app));
+  let lastClickTime = 0;
+  el.onclick = () => {
+    selectIcon(el);
+    const mode = getSettings().clickMode;
+    if (mode === "single") { open(); return; }
+    const now = Date.now();
+    if (now - lastClickTime < 350) open();
+    lastClickTime = now;
+  };
+  el.oncontextmenu = (e) => {
+    e.preventDefault();
+    showAppContextMenu(e, app, folderId, winId);
+  };
+  return el;
+}
+function buildFolderIconStatic(folder, parentFolderId, winId) {
+  const el = document.createElement("div");
+  el.className = "icon";
+  el.style.position = "static";
+  el.innerHTML = `
+    <div class="icon-glyph ${folder.color || 'amber'}">📁</div>
+    <div class="icon-label">${escapeHtml(folder.name)}</div>
+  `;
+  const open = () => openFolder(folder.id);
+  let lastClickTime = 0;
+  el.onclick = () => {
+    selectIcon(el);
+    const mode = getSettings().clickMode;
+    if (mode === "single") { open(); return; }
+    const now = Date.now();
+    if (now - lastClickTime < 350) open();
+    lastClickTime = now;
+  };
+  el.oncontextmenu = (e) => {
+    e.preventDefault();
+    showFolderContextMenu(e, folder.id);
+  };
+  return el;
+}
+
+// ===================== SYSTEM TILES (App Store / Settings) =====================
+// These two live permanently in the taskbar — never on the desktop, never
+// unpinnable — rendered as distinct square glyph buttons rather than the
+// usual labeled task pill.
+function renderSystemTiles() {
+  const wrap = document.getElementById("system-tiles");
+  wrap.innerHTML = "";
+  wrap.appendChild(buildSystemTile(STORE_APP, "store", storeWinId, openAppStore));
+  wrap.appendChild(buildSystemTile(SETTINGS_APP, "settings", settingsWinId, openSettings));
+}
+function buildSystemTile(app, cls, winId, onClick) {
+  const el = document.createElement("div");
+  el.className = "sys-tile " + cls;
+  const win = winId ? document.getElementById(winId) : null;
+  const isRunning = !!win;
+  const isActive = isRunning && win.classList.contains("focused") && !win.classList.contains("minimized");
+  if (isRunning) el.classList.add("running");
+  if (isActive) el.classList.add("active");
+  el.title = app.name;
+  el.textContent = app.icon;
+  el.onclick = onClick;
+  return el;
+}
+
+// ===================== TASKBAR PINNING =====================
+// pinned = [ { name, url, icon, color } ]  — reuses the app object shape.
+// Persisted independently of "installed" so an app can be pinned to the
+// taskbar without being on the desktop (e.g. pinned straight from the
+// Start Menu or App Store's underlying app list).
+const PIN_KEY = "vusos_pinned_taskbar";
+function getPinned() {
+  try { return JSON.parse(localStorage.getItem(PIN_KEY)) || []; }
+  catch { return []; }
+}
+function setPinned(list) { localStorage.setItem(PIN_KEY, JSON.stringify(list)); }
+function isPinned(app) { return getPinned().some(a => appKey(a) === appKey(app)); }
+function pinToTaskbar(app) {
+  if (app.url === "__store__" || app.url === "__settings__") return; // not pinnable
+  const list = getPinned();
+  if (!list.some(a => appKey(a) === appKey(app))) {
+    list.push({ name: app.name, url: app.url, icon: app.icon, color: app.color });
+    setPinned(list);
+  }
+  renderPinnedTaskbar();
+}
+function unpinFromTaskbar(app) {
+  setPinned(getPinned().filter(a => appKey(a) !== appKey(app)));
+  renderPinnedTaskbar();
+}
+
+// Renders the pinned row of taskbar icons (apps that stay in the taskbar
+// whether or not they're currently running). Running windows for a pinned
+// app are represented by that SAME pinned tile — it just gains "active"
+// state and the ability to be brought to front / minimized like any other
+// task item, but never disappears from the taskbar when the window closes.
+function renderPinnedTaskbar() {
+  renderSystemTiles();
+  const pinned = getPinned();
+  // clear out any previously-rendered pinned tiles, then re-add in order
+  tasklist.querySelectorAll('.task-item[data-pinned="1"]').forEach(el => el.remove());
+  pinned.slice().reverse().forEach(app => {
+    const runningId = findRunningWindowIdForApp(app);
+    const el = buildTaskbarTile(app, true, runningId);
+    tasklist.insertBefore(el, tasklist.firstChild);
+  });
+}
+
+// Finds an already-open, non-pinned-origin window id running this exact app
+// (by name+url), if any — used so a pin's tile reflects "active" state and
+// can be clicked to focus/minimize the real window instead of relaunching.
+function findRunningWindowIdForApp(app) {
+  for (const [id, info] of openWindows.entries()) {
+    if (info.app && appKey(info.app) === appKey(app) && !info.isPinnedTile) return id;
+  }
+  return null;
+}
+
+function buildTaskbarTile(app, pinned, runningId) {
+  const el = document.createElement("div");
+  el.className = "task-item" + (pinned ? " pinned" : "");
+  if (pinned) el.dataset.pinned = "1";
+  const isRunning = !!runningId;
+  const win = isRunning ? document.getElementById(runningId) : null;
+  const isActive = isRunning && win && win.classList.contains("focused") && !win.classList.contains("minimized");
+  if (isActive) el.classList.add("active");
+  el.innerHTML = `<span class="dot"></span><span>${escapeHtml(app.name)}</span>`;
+
+  el.onclick = () => {
+    if (runningId) {
+      const w = document.getElementById(runningId);
+      if (!w) { launchPinnedApp(app); return; }
+      if (w.classList.contains("minimized")) {
+        w.classList.remove("minimized");
+        focusWindow(runningId);
+      } else if (parseInt(w.style.zIndex) === zTop) {
+        minimizeWindow(runningId);
+      } else {
+        focusWindow(runningId);
+      }
+    } else {
+      launchPinnedApp(app);
+    }
+  };
+  el.oncontextmenu = (e) => {
+    e.preventDefault();
+    showTaskbarContextMenu(e, app, pinned);
+  };
+  return el;
+}
+
+// Launches a pinned app's window the same way any other app launches, but
+// tags the resulting window so the taskbar knows to route clicks on the
+// pinned tile to this live window (see findRunningWindowIdForApp).
+function launchPinnedApp(app) {
+  if (!app.url.includes("raw.githubusercontent.com")) {
+    window.open(app.url, "_blank", "noopener");
+    return;
+  }
+  const id = "win" + (++winCount);
+  const win = createWindow(id, app);
+  desktop.appendChild(win);
+  openWindows.set(id, { taskEl: null, app, isPinnedTaskbarLaunch: true });
+  focusWindow(id);
+  loadAppContent(id, app);
+  renderPinnedTaskbar();
+}
+
+function showTaskbarContextMenu(e, app, pinned) {
+  e.preventDefault();
+  e.stopPropagation();
+  ctxMenu.innerHTML = pinned
+    ? `<div class="ctx-item danger" id="ctxUnpin">Unpin from taskbar</div>`
+    : `<div class="ctx-item" id="ctxPin">Pin to taskbar</div>`;
+  if (pinned) {
+    ctxMenu.querySelector("#ctxUnpin").onclick = () => { unpinFromTaskbar(app); closeCtxMenu(); };
+  } else {
+    ctxMenu.querySelector("#ctxPin").onclick = () => { pinToTaskbar(app); closeCtxMenu(); };
+  }
+  const tile = e.currentTarget || e.target.closest(".task-item");
+  if (tile) positionCtxNearElement(tile); else positionCtx(e);
+}
+
+// ===================== CONTEXT MENUS =====================
+const ctxMenu = document.getElementById("ctxMenu");
+function closeCtxMenu() { ctxMenu.classList.remove("open"); ctxMenu.innerHTML = ""; }
+document.addEventListener("click", (e) => { if (!ctxMenu.contains(e.target)) closeCtxMenu(); });
+document.addEventListener("scroll", closeCtxMenu, true);
+
+function positionCtx(e) {
+  ctxMenu.style.left = Math.min(e.clientX, window.innerWidth - 210) + "px";
+  ctxMenu.style.top = Math.min(e.clientY, window.innerHeight - 220) + "px";
+  ctxMenu.classList.add("open");
+}
+
+// Anchors the context menu to a specific element's bounding box rather than
+// the raw cursor position — used for the taskbar, where positionCtx()'s
+// vertical clamp (window.innerHeight - 220) can push the menu far above the
+// cursor and make it feel detached from the item that was clicked.
+function positionCtxNearElement(el) {
+  const rect = el.getBoundingClientRect();
+  ctxMenu.classList.add("open"); // add first so offsetHeight/Width are measurable
+  const menuW = ctxMenu.offsetWidth || 200;
+  const menuH = ctxMenu.offsetHeight || 100;
+  let left = rect.left;
+  if (left + menuW > window.innerWidth) left = window.innerWidth - menuW - 8;
+  left = Math.max(8, left);
+  // prefer opening upward from the element (taskbar sits at the bottom)
+  let top = rect.top - menuH - 6;
+  if (top < 8) top = rect.bottom + 6;
+  ctxMenu.style.left = left + "px";
+  ctxMenu.style.top = top + "px";
+}
+
+// Opens the "Sort" submenu positioned just to the right of (or, if there's
+// no room, just to the left of) the "Sort" item that was clicked.
+function showSortSubMenu(anchorEl) {
+  const options = [
+    { mode: "alpha", label: "Sort alphabetically" },
+    { mode: "leftright", label: "Sort left to right" },
+    { mode: "topbottom", label: "Sort top to bottom" }
+  ];
+  sortSubMenu.innerHTML = options.map(o =>
+    `<div class="ctx-item" data-mode="${o.mode}">${o.label}</div>`
+  ).join("");
+  sortSubMenu.querySelectorAll(".ctx-item").forEach(el => {
+    el.onclick = () => {
+      sortDesktopIcons(el.dataset.mode);
+      closeSortSubMenu();
+      closeCtxMenu();
+    };
+  });
+
+  const rect = anchorEl.getBoundingClientRect();
+  const menuWidth = 200;
+  let left = rect.right + 4;
+  if (left + menuWidth > window.innerWidth) left = Math.max(4, rect.left - menuWidth - 4);
+  let top = Math.min(rect.top, window.innerHeight - 140);
+  sortSubMenu.style.left = left + "px";
+  sortSubMenu.style.top = Math.max(4, top) + "px";
+  sortSubMenu.classList.add("open");
+}
+
+const sortSubMenu = (() => {
+  const el = document.createElement("div");
+  el.className = "ctx-menu";
+  el.id = "sortSubMenu";
+  document.body.appendChild(el);
+  return el;
+})();
+function closeSortSubMenu() { sortSubMenu.classList.remove("open"); sortSubMenu.innerHTML = ""; }
+document.addEventListener("click", (e) => {
+  if (!sortSubMenu.contains(e.target) && !(e.target.closest && e.target.closest("#ctxSort"))) closeSortSubMenu();
+});
+
+function showDesktopContextMenu(e) {
+  e.preventDefault();
+  closeSortSubMenu();
+  const sizes = ["small", "medium", "large"];
+  const current = getIconSize();
+  ctxMenu.innerHTML = `
+    <div class="ctx-sub">Icon size</div>
+    <div class="ctx-swatches" id="sizeRow">
+      ${sizes.map(s => `<div class="ctx-item" data-size="${s}" style="flex:1;text-align:center;${s===current?'color:var(--accent);font-weight:700;':''}">${s[0].toUpperCase()+s.slice(1)}</div>`).join("")}
+    </div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" id="ctxNewFolder">New Folder</div>
+    <div class="ctx-item" id="ctxSort">Sort <span style="color:var(--fg-dim);">›</span></div>
+    <div class="ctx-item" id="ctxRefresh">Refresh</div>
+  `;
+  ctxMenu.querySelectorAll("#sizeRow .ctx-item").forEach(el => {
+    el.onclick = () => { setIconSize(el.dataset.size); closeCtxMenu(); };
+  });
+  ctxMenu.querySelector("#ctxNewFolder").onclick = () => { createFolder(); closeCtxMenu(); };
+  ctxMenu.querySelector("#ctxRefresh").onclick = () => { refreshDesktopIcons(); closeCtxMenu(); };
+  ctxMenu.querySelector("#ctxSort").onclick = (ev) => {
+    ev.stopPropagation();
+    showSortSubMenu(ctxMenu.querySelector("#ctxSort"));
+  };
+  positionCtx(e);
+}
+
+function showAppContextMenu(e, app, folderId, winId) {
+  e.preventDefault();
+  e.stopPropagation();
+  const inFolder = !!folderId;
+  const pinned = isPinned(app);
+  ctxMenu.innerHTML = `
+    ${pinned
+      ? '<div class="ctx-item danger" id="ctxUnpin">Unpin from taskbar</div>'
+      : '<div class="ctx-item" id="ctxPin">Pin to taskbar</div>'}
+    <div class="ctx-sep"></div>
+    ${inFolder ? '<div class="ctx-item" id="ctxRemoveFromFolder">Remove from folder</div><div class="ctx-sep"></div>' : ''}
+    <div class="ctx-item danger" id="ctxUninstall">Remove from desktop</div>
+  `;
+  ctxMenu.querySelector(pinned ? "#ctxUnpin" : "#ctxPin").onclick = () => {
+    if (pinned) unpinFromTaskbar(app); else pinToTaskbar(app);
+    closeCtxMenu();
+  };
+  if (inFolder) {
+    ctxMenu.querySelector("#ctxRemoveFromFolder").onclick = () => {
+      const list = getFolders();
+      const f = list.find(x => x.id === folderId);
+      if (f) { f.items = f.items.filter(k => k !== appKey(app)); setFolders(list); }
+      renderIcons();
+      if (winId) renderFolderBody(winId, folderId);
+      closeCtxMenu();
+    };
+  }
+  ctxMenu.querySelector("#ctxUninstall").onclick = () => {
+    uninstallApp(app);
+    if (winId) renderFolderBody(winId, folderId);
+    closeCtxMenu();
+  };
+  positionCtx(e);
+}
+
+function showFolderContextMenu(e, folderId) {
+  e.preventDefault();
+  e.stopPropagation();
+  const folder = getFolders().find(f => f.id === folderId);
+  if (!folder) return;
+  const colors = ["green","blue","amber","rose","violet","cyan","lime","orange","red"];
+  ctxMenu.innerHTML = `
+    <div class="ctx-sub">Rename</div>
+    <div style="padding:2px 10px 8px;">
+      <input type="text" class="ctx-rename-input" id="ctxRenameInput" value="${escapeHtml(folder.name)}">
+    </div>
+    <div class="ctx-sub">Color</div>
+    <div class="ctx-swatches" id="colorRow">
+      ${colors.map(c => `<div class="ctx-swatch icon-glyph ${c} ${c===folder.color?'active':''}" data-color="${c}"></div>`).join("")}
+    </div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item danger" id="ctxDeleteFolder">Delete folder</div>
+  `;
+  const input = ctxMenu.querySelector("#ctxRenameInput");
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") { updateFolder(folderId, { name: input.value.trim() || "New Folder" }); closeCtxMenu(); }
+  });
+  input.addEventListener("blur", () => {
+    updateFolder(folderId, { name: input.value.trim() || "New Folder" });
+  });
+  ctxMenu.querySelectorAll("#colorRow .ctx-swatch").forEach(el => {
+    el.onclick = () => { updateFolder(folderId, { color: el.dataset.color }); closeCtxMenu(); };
+  });
+  ctxMenu.querySelector("#ctxDeleteFolder").onclick = () => {
+    if (confirm(`Delete folder "${folder.name}"? Apps inside will return to the desktop.`)) {
+      deleteFolder(folderId);
+    }
+    closeCtxMenu();
+  };
+  positionCtx(e);
+  input.focus();
+  input.select();
+}
+
+// desktop background right-click (not on an icon)
+document.getElementById("icons").addEventListener("contextmenu", (e) => {
+  if (e.target.closest(".icon")) return; // icon handles its own menu
+  showDesktopContextMenu(e);
+});
+
+// ===================== START MENU =====================
+const startMenu = document.getElementById("start-menu");
+const startBtnEl = document.getElementById("start-btn");
+const startSearchEl = document.getElementById("startSearch");
+
+startBtnEl.onclick = (e) => {
+  e.stopPropagation();
+  startMenu.classList.toggle("open");
+  if (startMenu.classList.contains("open")) {
+    startSearchEl.value = "";
+    startSearchEl.focus();
+    renderStartList("");
+  }
+};
+document.addEventListener("click", (e) => {
+  if (!startMenu.contains(e.target) && e.target !== startBtnEl && !startBtnEl.contains(e.target)) {
+    startMenu.classList.remove("open");
+  }
+});
+startSearchEl.addEventListener("input", () => renderStartList(startSearchEl.value));
+
+function renderStartList(query) {
+  const q = query.toLowerCase().trim();
+  const wrap = document.getElementById("startList");
+
+  const appEntries = allApps
+    .filter(a => !q || a.name.toLowerCase().includes(q))
+    .map(a => ({ type: "app", data: a }));
+  const folderEntries = getFolders()
+    .filter(f => !q || f.name.toLowerCase().includes(q))
+    .map(f => ({ type: "folder", data: f }));
+  const entries = [...folderEntries, ...appEntries];
+
+  if (!entries.length) {
+    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--fg-dim);font-size:13px;">No results</div>';
+    return;
+  }
+  wrap.innerHTML = "";
+  entries.forEach(entry => {
+    const el = document.createElement("div");
+    el.className = "start-item";
+    if (entry.type === "folder") {
+      el.innerHTML = `
+        <div class="start-item-icon icon-glyph ${entry.data.color || 'amber'}">📁</div>
+        <div class="start-item-text">
+          <div class="start-item-name">${escapeHtml(entry.data.name)}</div>
+          <div class="start-item-desc">Folder</div>
+        </div>
+      `;
+      el.onclick = () => { openFolder(entry.data.id); startMenu.classList.remove("open"); };
+      el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showFolderContextMenu(e, entry.data.id); };
+    } else {
+      const a = entry.data;
+      el.innerHTML = `
+        <div class="start-item-icon icon-glyph ${a.color || 'green'}">${escapeHtml(a.icon || initials(a.name))}</div>
+        <div class="start-item-text">
+          <div class="start-item-name">${escapeHtml(a.name)}</div>
+          <div class="start-item-desc">${escapeHtml(a.desc || "")}</div>
+        </div>
+      `;
+      el.onclick = () => { launchApp(a); startMenu.classList.remove("open"); };
+      el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showAppContextMenu(e, a); };
+    }
+    wrap.appendChild(el);
+  });
+}
+
+// ===================== WINDOW MANAGER =====================
+const desktop = document.getElementById("desktop");
+const tasklist = document.getElementById("tasklist");
+let winCount = 0;
+const openWindows = new Map(); // id -> {el, taskEl, app}
+
+function launchApp(app) {
+  // non-raw links just open in a new tab, same behavior as VUS Hub
+  if (!app.url.includes("raw.githubusercontent.com")) {
+    window.open(app.url, "_blank", "noopener");
+    return;
+  }
+  // if this app is pinned to the taskbar, route through the pinned launcher
+  // so the pinned tile picks up the "active/running" state correctly
+  if (isPinned(app)) { launchPinnedApp(app); return; }
+  const id = "win" + (++winCount);
+  const win = createWindow(id, app);
+  desktop.appendChild(win);
+  createTaskItem(id, app);
+  focusWindow(id);
+  loadAppContent(id, app);
+}
+
+// ===================== APP STORE WINDOW =====================
+let storeWinId = null;
+
+function openAppStore() {
+  // if already open, toggle minimize/focus like clicking its taskbar tile
+  if (storeWinId && document.getElementById(storeWinId)) {
+    const win = document.getElementById(storeWinId);
+    if (win.classList.contains("minimized")) {
+      win.classList.remove("minimized");
+      focusWindow(storeWinId);
+    } else if (parseInt(win.style.zIndex) === zTop) {
+      minimizeWindow(storeWinId);
+    } else {
+      focusWindow(storeWinId);
+    }
+    return;
+  }
+  const id = "win" + (++winCount);
+  storeWinId = id;
+  const win = createWindow(id, STORE_APP, true);
+  desktop.appendChild(win);
+  openWindows.set(id, { taskEl: null, app: STORE_APP });
+  focusWindow(id);
+  renderStoreBody(id);
+}
+
+function renderStoreBody(id) {
+  const win = document.getElementById(id);
+  const body = win.querySelector(".win-body");
+  body.innerHTML = `
+    <div class="store-wrap">
+      <div class="store-header">
+        <h2>App Store</h2>
+        <input type="text" class="store-search" id="storeSearch-${id}" placeholder="Search apps..." autocomplete="off">
+        <div class="store-tabs" id="storeTabs-${id}"></div>
+      </div>
+      <div class="store-list" id="storeList-${id}"></div>
+    </div>
+  `;
+  const listEl = body.querySelector("#storeList-" + id);
+  const searchEl = body.querySelector("#storeSearch-" + id);
+  const tabsEl = body.querySelector("#storeTabs-" + id);
+
+  const TABS = [
+    { key: "all", label: "All" },
+    { key: "apps", label: "Apps" },
+    { key: "hubs", label: "Hubs" },
+    { key: "tools", label: "Tools" },
+    { key: "links", label: "Links" }
+  ];
+  let activeTab = "all";
+
+  function drawTabs() {
+    tabsEl.innerHTML = "";
+    TABS.forEach(t => {
+      const el = document.createElement("div");
+      el.className = "store-tab" + (t.key === activeTab ? " active" : "");
+      el.textContent = t.label;
+      el.onclick = () => { activeTab = t.key; drawTabs(); draw(); };
+      tabsEl.appendChild(el);
+    });
+  }
+
+  function draw() {
+    const q = searchEl.value.toLowerCase().trim();
+    let items = activeTab === "all" ? allApps : allApps.filter(a => a.category === activeTab);
+    if (q) items = items.filter(a => a.name.toLowerCase().includes(q));
+    if (!items.length) {
+      listEl.innerHTML = '<div class="store-empty">No apps found</div>';
+      return;
+    }
+    listEl.innerHTML = "";
+    items.forEach(app => {
+      const installed = isInstalled(app);
+      const card = document.createElement("div");
+      card.className = "store-card";
+      card.innerHTML = `
+        <div class="store-card-top">
+          <div class="store-card-icon icon-glyph ${app.color || 'green'}">${escapeHtml(app.icon || initials(app.name))}</div>
+          <div class="store-card-name">${escapeHtml(app.name)}</div>
+        </div>
+        <div class="store-card-desc">${escapeHtml(app.desc || "")}</div>
+        <button class="store-card-btn ${installed ? 'installed' : ''}">${installed ? 'Installed ✓' : 'Install'}</button>
+      `;
+      const btn = card.querySelector(".store-card-btn");
+      btn.onclick = () => {
+        if (isInstalled(app)) {
+          uninstallApp(app);
+          draw();
+        } else {
+          btn.disabled = true;
+          btn.textContent = "Installing...";
+          const delay = 500 + Math.random() * 1500;
+          setTimeout(() => {
+            installApp(app);
+            draw();
+          }, delay);
+        }
+      };
+      card.oncontextmenu = (e) => { e.preventDefault(); showAppContextMenu(e, app); };
+      listEl.appendChild(card);
+    });
+  }
+  searchEl.addEventListener("input", draw);
+  drawTabs();
+  draw();
+}
+
+// ===================== SETTINGS WINDOW =====================
+let settingsWinId = null;
+
+function openSettings() {
+  if (settingsWinId && document.getElementById(settingsWinId)) {
+    const win = document.getElementById(settingsWinId);
+    if (win.classList.contains("minimized")) {
+      win.classList.remove("minimized");
+      focusWindow(settingsWinId);
+    } else if (parseInt(win.style.zIndex) === zTop) {
+      minimizeWindow(settingsWinId);
+    } else {
+      focusWindow(settingsWinId);
+    }
+    return;
+  }
+  const id = "win" + (++winCount);
+  settingsWinId = id;
+  const win = createWindow(id, SETTINGS_APP, true);
+  desktop.appendChild(win);
+  openWindows.set(id, { taskEl: null, app: SETTINGS_APP });
+  focusWindow(id);
+  renderSettingsBody(id);
+}
+
+function renderSettingsBody(id) {
+  const win = document.getElementById(id);
+  const body = win.querySelector(".win-body");
+  const s = getSettings();
+  const bg = getBackground();
+  const BG_PRESETS = ["#0a0e1a", "#111827", "#1e293b", "#0f172a", "#164e63", "#134e2e", "#3b0764", "#7c2d12", "#701a1a", "#0c0a09"];
+
+  body.innerHTML = `
+    <div class="settings-wrap">
+      <h2>Settings</h2>
+
+      <div class="settings-section-title">General</div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Site name</div>
+          <div class="settings-row-desc">Shown in the boot screen and browser tab title. Saved across refreshes.</div>
+        </div>
+        <input type="text" class="settings-input" id="setSiteName" value="${escapeHtml(getSiteName())}" maxlength="40" placeholder="VUS-OS">
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Open apps with</div>
+          <div class="settings-row-desc">Single click opens instantly; double click requires two clicks</div>
+        </div>
+        <select class="settings-select" id="setClickMode">
+          <option value="single" ${s.clickMode === "single" ? "selected" : ""}>Single click</option>
+          <option value="double" ${s.clickMode === "double" ? "selected" : ""}>Double click</option>
+        </select>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Icon placement</div>
+          <div class="settings-row-desc">Snap icons to a grid, or place them freely anywhere</div>
+        </div>
+        <select class="settings-select" id="setSnapMode">
+          <option value="snap" ${s.snapMode === "snap" ? "selected" : ""}>Snap to grid</option>
+          <option value="free" ${s.snapMode === "free" ? "selected" : ""}>Free placement</option>
+        </select>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Icon size</div>
+          <div class="settings-row-desc">Size of desktop icons</div>
+        </div>
+        <select class="settings-select" id="setIconSize">
+          <option value="small" ${getIconSize() === "small" ? "selected" : ""}>Small</option>
+          <option value="medium" ${getIconSize() === "medium" ? "selected" : ""}>Medium</option>
+          <option value="large" ${getIconSize() === "large" ? "selected" : ""}>Large</option>
+        </select>
+      </div>
+
+      <div class="settings-section-title">Background</div>
+      <div class="settings-row" style="border-bottom:none; flex-direction:column; align-items:stretch;">
+        <div class="bg-mode-row" id="bgModeRow">
+          <button class="bg-mode-btn" data-mode="default">Default</button>
+          <button class="bg-mode-btn" data-mode="color">Solid color</button>
+          <button class="bg-mode-btn" data-mode="image">Upload image</button>
+          <button class="bg-mode-btn" data-mode="link">Image link</button>
+        </div>
+
+        <div class="bg-panel" data-panel="default">
+          <div style="font-size:12px;color:var(--fg-dim);">The default VUS-OS gradient background.</div>
+        </div>
+
+        <div class="bg-panel" data-panel="color">
+          <div class="bg-color-row">
+            <div class="bg-color-swatch-wrap">
+              <input type="color" id="bgColorPicker" value="${escapeHtml(bg.color || '#0a0e1a')}">
+            </div>
+            <div class="bg-color-hex" id="bgColorHex">${escapeHtml((bg.color || '#0a0e1a').toUpperCase())}</div>
+          </div>
+          <div class="bg-color-presets" id="bgColorPresets">
+            ${BG_PRESETS.map(c => `<div class="bg-color-preset" data-color="${c}" style="background:${c};"></div>`).join("")}
+          </div>
+        </div>
+
+        <div class="bg-panel" data-panel="image">
+          <div class="bg-upload-zone" id="bgUploadZone">
+            <div class="bg-upload-icon">🖼️</div>
+            <div class="bg-upload-text">Click to choose an image</div>
+            <div class="bg-upload-sub">Stored locally in your browser</div>
+          </div>
+          <input type="file" id="bgFileInput" accept="image/*" style="display:none;">
+          <div class="bg-preview" id="bgImagePreview"></div>
+          <div class="bg-error" id="bgImageError">Image too large — try a smaller file.</div>
+        </div>
+
+        <div class="bg-panel" data-panel="link">
+          <div class="bg-link-row">
+            <input type="text" class="settings-input" id="bgLinkInput" placeholder="https://example.com/image.jpg" style="width:100%;" value="${escapeHtml(bg.link || '')}">
+          </div>
+          <button class="bg-apply-btn" id="bgLinkApply">Apply</button>
+          <div class="bg-preview" id="bgLinkPreview"></div>
+          <div class="bg-error" id="bgLinkError">Couldn't load that image — check the link.</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // ---- general settings wiring ----
+  body.querySelector("#setSiteName").addEventListener("change", (e) => setSiteName(e.target.value));
+  body.querySelector("#setSiteName").addEventListener("blur", (e) => setSiteName(e.target.value));
+  body.querySelector("#setClickMode").onchange = (e) => setSetting("clickMode", e.target.value);
+  body.querySelector("#setSnapMode").onchange = (e) => setSetting("snapMode", e.target.value);
+  body.querySelector("#setIconSize").onchange = (e) => setIconSize(e.target.value);
+
+  // ---- background settings wiring ----
+  const modeBtns = body.querySelectorAll(".bg-mode-btn");
+  const panels = body.querySelectorAll(".bg-panel");
+
+  function setActiveMode(mode) {
+    modeBtns.forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+    panels.forEach(p => p.classList.toggle("show", p.dataset.panel === mode));
+  }
+  setActiveMode(bg.mode || "default");
+
+  modeBtns.forEach(btn => {
+    btn.onclick = () => {
+      const mode = btn.dataset.mode;
+      setActiveMode(mode);
+      // switching mode only takes visual effect once the mode actually has
+      // usable data; "default" and "color" apply immediately since color
+      // always has a value, image/link only apply once something is chosen
+      if (mode === "default") {
+        setBackground({ mode: "default" });
+      } else if (mode === "color") {
+        setBackground({ mode: "color" });
+      } else if (mode === "image" && bg.image) {
+        setBackground({ mode: "image" });
+      } else if (mode === "link" && bg.link) {
+        setBackground({ mode: "link" });
+      }
+    };
+  });
+
+  // solid color
+  const colorPicker = body.querySelector("#bgColorPicker");
+  const colorHex = body.querySelector("#bgColorHex");
+  const presetsWrap = body.querySelector("#bgColorPresets");
+  function refreshPresetActive(hex) {
+    presetsWrap.querySelectorAll(".bg-color-preset").forEach(p => {
+      p.classList.toggle("active", p.dataset.color.toLowerCase() === hex.toLowerCase());
+    });
+  }
+  refreshPresetActive(colorPicker.value);
+  colorPicker.addEventListener("input", () => {
+    const hex = colorPicker.value;
+    colorHex.textContent = hex.toUpperCase();
+    refreshPresetActive(hex);
+    setBackground({ mode: "color", color: hex });
+    setActiveMode("color");
+  });
+  presetsWrap.querySelectorAll(".bg-color-preset").forEach(p => {
+    p.onclick = () => {
+      const hex = p.dataset.color;
+      colorPicker.value = hex;
+      colorHex.textContent = hex.toUpperCase();
+      refreshPresetActive(hex);
+      setBackground({ mode: "color", color: hex });
+      setActiveMode("color");
+    };
+  });
+
+  // image upload
+  const uploadZone = body.querySelector("#bgUploadZone");
+  const fileInput = body.querySelector("#bgFileInput");
+  const imagePreview = body.querySelector("#bgImagePreview");
+  const imageError = body.querySelector("#bgImageError");
+  if (bg.image) {
+    imagePreview.style.backgroundImage = `url("${bg.image}")`;
+    imagePreview.classList.add("show");
+  }
+  uploadZone.onclick = () => fileInput.click();
+  fileInput.onchange = () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    imageError.classList.remove("show");
+    // ~4MB raw file cap keeps the base64 data URL comfortably under
+    // localStorage's typical 5MB-per-origin quota
+    if (file.size > 4 * 1024 * 1024) {
+      imageError.textContent = "Image too large — please use a file under 4MB.";
+      imageError.classList.add("show");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      imagePreview.style.backgroundImage = `url("${dataUrl}")`;
+      imagePreview.classList.add("show");
+      setBackground({ mode: "image", image: dataUrl });
+      setActiveMode("image");
+    };
+    reader.onerror = () => {
+      imageError.textContent = "Couldn't read that file — try another image.";
+      imageError.classList.add("show");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // image link
+  const linkInput = body.querySelector("#bgLinkInput");
+  const linkApply = body.querySelector("#bgLinkApply");
+  const linkPreview = body.querySelector("#bgLinkPreview");
+  const linkError = body.querySelector("#bgLinkError");
+  if (bg.link) {
+    linkPreview.style.backgroundImage = `url("${bg.link}")`;
+    linkPreview.classList.add("show");
+  }
+  function applyLink() {
+    const url = linkInput.value.trim();
+    linkError.classList.remove("show");
+    if (!url) return;
+    // validate the image actually loads before committing it as the background
+    const testImg = new Image();
+    testImg.onload = () => {
+      linkPreview.style.backgroundImage = `url("${url}")`;
+      linkPreview.classList.add("show");
+      setBackground({ mode: "link", link: url });
+      setActiveMode("link");
+    };
+    testImg.onerror = () => {
+      linkError.classList.add("show");
+    };
+    testImg.src = url;
+  }
+  linkApply.onclick = applyLink;
+  linkInput.addEventListener("keydown", (e) => { if (e.key === "Enter") applyLink(); });
+}
+
+function createWindow(id, app, isStore) {
+  const win = document.createElement("div");
+  win.className = "win focused";
+  win.id = id;
+  win.dataset.title = app.name;
+
+  // staggered default position/size
+  const offset = (winCount % 8) * 26;
+  const w = Math.min(760, window.innerWidth - 100);
+  const h = Math.min(520, window.innerHeight - 160);
+  win.style.width = w + "px";
+  win.style.height = h + "px";
+  win.style.left = (60 + offset) + "px";
+  win.style.top = (40 + offset) + "px";
+  win.style.zIndex = ++zTop;
+
+  win.innerHTML = `
+    <div class="win-titlebar">
+      <div class="win-icon icon-glyph ${app.color || 'green'}">${escapeHtml(app.icon || initials(app.name))}</div>
+      <div class="win-title">${escapeHtml(app.name)}</div>
+      <button class="win-btn min" title="Minimize">&#8212;</button>
+      <button class="win-btn max" title="Maximize">&#9723;</button>
+      <button class="win-btn close" title="Close">&#10005;</button>
+    </div>
+    <div class="win-body">
+      ${isStore ? '' : `<div class="win-loading">Loading ${escapeHtml(app.name)}...</div>`}
+    </div>
+    <div class="win-resize"></div>
+  `;
+
+  // focus on any interaction
+  win.addEventListener("mousedown", () => focusWindow(id), true);
+
+  // dragging
+  const titlebar = win.querySelector(".win-titlebar");
+  titlebar.addEventListener("mousedown", (e) => {
+    if (e.target.closest(".win-btn")) return;
+    if (win.classList.contains("maximized")) return;
+    const startX = e.clientX, startY = e.clientY;
+    const startLeft = win.offsetLeft, startTop = win.offsetTop;
+    function onMove(ev) {
+      win.style.left = (startLeft + ev.clientX - startX) + "px";
+      win.style.top = Math.max(0, startTop + ev.clientY - startY) + "px";
+    }
+    function onUp() {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
+  titlebar.addEventListener("dblclick", (e) => {
+    if (e.target.closest(".win-btn")) return;
+    toggleMaximize(id);
+  });
+
+  // resizing
+  const resizer = win.querySelector(".win-resize");
+  resizer.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    const startX = e.clientX, startY = e.clientY;
+    const startW = win.offsetWidth, startH = win.offsetHeight;
+    function onMove(ev) {
+      win.style.width = Math.max(320, startW + ev.clientX - startX) + "px";
+      win.style.height = Math.max(220, startH + ev.clientY - startY) + "px";
+    }
+    function onUp() {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
+
+  win.querySelector(".win-btn.min").onclick = () => minimizeWindow(id);
+  win.querySelector(".win-btn.max").onclick = () => toggleMaximize(id);
+  win.querySelector(".win-btn.close").onclick = () => closeWindow(id);
+
+  return win;
+}
+
+function loadAppContent(id, app) {
+  const win = document.getElementById(id);
+  const body = win.querySelector(".win-body");
+  fetch(app.url)
+    .then(r => {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.text();
+    })
+    .then(text => {
+      const iframe = document.createElement("iframe");
+      // start on a blank, same-origin document so document.write() below
+      // runs in a normal (non-CSP-sandboxed) context — GitHub's raw file
+      // responses carry a "CSP: sandbox" header that blocks scripts when
+      // the raw HTML is loaded via a blob: URL, so we write the fetched
+      // text directly into the iframe's own document instead.
+      iframe.src = "about:blank";
+      body.innerHTML = "";
+      body.appendChild(iframe);
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.open();
+      doc.write(text);
+      doc.close();
+    })
+    .catch(() => {
+      body.innerHTML = `<div class="win-loading" style="color:var(--danger)">Failed to load ${escapeHtml(app.name)}</div>`;
+    });
+}
+
+function createTaskItem(id, app) {
+  const el = document.createElement("div");
+  el.className = "task-item active";
+  el.innerHTML = `<span class="dot"></span><span>${escapeHtml(app.name)}</span>`;
+  el.onclick = () => {
+    const win = document.getElementById(id);
+    if (win.classList.contains("minimized")) {
+      win.classList.remove("minimized");
+      focusWindow(id);
+    } else if (parseInt(win.style.zIndex) === zTop) {
+      minimizeWindow(id);
+    } else {
+      focusWindow(id);
+    }
+  };
+  el.oncontextmenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // allow pinning straight from a running (unpinned) window's task item
+    if (app.url === "__store__" || app.url === "__settings__") return;
+    showTaskbarContextMenu(e, app, isPinned(app));
+  };
+  tasklist.appendChild(el);
+  openWindows.set(id, { el: document.getElementById.bind(document), taskEl: el, app });
+}
+
+function focusWindow(id) {
+  document.querySelectorAll(".win").forEach(w => w.classList.remove("focused"));
+  document.querySelectorAll(".task-item").forEach(t => t.classList.remove("active"));
+  const win = document.getElementById(id);
+  if (!win) return;
+  win.classList.add("focused");
+  win.style.zIndex = ++zTop;
+  const info = openWindows.get(id);
+  if (info && info.taskEl) info.taskEl.classList.add("active");
+  // re-render pinned tiles so the correct pinned tile lights up as active
+  // when the focused window belongs to a pinned app
+  renderPinnedTaskbar();
+}
+
+function minimizeWindow(id) {
+  const win = document.getElementById(id);
+  win.classList.add("minimized");
+  const info = openWindows.get(id);
+  if (info && info.taskEl) info.taskEl.classList.remove("active");
+  renderPinnedTaskbar();
+}
+
+function toggleMaximize(id) {
+  const win = document.getElementById(id);
+  win.classList.toggle("maximized");
+}
+
+function closeWindow(id) {
+  const win = document.getElementById(id);
+  win.remove();
+  const info = openWindows.get(id);
+  if (info && info.taskEl) info.taskEl.remove();
+  openWindows.delete(id);
+  if (id === storeWinId) storeWinId = null;
+  if (id === settingsWinId) settingsWinId = null;
+  // if the closed window belonged to a pinned app, its pinned tile should
+  // drop back to non-running/inactive state rather than being removed
+  renderPinnedTaskbar();
+}
+
+// ===================== CLOCK =====================
+function updateClock() {
+  const now = new Date();
+  document.getElementById("clockTime").textContent =
+    now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  document.getElementById("clockDate").textContent =
+    now.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+setInterval(updateClock, 1000 * 15);
+updateClock();
+</script>
+</body>
+</html>
