@@ -46,7 +46,7 @@ input,select,button{font-family:var(--font)}
 #startBtn:hover{border-color:var(--bdh)}
 .sep{width:1px;height:28px;background:var(--bd);flex-shrink:0}
 .sys{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;flex-shrink:0}
-.sys.store{background:rgba(139,92,246,.14)}.sys.settings{background:rgba(6,182,212,.14)}
+.sys.store{background:rgba(139,92,246,.14)}.sys.settings{background:rgba(6,182,212,.14)}.sys.updates{background:rgba(132,204,22,.14)}
 .sys:hover{filter:brightness(1.4)}
 #tasks{flex:1;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
 .task{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:8px;background:var(--card);border:1px solid var(--bd);color:var(--mute);font-size:12.5px;font-weight:500;cursor:pointer;max-width:180px;flex-shrink:0}
@@ -77,8 +77,11 @@ input,select,button{font-family:var(--font)}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
 .card div{display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600}
 .card p{font-size:11.5px;color:var(--mute);line-height:1.4}
-.card button{align-self:flex-start;padding:6px 12px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--mute);font-size:11.5px;font-weight:600;cursor:pointer}
-.card button.on{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.35);color:var(--ac)}
+.card button,.item button{align-self:flex-start;padding:6px 12px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--mute);font-size:11.5px;font-weight:600;cursor:pointer}
+.card button.on,.item button.on{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.35);color:var(--ac)}
+.item button{margin-left:auto;flex-shrink:0}
+.item.row{cursor:default}.item.row:hover{background:none}
+.pad input[type=checkbox]{width:18px;height:18px;accent-color:var(--ac);padding:0}
 
 #ctx{position:fixed;z-index:900;min-width:180px;background:var(--el);border:1px solid var(--bd);border-radius:10px;padding:6px;display:none;box-shadow:0 16px 40px rgba(0,0,0,.5)}
 #ctx div{padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer}
@@ -102,6 +105,8 @@ input,select,button{font-family:var(--font)}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
+// One small file with a number per app, e.g. {"MZK PLAYA": 2}. Bump a number to update just that app.
+const VERSIONS_URL = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/versions.json";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -239,10 +244,52 @@ function makeOS(app, win) {
   };
 }
 
+// ===================== CODE CACHE + UPDATES =====================
+// Code is saved in IndexedDB the first time an app opens. After that it opens from the saved copy.
+// Small metadata {name: {url, version}} lives in localStorage.
+const idb = new Promise((res, rej) => { const r = indexedDB.open("vos2", 1); r.onupgradeneeded = () => r.result.createObjectStore("code"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const dbGet = async k => { try { const d = await idb; return await new Promise(res => { const q = d.transaction("code").objectStore("code").get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); } catch { return undefined; } };
+const dbSet = async (k, v) => { try { const d = await idb; return await new Promise(res => { const t = d.transaction("code", "readwrite"); t.objectStore("code").put(v, k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
+
+let remote = null; // last versions.json we managed to fetch
+async function getVersions(force) {
+  if (remote && !force) return remote;
+  try { const r = await fetch(VERSIONS_URL + "?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw 0; remote = await r.json(); return remote; }
+  catch { return null; }
+}
+const remoteVer = name => (remote && remote[name]) || 1;
+const metaAll = () => LS("meta", {});
+async function fetchCode(app) {
+  const r = await fetch(app.url + (app.url.includes("?") ? "&" : "?") + "v=" + remoteVer(app.name)); // ?v= dodges stale CDN copies
+  if (!r.ok) throw new Error(r.status);
+  return r.text();
+}
+async function saveCode(app, text) {
+  if (!(await dbSet(app.name, text))) return;
+  const m = metaAll(); m[app.name] = { url: app.url, version: remoteVer(app.name) }; save("meta", m);
+}
+async function getCode(app) {
+  const m = metaAll()[app.name];
+  if (m && m.url === app.url) { const c = await dbGet(app.name); if (c) return c; }
+  await getVersions();
+  const text = await fetchCode(app);
+  await saveCode(app, text);
+  return text;
+}
+async function updateApp(app) { // on any failure the old saved copy stays
+  try { await saveCode(app, await fetchCode(app)); return true; } catch { return false; }
+}
+const cachedApps = () => Object.entries(metaAll()).map(([name, m]) => ({ app: catalog.find(a => a.name === name && a.url === m.url), m })).filter(x => x.app);
+const outdated = () => cachedApps().filter(x => remoteVer(x.app.name) > x.m.version);
+async function autoUpdate() {
+  if (!getSettings().autoUpdate || !(await getVersions(true))) return;
+  for (const x of outdated()) await updateApp(x.app);
+}
+
 async function load(app, body, win) {
   try {
     if (app.builtin) { body.innerHTML = ""; app.open(body, makeOS(app, win)); return; }
-    const text = await fetch(app.url).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
+    const text = await getCode(app);
     body.innerHTML = "";
     if (isNative(app)) {
       const mod = await import(URL.createObjectURL(new Blob([text], { type: "text/javascript" })));
@@ -289,15 +336,43 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "⚙️", colo
     <label>Site name<input type="text" id="s1" value="${esc(s.site)}" maxlength="40"></label>
     <label>Background<select id="s2"><option value="default">Default</option><option value="color">Solid color</option><option value="link">Image link</option></select></label>
     <label>Color<input type="color" id="s3" value="${s.bgColor}"></label>
-    <label>Image link<input type="text" id="s4" value="${esc(s.bgLink)}" placeholder="https://..."></label></div>`;
+    <label>Image link<input type="text" id="s4" value="${esc(s.bgLink)}" placeholder="https://..."></label>
+    <label>Auto update apps<input type="checkbox" id="s5" ${s.autoUpdate ? "checked" : ""}></label></div>`;
   root.querySelector("#s2").value = s.bgMode;
-  root.oninput = () => {
-    save("settings", { site: root.querySelector("#s1").value.trim() || "VUS-OS", bgMode: root.querySelector("#s2").value, bgColor: root.querySelector("#s3").value, bgLink: root.querySelector("#s4").value.trim() });
+  root.oninput = e => {
+    save("settings", { site: root.querySelector("#s1").value.trim() || "VUS-OS", bgMode: root.querySelector("#s2").value, bgColor: root.querySelector("#s3").value, bgLink: root.querySelector("#s4").value.trim(), autoUpdate: root.querySelector("#s5").checked });
     applyTheme();
+    if (e.target.id === "s5" && e.target.checked) autoUpdate();
   };
 }};
 
-const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "" }, LS("settings", {}));
+const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "🔄", color: "lime", open(root) {
+  root.innerHTML = `<div class="pad"><h2>Updates</h2><div class="tabs"><button id="chk">Check now</button><button id="all">Update all</button></div><p id="st" style="font-size:12px;color:var(--mute)"></p><div id="rows"></div></div>`;
+  const rows = root.querySelector("#rows"), st = root.querySelector("#st");
+  const draw = () => {
+    const list = cachedApps();
+    rows.innerHTML = list.length ? "" : '<p style="color:var(--dim);font-size:13px">Apps show up here after you open them once.</p>';
+    list.forEach(({ app, m }) => {
+      const rv = remoteVer(app.name), old = rv > m.version;
+      const d = document.createElement("div");
+      d.className = "item row";
+      d.innerHTML = glyph(app, 32) + `<div style="overflow:hidden"><b>${esc(app.name)}</b><small>${old ? `v${m.version} → v${rv}` : `v${m.version} · up to date`}</small></div>` + (old ? "<button>Update</button>" : "");
+      if (old) d.querySelector("button").onclick = async e => { e.target.textContent = "Updating..."; await updateApp(app); draw(); };
+      rows.appendChild(d);
+    });
+  };
+  const check = async () => {
+    st.textContent = "Checking...";
+    const v = await getVersions(true);
+    st.textContent = v ? "Auto update is " + (getSettings().autoUpdate ? "on" : "off") : "Couldn't reach the update file. Using saved versions.";
+    draw();
+  };
+  root.querySelector("#chk").onclick = check;
+  root.querySelector("#all").onclick = async e => { e.target.textContent = "Updating..."; for (const x of outdated()) await updateApp(x.app); e.target.textContent = "Update all"; draw(); };
+  check();
+}};
+
+const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", autoUpdate: true }, LS("settings", {}));
 function applyTheme() {
   const s = getSettings();
   document.title = s.site; $("#bootTitle").textContent = s.site;
@@ -308,7 +383,7 @@ function applyTheme() {
 }
 
 // ===================== TASKBAR + START MENU =====================
-[[STORE, "store"], [SETTINGS, "settings"]].forEach(([app, cls]) => {
+[[STORE, "store"], [UPDATES, "updates"], [SETTINGS, "settings"]].forEach(([app, cls]) => {
   const t = document.createElement("div");
   t.className = "sys " + cls; t.title = app.name; t.textContent = app.icon;
   t.onclick = () => openApp(app);
@@ -345,6 +420,7 @@ Promise.all([loadCatalog(), minBoot]).then(() => {
     save("seeded", true);
   }
   renderIcons();
+  autoUpdate(); // background; skipped when auto update is off
   $("#boot").classList.add("hide");
   setTimeout(() => $("#boot").remove(), 550);
 });
