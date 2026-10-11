@@ -4,101 +4,119 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VUS-OS</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0a0e1a;--el:#111827;--card:rgba(17,24,39,.7);--hover:rgba(30,41,59,.8);--bd:rgba(51,65,85,.5);--bdh:rgba(74,222,128,.35);--fg:#f1f5f9;--mute:#94a3b8;--dim:#475569;--ac:#22c55e;--danger:#ef4444;--tb:56px;--font:'Space Grotesk',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+:root{--bg:#000;--el:#202020;--card:#2b2b2b;--hover:#3a3a3a;--bd:#3d3d3d;--fg:#fff;--mute:#a6a6a6;--dim:#767676;--ac:#0078d7;--ac2:#4cc2ff;--danger:#e81123;--tb:40px;--font:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;--mono:Consolas,'JetBrains Mono',monospace}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font-family:var(--font);user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;user-select:none}
 input,select,button{font-family:var(--font)}
-.gl{border-radius:25%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.gl{display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0;border-radius:2px}
+.win-logo{display:grid;grid-template-columns:1fr 1fr;gap:2px;width:18px;height:18px}
+.win-logo i{background:#fff}
 
-#boot{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;transition:opacity .5s}
+#boot{position:fixed;inset:0;z-index:1000;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px;transition:opacity .4s}
 #boot.hide{opacity:0;pointer-events:none}
-.logo{width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,var(--ac),#10b981);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:32px;color:#000;box-shadow:0 0 40px rgba(34,197,94,.35)}
-#bootTitle{font-size:22px;font-weight:700;letter-spacing:1px;color:var(--mute)}
-.track{width:260px;height:6px;border-radius:4px;background:var(--card);border:1px solid var(--bd);overflow:hidden}
-#fill{height:100%;width:0;background:linear-gradient(90deg,var(--ac),#10b981);transition:width 1.6s linear}
+#boot .win-logo{width:72px;height:72px;gap:5px}
+.spin{width:34px;height:34px;border-radius:50%;border:3px solid #333;border-top-color:#fff;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#bootTitle{font-size:15px;color:#bbb}
 
 #desktop{position:fixed;inset:0 0 var(--tb) 0;overflow:hidden}
-#icons{position:absolute;inset:0;padding:14px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(auto-fill,96px);grid-auto-columns:92px;gap:4px;align-content:start;justify-content:start}
-.icon{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;border-radius:8px;cursor:pointer;text-align:center}
-.icon:hover{background:rgba(255,255,255,.06);outline:1px solid var(--bdh)}
-.lbl{font-size:11.5px;line-height:1.25;text-shadow:0 1px 3px rgba(0,0,0,.6);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+#icons{position:absolute;inset:0;padding:8px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(auto-fill,92px);grid-auto-columns:80px;gap:2px;align-content:start;justify-content:start}
+.icon{display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 2px;border:1px solid transparent;cursor:default;text-align:center}
+.icon:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.15)}
+.icon.sel{background:rgba(0,120,215,.35);border-color:rgba(0,120,215,.8)}
+.lbl{font-size:12px;line-height:1.2;color:#fff;text-shadow:0 1px 2px #000,0 0 4px rgba(0,0,0,.6);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
 
-.win{position:absolute;min-width:300px;min-height:200px;background:var(--el);border:1px solid var(--bd);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;overflow:hidden}
-.win.focus{border-color:var(--bdh)}
+.win{position:absolute;min-width:300px;min-height:200px;background:var(--el);border:1px solid #3a3a3a;box-shadow:0 8px 28px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden}
+.win.focus{border-color:var(--ac);box-shadow:0 12px 40px rgba(0,0,0,.6)}
 .win.min{display:none}
-.win.max{top:0!important;left:0!important;width:100%!important;height:100%!important;border-radius:0}
-.bar{height:42px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 8px 0 12px;background:var(--card);border-bottom:1px solid var(--bd);cursor:grab;touch-action:none}
-.wt{flex:1;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bar button{width:30px;height:30px;border:0;border-radius:7px;background:transparent;color:var(--mute);font-size:14px;cursor:pointer}
-.bar button:hover{background:rgba(255,255,255,.08);color:var(--fg)}
-.bar button.x:hover{background:var(--danger);color:#fff}
+.win.max{top:0!important;left:0!important;width:100%!important;height:100%!important;border:0}
+.bar{height:32px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding-left:8px;background:#2b2b2b;touch-action:none}
+.win.focus .bar{background:#1c1c1c}
+.wt{flex:1;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar button{width:46px;height:32px;border:0;background:transparent;color:#fff;font-size:12px;cursor:default}
+.bar button:hover{background:rgba(255,255,255,.1)}
+.bar button.x:hover{background:var(--danger)}
 .body{flex:1;min-height:0;position:relative;background:#000;overflow:hidden}
 .body iframe{width:100%;height:100%;border:0;display:block}
 .load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:13px var(--mono);color:var(--dim);background:var(--el)}
-.load.err{color:var(--danger)}
-.rs{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;touch-action:none}
-.rs::after{content:'';position:absolute;right:4px;bottom:4px;width:8px;height:8px;border-right:2px solid var(--dim);border-bottom:2px solid var(--dim)}
+.load.err{color:#ff6b6b}
+.rs{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none}
 
-#taskbar{position:fixed;left:0;right:0;bottom:0;height:var(--tb);background:rgba(17,24,39,.85);backdrop-filter:blur(16px);border-top:1px solid var(--bd);display:flex;align-items:center;gap:8px;padding:0 10px;z-index:500}
-#startBtn{display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:9px;border:1px solid var(--bd);background:var(--card);color:var(--fg);font-weight:600;font-size:13px;cursor:pointer;flex-shrink:0}
-#startBtn:hover{border-color:var(--bdh)}
-.sep{width:1px;height:28px;background:var(--bd);flex-shrink:0}
-.sys{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;flex-shrink:0}
-.sys.store{background:rgba(139,92,246,.14)}.sys.settings{background:rgba(6,182,212,.14)}.sys.updates{background:rgba(132,204,22,.14)}
-.sys:hover{filter:brightness(1.4)}
-#tasks{flex:1;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
-.task{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:8px;background:var(--card);border:1px solid var(--bd);color:var(--mute);font-size:12.5px;font-weight:500;cursor:pointer;max-width:180px;flex-shrink:0}
-.task span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dot{width:6px;height:6px;border-radius:50%;background:var(--dim);flex-shrink:0}
-.task.active{border-color:var(--bdh);color:var(--fg);background:var(--hover)}
-.task.active .dot{background:var(--ac)}
-#clock{font:12.5px var(--mono);color:var(--mute);padding:0 8px;text-align:right;line-height:1.3;flex-shrink:0}
+#taskbar{position:fixed;left:0;right:0;bottom:0;height:var(--tb);background:rgba(16,16,16,.93);backdrop-filter:blur(20px);display:flex;align-items:stretch;z-index:500}
+#startBtn{width:48px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;cursor:default;flex-shrink:0}
+#startBtn:hover,#startBtn.on{background:rgba(255,255,255,.14)}
+#searchBtn{width:240px;margin:0 4px;padding:0 12px;display:flex;align-items:center;background:#2f2f2f;border:1px solid #454545;color:#bbb;font-size:13px;cursor:text;flex-shrink:0;align-self:center;height:32px;margin-top:0}
+@media(max-width:760px){#searchBtn{display:none}}
+#sys{display:flex;flex-shrink:0}
+.sys{width:48px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:default}
+.sys:hover{background:rgba(255,255,255,.14)}
+#tasks{flex:1;display:flex;overflow-x:auto;scrollbar-width:none;min-width:0}
+.task{display:flex;align-items:center;gap:8px;min-width:48px;max-width:170px;padding:0 12px;font-size:12px;border-bottom:2px solid var(--ac2);background:rgba(255,255,255,.06);cursor:default;flex-shrink:0}
+.task:hover{background:rgba(255,255,255,.14)}
+.task.active{background:rgba(255,255,255,.2)}
+.task span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#clock{padding:0 10px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:12px;line-height:1.3;flex-shrink:0}
+#showdesk{width:6px;border-left:1px solid #555;flex-shrink:0}
+#showdesk:hover{background:rgba(255,255,255,.2)}
 
-#start{position:fixed;left:10px;bottom:calc(var(--tb) + 8px);width:340px;max-width:calc(100% - 20px);max-height:60vh;background:var(--el);border:1px solid var(--bd);border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,.5);z-index:600;display:none;flex-direction:column;overflow:hidden}
+#start{position:fixed;left:0;bottom:var(--tb);width:640px;max-width:100%;height:min(600px,calc(100% - var(--tb)));background:rgba(31,31,31,.97);backdrop-filter:blur(30px);border:1px solid #3a3a3a;border-bottom:0;display:none;z-index:600}
 #start.open{display:flex}
-#startList{overflow-y:auto;padding:8px}
-.item{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:8px;cursor:pointer}
-.item:hover{background:rgba(255,255,255,.06)}
-.item b{display:block;font-size:13px}
+.st-l{width:290px;display:flex;flex-direction:column;border-right:1px solid #2e2e2e;min-width:0}
+.st-l input{margin:10px;padding:9px 10px;background:#2b2b2b;border:1px solid #444;color:#fff;font-size:13px;outline:none;user-select:text}
+.st-l input:focus{border-color:var(--ac)}
+#startList{flex:1;overflow-y:auto;padding:0 4px 8px}
+.st-h{font-size:12px;font-weight:600;color:var(--ac2);padding:8px 10px 2px}
+.st-r{flex:1;padding:14px 12px;overflow-y:auto}
+.st-r h3{font-size:14px;font-weight:600;margin-bottom:10px;color:#ddd}
+#tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.tile{aspect-ratio:1;display:flex;flex-direction:column;justify-content:space-between;padding:8px;border:2px solid transparent;cursor:default}
+.tile:hover{border-color:rgba(255,255,255,.5)}
+.tile .ti{font-size:28px;align-self:center;margin-top:10px}
+.tile .tn{font-size:12px;line-height:1.2}
+@media(max-width:560px){.st-r{display:none}.st-l{width:100%}}
+.item{display:flex;align-items:center;gap:12px;padding:6px 10px;cursor:default}
+.item:hover{background:rgba(255,255,255,.1)}
+.item b{display:block;font-size:13px;font-weight:400}
 .item small{display:block;font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item.row:hover{background:none}
 
-.pad{height:100%;overflow-y:auto;padding:18px 22px;background:var(--el);display:flex;flex-direction:column;gap:12px}
-.pad h2{font-size:18px}
-.pad label{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:13.5px;font-weight:600;padding:10px 0;border-bottom:1px solid var(--bd)}
-.pad input,.pad select{background:var(--card);border:1px solid var(--bd);border-radius:7px;padding:8px 10px;color:var(--fg);font-size:12.5px;outline:none}
+.pad{height:100%;overflow-y:auto;padding:20px 24px;background:var(--el);display:flex;flex-direction:column;gap:12px}
+.pad h2{font-size:20px;font-weight:600}
+.pad label{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:14px;padding:10px 0;border-bottom:1px solid var(--bd)}
+.pad input,.pad select{background:#333;border:1px solid #666;padding:6px 10px;color:#fff;font-size:13px;outline:none;border-radius:0;user-select:text}
 .pad input:focus,.pad select:focus{border-color:var(--ac)}
 .pad label input[type=text]{width:200px}
-.tabs{display:flex;gap:6px}
-.tabs button{padding:6px 12px;border-radius:7px;border:1px solid var(--bd);background:var(--card);color:var(--mute);font-size:12px;font-weight:600;cursor:pointer}
-.tabs button.on{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.35);color:var(--ac)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;align-content:start}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
-.card div{display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600}
-.card p{font-size:11.5px;color:var(--mute);line-height:1.4}
-.card button,.item button{align-self:flex-start;padding:6px 12px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--mute);font-size:11.5px;font-weight:600;cursor:pointer}
-.card button.on,.item button.on{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.35);color:var(--ac)}
-.item button{margin-left:auto;flex-shrink:0}
-.item.row{cursor:default}.item.row:hover{background:none}
 .pad input[type=checkbox]{width:18px;height:18px;accent-color:var(--ac);padding:0}
+.tabs{display:flex;gap:6px}
+.tabs button,.card button,.item button{padding:6px 14px;border:1px solid #666;background:#333;color:#fff;font-size:12px;cursor:default;border-radius:0}
+.tabs button:hover,.card button:hover,.item button:hover{background:#444}
+.tabs button.on,.card button.on,.item button.on{background:var(--ac);border-color:var(--ac)}
+.item button{margin-left:auto;flex-shrink:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;align-content:start}
+.card{background:var(--card);border:1px solid var(--bd);padding:14px;display:flex;flex-direction:column;gap:10px}
+.card div{display:flex;align-items:center;gap:10px;font-size:14px}
+.card p{font-size:12px;color:var(--mute);line-height:1.4}
+.card button{align-self:flex-start}
 
-#ctx{position:fixed;z-index:900;min-width:180px;background:var(--el);border:1px solid var(--bd);border-radius:10px;padding:6px;display:none;box-shadow:0 16px 40px rgba(0,0,0,.5)}
-#ctx div{padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer}
-#ctx div:hover{background:rgba(255,255,255,.07)}
-::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}
+#ctx{position:fixed;z-index:900;min-width:200px;background:#2b2b2b;border:1px solid #454545;padding:2px 0;display:none;box-shadow:0 8px 20px rgba(0,0,0,.5)}
+#ctx div{padding:7px 28px 7px 14px;font-size:12.5px;cursor:default}
+#ctx div:hover{background:rgba(255,255,255,.1)}
+::-webkit-scrollbar{width:12px;height:12px}::-webkit-scrollbar-thumb{background:#555}::-webkit-scrollbar-track{background:#2b2b2b}
 </style>
 </head>
 <body>
-<div id="boot"><div class="logo">V</div><div id="bootTitle">VUS-OS</div><div class="track"><div id="fill"></div></div></div>
+<div id="boot"><div class="win-logo"><i></i><i></i><i></i><i></i></div><div class="spin"></div><div id="bootTitle">VUS-OS</div></div>
 <div id="desktop"><div id="icons"></div></div>
-<div id="start"><div style="padding:12px;border-bottom:1px solid var(--bd)" class="pad"><input id="startQ" placeholder="Search apps..." autocomplete="off"></div><div id="startList"></div></div>
+<div id="start"><div class="st-l"><input id="startQ" placeholder="Type here to search" autocomplete="off"><div id="startList"></div></div><div class="st-r"><h3>Apps</h3><div id="tiles"></div></div></div>
 <div id="ctx"></div>
 <div id="taskbar">
-  <button id="startBtn"><span class="gl" style="width:22px;height:22px;font-size:12px;background:linear-gradient(135deg,#22c55e,#10b981);color:#000">V</span>Start</button>
-  <div class="sep"></div><div id="sys" style="display:flex;gap:6px"></div><div class="sep"></div>
+  <button id="startBtn" title="Start"><span class="win-logo"><i></i><i></i><i></i><i></i></span></button>
+  <div id="searchBtn">🔍&nbsp; Type here to search</div>
+  <div id="sys"></div>
   <div id="tasks"></div>
-  <div id="clock">--:--</div>
+  <div id="clock"><div id="ck1"></div><div id="ck2"></div></div>
+  <div id="showdesk" title="Show desktop"></div>
 </div>
 
 <script>
@@ -123,7 +141,8 @@ const esc = s => (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;"
 const key = a => a.name + "|" + a.url;
 const isNative = a => a.type === "native" || /\.js(\?|$)/.test(a.url || "");
 const COLORS = { green:["34,197,94","#4ade80"], blue:["59,130,246","#60a5fa"], amber:["245,158,11","#fbbf24"], rose:["244,63,94","#fb7185"], violet:["139,92,246","#a78bfa"], cyan:["6,182,212","#22d3ee"], lime:["132,204,22","#a3e635"], orange:["249,115,22","#fb923c"], red:["239,68,68","#f87171"], purple:["168,85,247","#c084fc"], black:["148,163,184","#cbd5e1"], white:["255,255,255","#f1f5f9"] };
-const glyph = (a, s = 42) => { const [c, f] = COLORS[a.color] || COLORS.green; return `<div class="gl" style="width:${s}px;height:${s}px;font-size:${Math.round(s * .4)}px;background:rgba(${c},.18);color:${f}">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</div>`; };
+const solid = a => { const c = (COLORS[a.color] || COLORS.green)[0]; return c === "255,255,255" ? ["#e6e6e6", "#000"] : [`rgb(${c})`, "#fff"]; };
+const glyph = (a, s = 42) => { const [bg, fg] = solid(a); return `<div class="gl" style="width:${s}px;height:${s}px;font-size:${Math.round(s * .42)}px;background:${bg};color:${fg}">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</div>`; };
 
 // ===================== CATALOG (apps + tools only) =====================
 let catalog = [...NATIVE];
@@ -152,8 +171,13 @@ function renderIcons() {
     const el = document.createElement("div");
     el.className = "icon";
     el.innerHTML = glyph(a) + `<div class="lbl">${esc(a.name)}</div>`;
-    el.onclick = () => openApp(a);
-    el.oncontextmenu = e => { e.preventDefault(); ctx(e, [["Remove from desktop", () => toggleInstall(a)]]); };
+    // Windows-style: click selects, double-click opens (a single tap opens on touch screens)
+    el.onclick = e => {
+      document.querySelectorAll(".icon.sel").forEach(i => i.classList.remove("sel"));
+      el.classList.add("sel");
+      if (e.detail >= 2 || matchMedia("(pointer:coarse)").matches) openApp(a);
+    };
+    el.oncontextmenu = e => { e.preventDefault(); ctx(e, [["Open", () => openApp(a)], ["Remove from desktop", () => toggleInstall(a)]]); };
     box.appendChild(el);
   });
 }
@@ -168,6 +192,8 @@ function ctx(e, items) {
   m.style.display = "block";
 }
 document.addEventListener("click", () => $("#ctx").style.display = "none");
+$("#desktop").addEventListener("click", e => { if (!e.target.closest(".icon")) document.querySelectorAll(".icon.sel").forEach(i => i.classList.remove("sel")); });
+$("#showdesk").onclick = () => wins.forEach(w => { w.el.classList.add("min"); w.task.classList.remove("active"); });
 
 // ===================== WINDOWS =====================
 let z = 10, n = 0;
@@ -183,12 +209,12 @@ function openApp(app) {
   const o = (n % 8) * 26;
   el.className = "win"; el.id = id;
   Object.assign(el.style, { width: Math.min(760, innerWidth - 40) + "px", height: Math.min(520, innerHeight - 120) + "px", left: 20 + o + "px", top: 20 + o + "px" });
-  el.innerHTML = `<div class="bar">${glyph(app, 22)}<div class="wt">${esc(app.name)}</div><button data-a="min">—</button><button data-a="max">▢</button><button data-a="x" class="x">✕</button></div><div class="body"><div class="load">Loading ${esc(app.name)}...</div></div><div class="rs"></div>`;
+  el.innerHTML = `<div class="bar">${glyph(app, 16)}<div class="wt">${esc(app.name)}</div><button data-a="min">—</button><button data-a="max">☐</button><button data-a="x" class="x">✕</button></div><div class="body"><div class="load">Loading ${esc(app.name)}...</div></div><div class="rs"></div>`;
   $("#desktop").appendChild(el);
 
   const task = document.createElement("div");
   task.className = "task";
-  task.innerHTML = `<span class="dot"></span><span>${esc(app.name)}</span>`;
+  task.innerHTML = glyph(app, 20) + `<span>${esc(app.name)}</span>`;
   task.onclick = () => toggle(id);
   $("#tasks").appendChild(task);
   wins.set(id, { id, app, el, task });
@@ -379,7 +405,7 @@ function applyTheme() {
   const d = $("#desktop").style;
   d.background = s.bgMode === "color" ? s.bgColor
     : s.bgMode === "link" && s.bgLink ? `url("${s.bgLink}") center/cover no-repeat, var(--bg)`
-    : "radial-gradient(circle at 15% 15%,rgba(34,197,94,.10),transparent 45%),radial-gradient(circle at 85% 80%,rgba(16,185,129,.08),transparent 45%),var(--bg)";
+    : "radial-gradient(ellipse at 70% 40%,rgba(80,190,255,.55),transparent 55%),linear-gradient(135deg,#031a3a,#0a4a96 55%,#1688d9)";
 }
 
 // ===================== TASKBAR + START MENU =====================
@@ -391,28 +417,44 @@ function applyTheme() {
 });
 
 const start = $("#start");
-$("#startBtn").onclick = e => { e.stopPropagation(); start.classList.toggle("open"); if (start.classList.contains("open")) { $("#startQ").value = ""; drawStart(); $("#startQ").focus(); } };
-document.addEventListener("click", e => { if (!start.contains(e.target)) start.classList.remove("open"); });
+function toggleStart(open) {
+  start.classList.toggle("open", open); $("#startBtn").classList.toggle("on", open);
+  if (open) { $("#startQ").value = ""; drawStart(); $("#startQ").focus(); }
+}
+$("#startBtn").onclick = e => { e.stopPropagation(); toggleStart(!start.classList.contains("open")); };
+$("#searchBtn").onclick = e => { e.stopPropagation(); toggleStart(true); };
+document.addEventListener("click", e => { if (!start.contains(e.target) && start.classList.contains("open")) toggleStart(false); });
 $("#startQ").oninput = drawStart;
 function drawStart() {
   const t = $("#startQ").value.toLowerCase().trim();
-  const list = catalog.filter(a => !t || a.name.toLowerCase().includes(t));
+  const list = catalog.filter(a => !t || a.name.toLowerCase().includes(t)).sort((a, b) => a.name.localeCompare(b.name));
   const box = $("#startList"); box.innerHTML = "";
+  let letter = "";
   list.forEach(a => {
+    const L = a.name[0].toUpperCase();
+    if (L !== letter) { letter = L; const h = document.createElement("div"); h.className = "st-h"; h.textContent = /[A-Z]/.test(L) ? L : "#"; box.appendChild(h); }
     const d = document.createElement("div");
     d.className = "item";
-    d.innerHTML = glyph(a, 32) + `<div style="overflow:hidden"><b>${esc(a.name)}</b><small>${esc(a.desc || "")}</small></div>`;
-    d.onclick = () => { openApp(a); start.classList.remove("open"); };
+    d.innerHTML = glyph(a, 30) + `<div style="overflow:hidden"><b>${esc(a.name)}</b></div>`;
+    d.onclick = () => { openApp(a); toggleStart(false); };
     box.appendChild(d);
+  });
+  const tiles = $("#tiles"); tiles.innerHTML = "";
+  installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).forEach(a => {
+    const [bg, fg] = solid(a);
+    const d = document.createElement("div");
+    d.className = "tile"; d.style.background = bg; d.style.color = fg;
+    d.innerHTML = `<span class="ti">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</span><span class="tn">${esc(a.name)}</span>`;
+    d.onclick = () => { openApp(a); toggleStart(false); };
+    tiles.appendChild(d);
   });
 }
 
-function tick() { $("#clock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+function tick() { const d = new Date(); $("#ck1").textContent = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); $("#ck2").textContent = d.toLocaleDateString(); }
 setInterval(tick, 15000); tick();
 
 // ===================== BOOT =====================
 applyTheme();
-requestAnimationFrame(() => requestAnimationFrame(() => { $("#fill").style.width = "100%"; }));
 const minBoot = new Promise(r => setTimeout(r, 1800));
 Promise.all([loadCatalog(), minBoot]).then(() => {
   if (!LS("seeded", false)) {
