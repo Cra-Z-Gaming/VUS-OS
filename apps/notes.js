@@ -3,19 +3,19 @@
 export default {
   open(root, os) {
     const css = `
-.nt{display:flex;height:100%;background:#1f1f1f;color:#f1f5f9;font-family:'Segoe UI',system-ui,sans-serif}
-.nt-side{width:180px;flex-shrink:0;border-right:1px solid #3d3d3d;display:flex;flex-direction:column}
-.nt-new{margin:10px;padding:8px;border-radius:0;border:1px solid #0078d7;background:rgba(0,120,215,.25);color:#4cc2ff;font-weight:600;font-size:12.5px;cursor:pointer}
+.nt{display:flex;height:100%;background:var(--el);color:var(--fg);font-family:'Segoe UI',system-ui,sans-serif}
+.nt-side{width:180px;flex-shrink:0;border-right:1px solid var(--bd);display:flex;flex-direction:column}
+.nt-new{margin:10px;padding:8px;border-radius:0;border:1px solid var(--ac);background:color-mix(in srgb,var(--ac) 25%,transparent);color:var(--ac);font-weight:600;font-size:12.5px;cursor:pointer}
 .nt-list{flex:1;overflow-y:auto;padding:0 6px 6px}
-.nt-item{padding:8px 10px;border-radius:0;font-size:12.5px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#94a3b8}
-.nt-item:hover{background:rgba(255,255,255,.04)}
-.nt-item.on{background:rgba(255,255,255,.08);color:#f1f5f9}
+.nt-item{padding:8px 10px;border-radius:0;font-size:12.5px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--mute)}
+.nt-item:hover{background:rgba(128,128,128,.12)}
+.nt-item.on{background:rgba(128,128,128,.2);color:var(--fg)}
 .nt-main{flex:1;min-width:0;display:flex;flex-direction:column}
-.nt-ed{flex:1;resize:none;border:0;outline:0;padding:14px;background:transparent;color:#e2e8f0;font:13px/1.6 'JetBrains Mono',monospace;tab-size:2;user-select:text}
-.nt-bar{display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid #3d3d3d;font-size:12px;color:#64748b}
+.nt-ed{flex:1;resize:none;border:0;outline:0;padding:14px;background:transparent;color:var(--fg);font:13px/1.6 'JetBrains Mono',monospace;tab-size:2;user-select:text}
+.nt-bar{display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--bd);font-size:12px;color:var(--dim)}
 .nt-bar span{flex:1}
-.nt-bar button{padding:5px 10px;border-radius:0;border:1px solid #555;background:transparent;color:#94a3b8;font-size:12px;cursor:pointer}
-.nt-bar button:hover{color:#f1f5f9;border-color:#0078d7}`;
+.nt-bar button{padding:5px 10px;border-radius:0;border:1px solid var(--bd);background:transparent;color:var(--mute);font-size:12px;cursor:pointer}
+.nt-bar button:hover{color:var(--fg);border-color:var(--ac)}`;
 
     root.innerHTML = `<style>${css}</style>
 <div class="nt">
