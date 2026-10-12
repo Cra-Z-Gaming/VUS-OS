@@ -42,6 +42,9 @@ input,select,button{font-family:var(--font)}
 .body iframe{width:100%;height:100%;border:0;display:block}
 .load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:13px var(--mono);color:var(--dim);background:var(--el)}
 .load.err{color:#ff6b6b}
+.win:not(.focus) .body:has(iframe)::after{content:"";position:absolute;inset:0;z-index:3}
+.bar button svg{pointer-events:none}.bar .i2{display:none}.win.max .bar .i1{display:none}.win.max .bar .i2{display:inline}
+.pbar{width:220px;height:6px;background:#444;margin:12px auto 0}.pbar i{display:block;height:100%;width:0;background:var(--ac)}
 .rs{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none}
 
 #taskbar{position:fixed;left:0;right:0;bottom:0;height:var(--tb);background:rgba(16,16,16,.93);backdrop-filter:blur(20px);display:flex;align-items:stretch;z-index:500}
@@ -245,13 +248,11 @@ const glyph = (a, s = ICON_PX[getSettings().iconSize] || 42) => { const [bg, fg]
 // ===================== CATALOG (apps + tools only) =====================
 let catalog = [...NATIVE];
 
-function loadCatalog() {
-  return fetch(APPS_JSON).then(r => r.json()).then(d => {
-    ["apps", "tools"].forEach(cat => (d[cat] || []).forEach(a => {
-      if (!a.name || !a.url || catalog.some(c => c.name === a.name)) return; // native versions win by name
-      catalog.push({ ...a, category: cat });
-    }));
-  }).catch(e => console.error("apps.json failed", e));
+function loadCatalog() { // 5s timeout; falls back to the last catalog that loaded
+  const add = d => ["apps", "tools"].forEach(cat => (d[cat] || []).forEach(a => { if (!a.name || !a.url || catalog.some(c => c.name === a.name)) return; catalog.push({ ...a, category: cat }); }));
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 5000);
+  return fetch(APPS_JSON, { signal: ctl.signal }).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => { save("catalog", d); add(d); return true; })
+    .catch(() => { const d = LS("catalog", null); if (d) add(d); return false; }).finally(() => clearTimeout(t));
 }
 
 // ===================== INSTALLED =====================
@@ -315,7 +316,7 @@ function openApp(app) {
   const o = (n % 8) * 26;
   el.className = "win"; el.id = id;
   Object.assign(el.style, { width: Math.min(app.w || 760, innerWidth - 40) + "px", height: Math.min(app.h || 520, innerHeight - 120) + "px", left: 20 + o + "px", top: 20 + o + "px" });
-  el.innerHTML = `<div class="bar">${glyph(app, 16)}<div class="wt">${esc(app.name)}</div><button data-a="min">—</button><button data-a="max">☐</button><button data-a="x" class="x">✕</button></div><div class="body"><div class="load">Loading ${esc(app.name)}...</div></div><div class="rs"></div>`;
+  el.innerHTML = `<div class="bar">${glyph(app, 16)}<div class="wt">${esc(app.name)}</div><button data-a="min"><svg width="10" height="10"><path d="M0 5.5h10" stroke="currentColor"/></svg></button><button data-a="max"><svg class="i1" width="10" height="10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg><svg class="i2" width="10" height="10"><path d="M2.5 2.5v-2h7v7h-2M.5 2.5h7v7h-7z" fill="none" stroke="currentColor"/></svg></button><button data-a="x" class="x"><svg width="10" height="10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></button></div><div class="body"><div class="load">Loading ${esc(app.name)}...</div></div><div class="rs"></div>`;
   $("#desktop").appendChild(el);
 
   const task = document.createElement("div");
@@ -348,7 +349,7 @@ function openApp(app) {
           l = Math.min(Math.max(0, ev.clientX - r.w / 2), innerWidth - r.w); t = el.offsetTop; sx = ev.clientX; sy = ev.clientY;
         }
       }
-      el.style.left = l + ev.clientX - sx + "px"; el.style.top = Math.max(0, t + ev.clientY - sy) + "px";
+      el.style.left = Math.min(Math.max(l + ev.clientX - sx, 80 - el.offsetWidth), innerWidth - 80) + "px"; el.style.top = Math.min(Math.max(0, t + ev.clientY - sy), $("#desktop").clientHeight - 32) + "px";
       zone = getSettings().snap ? (ev.clientX <= 6 ? "l" : ev.clientX >= innerWidth - 6 ? "r" : ev.clientY <= 6 ? "t" : null) : null;
       showSnap(zone);
     };
@@ -468,7 +469,25 @@ async function autoUpdate() {
   for (const x of outdated()) await updateApp(x.app);
 }
 
-async function load(app, body, win) {
+const MS_PER_MB = { off: 0, low: 250, med: 700, high: 1500 };
+const launchQ = []; let launching = false;
+async function runQ() { launching = true; while (launchQ.length) { try { await launchQ.shift()(); } catch (e) { console.error(e); } } launching = false; }
+function load(app, body, win) { // big files/apps wait their turn behind a progress bar; small ones open instantly
+  const mb = (app.size || (metaAll()[app.name] || {}).size || 0) / 1048576;
+  const ms = Math.min(8000, mb * (MS_PER_MB[getSettings().limiter] ?? 250));
+  if (ms < 150) return loadNow(app, body, win);
+  const ld = body.querySelector(".load");
+  ld.innerHTML = `<div style="text-align:center">Opening ${esc(app.name)}...<div class="pbar"><i></i></div></div>`;
+  const bar = ld.querySelector("i");
+  launchQ.push(async () => {
+    if (!win.isConnected) return;
+    const t0 = performance.now();
+    await new Promise(res => { const step = () => { const p = Math.min(1, (performance.now() - t0) / ms); bar.style.width = p * 100 + "%"; if (p >= 1 || !win.isConnected) res(); else setTimeout(step, 30); }; step(); });
+    if (win.isConnected) await loadNow(app, body, win);
+  });
+  if (!launching) runQ();
+}
+async function loadNow(app, body, win) {
   try {
     if (app.builtin) { body.innerHTML = ""; app.open(body, makeOS(app, win)); return; }
     const text = await getCode(app);
@@ -499,13 +518,14 @@ reg("image", "image/svg+xml", "svg"); reg("image", "image/bmp", "bmp"); reg("ima
 reg("audio", "audio/mpeg", "mp3"); reg("audio", "audio/wav", "wav"); reg("audio", "audio/ogg", "ogg oga opus"); reg("audio", "audio/mp4", "m4a"); reg("audio", "audio/flac", "flac"); reg("audio", "audio/aac", "aac"); reg("audio", "audio/webm", "weba");
 reg("video", "video/mp4", "mp4 m4v"); reg("video", "video/webm", "webm"); reg("video", "video/ogg", "ogv"); reg("video", "video/quicktime", "mov");
 reg("pdf", "application/pdf", "pdf");
+reg("binary", "application/octet-stream", "exe msi dll bin iso dmg apk jar sys com so dylib");
 reg("text", "application/json", "json"); reg("text", "text/css", "css"); reg("text", "text/javascript", "js mjs"); reg("text", "text/markdown", "md markdown");
 reg("text", "text/csv", "csv"); reg("text", "text/xml", "xml");
 reg("text", "text/plain", "txt log ini cfg conf env yaml yml toml sql ts tsx jsx py java c cpp h hpp cs go rs rb php sh bat cmd ps1 lua kt swift r vue svelte scss sass less tex srt vtt gitignore");
 const extOf = n => (n.includes(".") ? n.split(".").pop() : "").toLowerCase();
 const kindOf = n => (EXT[extOf(n)] || ["text"])[0]; // unknown extensions open in Notepad
 const mimeOf = n => (EXT[extOf(n)] || [0, "application/octet-stream"])[1];
-const KIND_ICON = { text: ["📄", "blue"], html: ["🌐", "orange"], image: ["🖼️", "cyan"], audio: ["🎵", "rose"], video: ["🎬", "violet"], pdf: ["📕", "red"] };
+const KIND_ICON = { text: ["📄", "blue"], html: ["🌐", "orange"], image: ["🖼️", "cyan"], audio: ["🎵", "rose"], video: ["🎬", "violet"], pdf: ["📕", "red"], binary: ["⚙️", "black"] };
 const fmeta = () => LS("files", []);
 const newId = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 
@@ -749,6 +769,7 @@ function fillItems(box, fl, fi, openFolder, list) {
   });
   fi.forEach(f => box.appendChild(iconEl(fileApp(f), f.name, () => openApp(fileApp(f)), [
     ["Download", () => downloadFile(f.id)],
+    ...(kindOf(f.name) === "html" || extOf(f.name) === "svg" ? [["Edit", () => openApp(editApp(f))]] : []),
     ...(f.saved === false ? [["Save", () => { markSaved("file", f.id); renderIcons(); }]] : []),
     ["Rename", e => inlineRename(iconOf(e), "file", f.id)], ["Move to...", e => moveMenu(e, "file", f.id)],
     ["Delete", () => { if (confirm(`Delete ${f.name}?`)) deleteFile(f.id); }],
@@ -809,11 +830,19 @@ const EXPLORER = { builtin: 1, single: 1, name: "File Explorer", icon: "📁", c
 
 function fileApp(f) {
   const k = kindOf(f.name), [icon, color] = KIND_ICON[k];
-  return { builtin: 1, name: f.name, icon, color, open: (root, os) => k === "text" ? notepad(root, os, f.id) : viewer(root, os, f) };
+  return { builtin: 1, name: f.name, icon, color, size: f.size, open: (root, os) => k === "text" ? notepad(root, os, f.id) : viewer(root, os, f) };
+}
+function editApp(f) { // "Edit": open any text-based file (html, svg) in Notepad
+  return { builtin: 1, name: f.name, icon: "📄", color: "blue", size: f.size, open: (root, os) => notepad(root, os, f.id) };
 }
 
 // Floating player for html / images / audio / video / pdf
 async function viewer(root, os, f) {
+  if (kindOf(f.name) === "binary") {
+    root.innerHTML = `<div class="vw"><div class="vb"><div class="vc"><div style="font-size:64px">⚙️</div><div>${esc(f.name)}</div><div style="color:var(--mute);font-size:13px;max-width:320px">This is a Windows program. VUS-OS can't run .exe files, so it was not opened.</div><div class="tabs"><button data-a="dl">⬇ Download</button></div></div></div></div>`;
+    root.querySelector("[data-a=dl]").onclick = async () => { const b = await dbGet(f.id, "files"); if (b) dlBlob(f.name, b); };
+    os.setTitle(f.name); return;
+  }
   const b0 = await dbGet(f.id, "files");
   if (!b0) { root.innerHTML = '<div class="load err">File not found</div>'; return; }
   const k = kindOf(f.name), blob = new Blob([b0], { type: mimeOf(f.name) }), url = URL.createObjectURL(blob);
@@ -821,12 +850,13 @@ async function viewer(root, os, f) {
     : k === "audio" ? `<div class="vc"><div style="font-size:64px">🎵</div><div>${esc(f.name)}</div><audio controls autoplay src="${url}"></audio></div>`
     : k === "video" ? `<video controls autoplay src="${url}" style="width:100%;height:100%"></video>`
     : `<iframe src="${url}" allow="autoplay; camera; microphone; fullscreen; clipboard-read; clipboard-write; geolocation; gamepad; midi; encrypted-media; picture-in-picture; display-capture; web-share" allowfullscreen style="width:100%;height:100%;border:0;background:#fff"></iframe>`;
-  root.innerHTML = `<div class="vw"><div class="tabs vt"><button data-a="fs">⛶ Fullscreen</button><button data-a="tab">↗ Open in new tab</button><button data-a="dl">⬇ Download</button></div><div class="vb">${media}</div></div>`;
+  root.innerHTML = `<div class="vw"><div class="tabs vt"><button data-a="fs">⛶ Fullscreen</button><button data-a="tab">↗ Open in new tab</button><button data-a="dl">⬇ Download</button>${k === "html" || extOf(f.name) === "svg" ? '<button data-a="edit">✎ Edit</button>' : ""}</div><div class="vb">${media}</div></div>`;
   root.querySelector(".vt").onclick = e => {
     const a = e.target.dataset.a;
     if (a === "fs") root.querySelector(".vb").requestFullscreen?.();
     if (a === "tab") window.open(url, "_blank");
     if (a === "dl") dlBlob(f.name, blob);
+    if (a === "edit") openApp(editApp(f));
   };
   os.setTitle(f.name);
 }
@@ -850,7 +880,14 @@ async function notepad(root, os, id) {
 .npb button:hover{background:#cce8ff;border-color:#0078d7}
 .npl div{padding:4px 8px;cursor:default}.npl div:hover{background:#cce8ff}</style><div class="np"><div class="npm"><span data-m="file">File</span><span data-m="fmt">Format</span></div><textarea class="npe" spellcheck="false"></textarea><div class="nps"></div><div class="npd"></div></div>`;
   const q = s => root.querySelector(s), ed = q(".npe"), st = q(".nps"), dd = q(".npd");
-  if (f) { const b = await dbGet(f.id, "files"); ed.value = b ? await b.text() : ""; }
+  if (f) { // very large or binary files freeze the page, so ask first
+    const b = await dbGet(f.id, "files"), bin = b && new Uint8Array(await b.slice(0, 4096).arrayBuffer()).includes(0);
+    if (b && (bin || (f.size || 0) > 2097152)) {
+      const c = await winDialog(`${f.name} ${bin ? "doesn't look like a text file" : "is very large (" + fmt(f.size) + ")"}. Opening it in Notepad can freeze the page.\n\nOpen anyway?`, [["Open anyway", "y", "danger"], ["Cancel", false]]);
+      if (c !== "y") { os.close(true); return; }
+    }
+    ed.value = b ? await b.text() : "";
+  }
   const title = () => { os.setTitle((doc.dirty ? "*" : "") + doc.name + " - Notepad"); st.textContent = ed.value.length.toLocaleString() + " characters"; };
   const modal = html => { const o = document.createElement("div"); o.className = "npo"; o.innerHTML = `<div class="npb">${html}</div>`; q(".np").appendChild(o); return o; };
   const blobOf = name => new Blob([ed.value], { type: mimeOf(name) });
@@ -885,6 +922,7 @@ async function notepad(root, os, id) {
     o.onclick = async e => {
       if (e.target === o || e.target.classList.contains("no")) return o.remove();
       const i = e.target.dataset.i; if (!i) return;
+      if (doc.dirty && !confirm("Discard unsaved changes?")) return;
       const x = fmeta().find(z => z.id === i), b = await dbGet(i, "files");
       ed.value = b ? await b.text() : ""; Object.assign(doc, { id: i, name: x.name, dirty: false, parent: x.parent || null }); o.remove(); title();
     };
@@ -989,7 +1027,7 @@ async function importZip(file, parent = null) {
 }
 
 // ===================== DETAILS (properties) =====================
-const KIND_NAME = { text: "Text document", html: "HTML document", image: "Image", audio: "Audio", video: "Video", pdf: "PDF document" };
+const KIND_NAME = { text: "Text document", html: "HTML document", image: "Image", audio: "Audio", video: "Video", pdf: "PDF document", binary: "Application" };
 const kv = rows => `<table>${rows.filter(Boolean).map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("")}</table>`;
 const gcd = (a, b) => b ? gcd(b, a % b) : a;
 function ratio(w, h) {
@@ -1004,6 +1042,7 @@ const detailsApp = (kind, id, a, name) => ({ builtin: 1, name: name + " properti
 
 async function mediaInfo(f, k, blob) { // extra rows that depend on what's inside the file
   if (!blob) return [["Contents", "File data not found"]];
+  if (k === "binary") return [["Contents", "Program file (can't be opened here)"]];
   const url = URL.createObjectURL(new Blob([blob], { type: mimeOf(f.name) })), done = r => { URL.revokeObjectURL(url); return r; };
   if (k === "image") return new Promise(res => { const i = new Image(); i.onload = () => res(done([["Dimensions", `${i.naturalWidth} × ${i.naturalHeight} px`], ["Aspect ratio", ratio(i.naturalWidth, i.naturalHeight)], ["Megapixels", (i.naturalWidth * i.naturalHeight / 1e6).toFixed(2) + " MP"]])); i.onerror = () => res(done([["Image", "Couldn't read this image"]])); i.src = url; });
   if (k === "audio" || k === "video") return new Promise(res => {
@@ -1085,6 +1124,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "⚙️", colo
         ...Object.entries(metaAll()).map(([n, m]) => ({ n: n + " (saved app)", size: m.size || 0, act: "delc", id: n, b: "Clear" }))].sort((a, b) => b.size - a.size).slice(0, 12);
       return `<h2>System</h2><h3>Storage</h3><div class="sbar"><i style="width:${Math.min(100, u / lim * 100)}%"></i></div><p>${fmt(u)} used of ${fmt(lim)}${u > lim ? " (over the limit)" : ""}</p><p id="est"></p>
         <label>Storage limit<select data-k="limitMB" data-n="1" data-r="1">${opts([[128, "128 MB"], [256, "256 MB"], [512, "512 MB"], [1024, "1 GB"], [2048, "2 GB"]], s.limitMB)}</select></label>
+        <label>Opening speed limiter<select data-k="limiter">${opts([["off", "Off (instant)"], ["low", "Low"], ["med", "Medium"], ["high", "High"]], s.limiter)}</select></label><p>Big files and apps open one at a time behind a progress bar. Small ones still open instantly.</p>
         <h3>Biggest items</h3>${items.map(x => `<div class="item row"><div style="flex:1;overflow:hidden"><b>${esc(x.n)}</b><small>${fmt(x.size)}</small></div><button data-act="${x.act}" data-i="${esc(x.id)}">${x.b}</button></div>`).join("") || "<p>Nothing stored yet.</p>"}
         <h3>Multitasking</h3><label>Snap windows to screen edges<input type="checkbox" data-k="snap" ${s.snap ? "checked" : ""}></label><p>Drag a window to the left or right edge for half the screen, or to the top edge to maximize it.</p>
         <h3>About</h3><label>Site name<input type="text" data-k="site" value="${esc(s.site)}" maxlength="40"></label>`;
@@ -1179,7 +1219,7 @@ const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "🔄", color: "
   check();
 }};
 
-const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: false, theme: "dark" }, LS("settings", {}));
+const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: false, theme: "dark", limiter: "low" }, LS("settings", {}));
 let bgUrl = null;
 async function applyTheme() {
   const s = getSettings(), r = document.documentElement.style;
@@ -1250,12 +1290,17 @@ setInterval(tick, 15000); tick();
 
 $("#taskbar").addEventListener("contextmenu", e => { e.preventDefault(); ctx(e, [["Task Manager", () => openApp(TASKMGR)], ["Settings", () => openApp(SETTINGS)]]); });
 
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { $("#ctx").style.display = "none"; if (start.classList.contains("open")) toggleStart(false); }
+  if (e.key === "Enter" && e.target.id === "startQ") $("#startList .item")?.click();
+});
+
 // ===================== BOOT =====================
 applyTheme();
 marquee($("#icons"));
 const minBoot = new Promise(r => setTimeout(r, 1800));
-Promise.all([loadCatalog(), minBoot]).then(() => {
-  if (!LS("seeded", false)) {
+Promise.all([loadCatalog(), minBoot]).then(([ok]) => {
+  if (ok && !LS("seeded", false)) {
     save("installed", SEED.map(nm => catalog.find(a => a.name === nm)).filter(Boolean).map(key));
     save("seeded", true);
   }
