@@ -45,7 +45,28 @@ input,select,button{font-family:var(--font)}
 .win:not(.focus) .body:has(iframe)::after{content:"";position:absolute;inset:0;z-index:3}
 .bar button svg{pointer-events:none}.bar .i2{display:none}.win.max .bar .i1{display:none}.win.max .bar .i2{display:inline}
 .pbar{width:220px;height:6px;background:#444;margin:12px auto 0}.pbar i{display:block;height:100%;width:0;background:var(--ac)}
-.rs{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none}
+.lock{position:fixed;inset:0;z-index:990;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(20,20,20,.55);backdrop-filter:blur(8px);color:#fff}
+.lock.full{background:rgba(10,10,10,.92);backdrop-filter:blur(40px)}
+.lk-time{font-size:72px;font-weight:200}.lk-date{font-size:20px;margin-bottom:24px}.lk-t{font-size:16px}
+.lk-dots{display:flex;gap:14px}.lk-dots i{width:14px;height:14px;border:2px solid #fff;border-radius:50%}.lk-dots i.on{background:#fff}
+.lk-msg{height:18px;font-size:13px;color:#ff8a8a}
+.lk-pad{display:grid;grid-template-columns:repeat(3,64px);gap:8px}.lk-pad button{height:52px;font-size:20px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:2px;cursor:pointer}.lk-pad button:hover{background:rgba(255,255,255,.22)}
+.lk-foot{display:flex;gap:20px;font-size:13px;margin-top:6px}.lk-foot a{color:#fff;opacity:.8;text-decoration:underline;cursor:pointer}
+.shake{animation:shk .3s}@keyframes shk{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.lk-in{width:240px;height:36px;padding:0 10px;font-size:15px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:2px;outline:0}
+.lk-ok{height:32px;padding:0 24px;background:var(--ac);border:0;color:#fff;border-radius:2px;cursor:pointer}
+.dlg .dlgb{padding:0;min-width:340px;max-width:440px}
+.dlgt{padding:8px 12px;font-size:12px;opacity:.85}
+.dlgm{padding:14px 18px 6px}.dlgm p{margin:0 0 10px;font-size:14px;line-height:1.5}
+.dlg .dlgf{display:flex;justify-content:flex-end;gap:8px;padding:12px 14px;background:rgba(128,128,128,.14)}
+.dlgf button{min-width:84px;padding:6px 14px;border:1px solid rgba(128,128,128,.6);background:rgba(128,128,128,.2);color:inherit;cursor:pointer}.dlgf button:hover{border-color:var(--ac)}.dlgf button:focus{outline:2px solid var(--ac);outline-offset:1px}.dlgf button.danger{background:#c42b1c;border-color:#c42b1c;color:#fff}
+.rz{position:absolute;touch-action:none;z-index:6}
+.rz.n{top:0;left:10px;right:10px;height:5px;cursor:ns-resize}.rz.s{bottom:0;left:10px;right:10px;height:5px;cursor:ns-resize}
+.rz.e{right:0;top:10px;bottom:10px;width:5px;cursor:ew-resize}.rz.w{left:0;top:10px;bottom:10px;width:5px;cursor:ew-resize}
+.rz.ne,.rz.nw,.rz.se,.rz.sw{width:12px;height:12px}
+.rz.ne{top:0;right:0;cursor:nesw-resize}.rz.nw{top:0;left:0;cursor:nwse-resize}.rz.se{bottom:0;right:0;cursor:nwse-resize}.rz.sw{bottom:0;left:0;cursor:nesw-resize}
+.win.max .rz{display:none}
+@media (pointer:coarse){.rz.n,.rz.s{height:12px}.rz.e,.rz.w{width:12px}.rz.ne,.rz.nw,.rz.se,.rz.sw{width:22px;height:22px}}
 
 #taskbar{position:fixed;left:0;right:0;bottom:0;height:var(--tb);background:rgba(16,16,16,.93);backdrop-filter:blur(20px);display:flex;align-items:stretch;z-index:500}
 #startBtn{width:48px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;cursor:default;flex-shrink:0}
@@ -61,6 +82,22 @@ input,select,button{font-family:var(--font)}
 .task.active{background:rgba(255,255,255,.2)}
 .task span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #clock{padding:0 10px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:12px;line-height:1.3;flex-shrink:0}
+#tray{display:flex;align-items:stretch;flex-shrink:0}
+#tray .tr,#bell{min-width:34px;padding:0 4px;display:flex;align-items:center;justify-content:center;cursor:default;position:relative;flex-shrink:0;font-size:11px}
+#tray .tr:hover,#bell:hover,#clock:hover{background:rgba(255,255,255,.1)}
+[data-theme=light] #tray .tr:hover,[data-theme=light] #bell:hover,[data-theme=light] #clock:hover{background:rgba(0,0,0,.08)}
+#bell .bdg{position:absolute;top:5px;right:3px;min-width:14px;height:14px;border-radius:7px;background:var(--ac);color:#fff;font-size:10px;line-height:14px;text-align:center}
+#flyout{position:fixed;right:0;bottom:var(--tb);width:360px;max-width:100%;max-height:calc(100% - var(--tb));overflow:auto;background:rgba(31,31,31,.97);backdrop-filter:blur(30px);border:1px solid #3a3a3a;border-bottom:0;display:none;z-index:650;padding:14px;color:#fff}
+[data-theme=light] #flyout{background:rgba(246,246,246,.98);border-color:#c8c8c8;color:#111}
+.cal-h{font-size:34px;font-weight:300}.cal-d{font-size:14px;opacity:.8;margin:2px 0 10px}
+.cal-n{display:flex;align-items:center;justify-content:space-between;margin:8px 0}.cal-n button{background:none;border:0;color:inherit;font-size:13px;width:32px;height:28px;cursor:pointer}.cal-n button:hover{background:rgba(128,128,128,.25)}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;gap:2px}.cal-g span{padding:8px 0;font-size:13px}.cal-g .w{opacity:.6;font-size:11px}.cal-g .o{opacity:.4}.cal-g .t{background:var(--ac);color:#fff;opacity:1}
+#flyout a{cursor:pointer;text-decoration:underline;font-size:13px;opacity:.85}
+.ac-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.ac-n{padding:10px;margin-bottom:6px;background:rgba(128,128,128,.18);font-size:13px}.ac-n small{display:block;opacity:.6;margin-top:4px}.ac-l p{opacity:.6;padding:16px 0;text-align:center}
+.ac-q{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}.ac-q button{padding:12px 4px;font-size:12px;border:0;background:rgba(128,128,128,.25);color:inherit;cursor:pointer}.ac-q button:hover{background:var(--ac);color:#fff}
+#toasts{position:fixed;right:12px;bottom:calc(var(--tb) + 12px);z-index:700;display:flex;flex-direction:column;gap:8px}
+.toast{width:320px;max-width:calc(100vw - 24px);padding:12px 14px;background:#2b2b2b;color:#fff;border-left:3px solid var(--ac);box-shadow:0 8px 24px rgba(0,0,0,.5);font-size:13px}.toast div{opacity:.8;margin-top:3px}
+[data-theme=light] .toast{background:#fff;color:#111}
 #showdesk{width:6px;border-left:1px solid #555;flex-shrink:0}
 #showdesk:hover{background:rgba(255,255,255,.2)}
 
@@ -124,6 +161,7 @@ input,select,button{font-family:var(--font)}
 .fx{position:relative}
 .marq{position:absolute;border:1px solid var(--ac);background:color-mix(in srgb,var(--ac) 30%,transparent);pointer-events:none;z-index:5}
 .icon.dragging{pointer-events:none;opacity:.65;z-index:5}
+.icon.cut{opacity:.5}
 .rn{width:100%;font:inherit;font-size:12px;background:#fff;color:#000;border:1px solid var(--ac);padding:1px 2px;text-align:center;outline:none;user-select:text}
 .fxb{flex:1;display:flex;min-height:0}
 .fxs{width:150px;flex-shrink:0;border-right:1px solid var(--bd);padding:6px 0}
@@ -150,7 +188,7 @@ input,select,button{font-family:var(--font)}
 .st-rail div{height:48px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:default}
 .st-rail div:hover{background:rgba(255,255,255,.14)}
 #snap{position:absolute;display:none;pointer-events:none;z-index:2147483000;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.5)}
-.dlg{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px}
+.dlg{position:fixed;inset:0;z-index:995;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px}
 .dlgb{background:#2b2b2b;border:1px solid var(--ac);max-width:440px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
 .dlgb p{font-size:13px;line-height:1.5;margin-bottom:16px}
 .dlgf{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
@@ -213,12 +251,15 @@ input,select,button{font-family:var(--font)}
 <input type="file" id="upz" accept=".zip,application/zip" hidden>
 <div id="taskbar">
   <button id="startBtn" title="Start"><span class="win-logo"><i></i><i></i><i></i><i></i></span></button>
-  <div id="searchBtn">🔍&nbsp; Type here to search</div>
+  <div id="searchBtn"><svg viewBox="0 0 24 24" width="16" height="16" style="margin-right:10px;vertical-align:-3px"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l6 6" stroke="currentColor" stroke-width="2"/></svg>Type here to search</div>
   <div id="sys"></div>
   <div id="pins"></div><div id="tasks"></div>
+  <div id="tray"></div>
   <div id="clock"><div id="ck1"></div><div id="ck2"></div></div>
+  <div id="bell" title="Notifications"></div>
   <div id="showdesk" title="Show desktop"></div>
 </div>
+<div id="flyout"></div><div id="toasts"></div>
 
 <script>
 // ===================== CONFIG =====================
@@ -230,20 +271,46 @@ const VERSIONS_URL = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
 const NATIVE = [
-  { name: "Notes", url: OS_REPO + "apps/notes.js", desc: "Text files and code editor", icon: "📝", color: "amber", category: "tools", type: "native" }
+  { name: "Notes", url: OS_REPO + "apps/notes.js", desc: "Text files and code editor", icon: "svg:notes", color: "amber", category: "tools", type: "native" }
 ];
 const SEED = ["Notes", "VUS Launcher"]; // installed on first run
 
 // ===================== HELPERS =====================
 const $ = s => document.querySelector(s);
-const LS = (k, d) => { try { const v = JSON.parse(localStorage.getItem("vos2_" + k)); return v ?? d; } catch { return d; } };
-const save = (k, v) => localStorage.setItem("vos2_" + k, JSON.stringify(v));
+const GUEST = sessionStorage.getItem("vos_guest") === "1", NS = GUEST ? "vosg" : "vos2"; // Guest = separate storage, your real data is never loaded
+const LS = (k, d) => { try { const v = JSON.parse(localStorage.getItem(NS + "_" + k)); return v ?? d; } catch { return d; } };
+const save = (k, v) => localStorage.setItem(NS + "_" + k, JSON.stringify(v));
 const esc = s => (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const key = a => a.name + "|" + a.url;
 const isNative = a => a.type === "native" || /\.js(\?|$)/.test(a.url || "");
 const COLORS = { green:["34,197,94","#4ade80"], blue:["59,130,246","#60a5fa"], amber:["245,158,11","#fbbf24"], rose:["244,63,94","#fb7185"], violet:["139,92,246","#a78bfa"], cyan:["6,182,212","#22d3ee"], lime:["132,204,22","#a3e635"], orange:["249,115,22","#fb923c"], red:["239,68,68","#f87171"], purple:["168,85,247","#c084fc"], black:["148,163,184","#cbd5e1"], white:["255,255,255","#f1f5f9"] };
 const solid = a => { const c = (COLORS[a.color] || COLORS.green)[0]; return c === "255,255,255" ? ["#e6e6e6", "#000"] : [`rgb(${c})`, "#fff"]; };
-const glyph = (a, s = ICON_PX[getSettings().iconSize] || 42) => { const [bg, fg] = solid(a); return `<div class="gl" style="width:${s}px;height:${s}px;font-size:${Math.round(s * .42)}px;background:${bg};color:${fg}">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</div>`; };
+const ln = d => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`;
+const PG = x => `<path d="M5 2h9l5 5v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" fill="#fff" stroke="#bdbdbd"/><path d="M14 2l5 5h-4a1 1 0 0 1-1-1z" fill="#d0d0d0"/>${x}`;
+const SVG = {
+  folder: '<path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v1H2z" fill="#e0a800"/><path d="M2 9h20v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#ffd34e"/>',
+  text: PG('<path d="M7 12h10M7 15h10M7 18h6" stroke="#6b8cc9" stroke-width="1.4"/>'),
+  html: PG('<path d="M9.5 11.5L6.5 15l3 3.5M14.5 11.5l3 3.5-3 3.5" fill="none" stroke="#e8710a" stroke-width="1.6"/>'),
+  image: PG('<rect x="6" y="11" width="12" height="8" fill="#4cc2ff"/><path d="M6 19l4-5 3 3 2-2 3 4z" fill="#107c10"/><circle cx="15" cy="13.5" r="1.2" fill="#fff"/>'),
+  audio: PG('<path d="M10 17v-8l7-1.5v8" fill="none" stroke="#e3008c" stroke-width="1.6"/><circle cx="8.5" cy="17" r="1.8" fill="#e3008c"/><circle cx="15.5" cy="15.5" r="1.8" fill="#e3008c"/>'),
+  video: PG('<rect x="6" y="11" width="12" height="8" rx="1" fill="#8764b8"/><path d="M11 13v4l4-2z" fill="#fff"/>'),
+  pdf: PG('<rect x="5.5" y="11" width="13" height="7" fill="#e81123"/><text x="12" y="16.5" font-size="5" font-weight="700" text-anchor="middle" fill="#fff" font-family="Arial">PDF</text>'),
+  binary: PG('<rect x="5.5" y="11" width="13" height="8" fill="#0078d7"/><rect x="5.5" y="11" width="13" height="2" fill="#4cc2ff"/>'),
+  notes: '<rect x="5" y="3" width="14" height="18" rx="1" fill="#4cc2ff"/><path d="M8 3v18" stroke="#0078d7"/><path d="M10.5 8h6M10.5 11h6M10.5 14h4" stroke="#fff" stroke-width="1.4"/>',
+  info: '<circle cx="12" cy="12" r="9" fill="#0078d7"/><path d="M12 11v6M12 7.5v.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>',
+  settings: ln('M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1'),
+  store: ln('M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2'),
+  update: ln('M20 12a8 8 0 1 1-2.5-5.8M20 4v5h-5'),
+  taskmgr: ln('M3 20h18M6 17v-5M11 17V6M16 17v-8'),
+  power: ln('M12 3v8M7 6.5a8 8 0 1 0 10 0'),
+  desktop: ln('M4 5h16v11H4zM8 20h8M12 16v4'),
+  temp: ln('M12 5a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM12 9v4l3 2'),
+  saved: ln('M4 4h13l3 3v13H4zM8 4v5h7V4M8 20v-6h8v6'),
+  bin: ln('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13'),
+  binfull: ln('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6')
+};
+const svgI = (n, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}">${SVG[n] || ""}</svg>`;
+const glyph = (a, s = ICON_PX[getSettings().iconSize] || 42) => { if (String(a.icon || "").startsWith("svg:")) return `<div class="gl" style="width:${s}px;height:${s}px">${svgI(a.icon.slice(4), s)}</div>`; const [bg, fg] = solid(a); return `<div class="gl" style="width:${s}px;height:${s}px;font-size:${Math.round(s * .42)}px;background:${bg};color:${fg}">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</div>`; };
 
 // ===================== CATALOG (apps + tools only) =====================
 let catalog = [...NATIVE];
@@ -266,12 +333,15 @@ function toggleInstall(a) {
 }
 const refreshers = new Set(); // open File Explorer windows redraw through this
 function renderIcons() {
-  const box = $("#icons"); box.innerHTML = "";
+  const keep = new Set(selIcons().map(i => i.dataset.key)), box = $("#icons"); box.innerHTML = "";
+  purgeBin(); const nb = getBin();
+  box.appendChild(iconEl({ name: "Recycle Bin", icon: nb.files.length + nb.folders.length ? "svg:binfull" : "svg:bin", color: "blue" }, "Recycle Bin", () => openApp(BIN), [["Open", () => openApp(BIN)], ["Empty Recycle Bin", emptyBin]], { kind: "app", id: "__bin" }));
   installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).forEach(a => box.appendChild(iconEl(a, a.name, () => openApp(a),
     [...appMenu(a), ["Remove from desktop", () => toggleInstall(a)]], { kind: "app", id: key(a), del: () => toggleInstall(a) })));
   fillDir(box, null, id => openApp(folderApp(id)));
   layoutDesktop([...box.children]);
   refreshers.forEach(fn => fn());
+  document.querySelectorAll(".icon").forEach(i => { if (keep.has(i.dataset.key)) i.classList.add("sel"); }); markCut(); // selection survives a redraw
 }
 
 // ===================== CONTEXT MENU =====================
@@ -287,11 +357,16 @@ document.addEventListener("click", () => $("#ctx").style.display = "none");
 $("#desktop").addEventListener("click", e => { if (marqMoved) { marqMoved = false; return; } if (!e.target.closest(".icon,.win")) clearSel(); }); // clicks inside windows keep the selection
 document.addEventListener("keydown", e => {
   if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable) return;
-  const sel = selIcons();
-  if (e.key === "Delete" && sel.length) deleteSel(sel);
+  const sel = selIcons(), mod = e.ctrlKey || e.metaKey, k = (e.key || "").toLowerCase(), fw = document.querySelector(".win.focus"), fx = fw ? fw.querySelector(".fx") : null;
+  if (mod && k === "c" && sel.length) { e.preventDefault(); clipSet("copy", sel); }
+  else if (mod && k === "x" && sel.length) { e.preventDefault(); clipSet("cut", sel); }
+  else if (mod && k === "v" && clip && (fx ? fx._dir !== undefined : !fw)) { e.preventDefault(); pasteTo(fx ? fx._dir : null); }
+  else if (mod && k === "a" && (fx || !fw)) { e.preventDefault(); clearSel(); (fx || $("#icons")).querySelectorAll(".icon").forEach(i => i.classList.add("sel")); }
+  else if (e.key === "Delete" && sel.length) deleteSel(sel);
   else if (e.key === "F2" && sel.length === 1 && sel[0].dataset.kind !== "app") inlineRename(sel[0], sel[0].dataset.kind, sel[0].dataset.id);
 });
-const newMenu = (dir, box) => [["New folder", () => newFolder(dir, box)], ["New text document", () => newFile("txt", dir, box)], ["Upload files...", () => pickUpload(dir, false)], ["Refresh", renderIcons]];
+let clip = null; // { mode: "copy" | "cut", items: [{ kind, id }] }
+const newMenu = (dir, box) => [...(clip ? [["Paste", () => pasteTo(dir)]] : []), ["New folder", () => newFolder(dir, box)], ["New text document", () => newFile("txt", dir, box)], ["Upload files...", () => pickUpload(dir, false)], ["Refresh", renderIcons]];
 let upDir = null;
 const pickUpload = (dir, mode) => { upDir = dir; $(mode === "zip" ? "#upz" : mode ? "#upd" : "#up").click(); };
 $("#desktop").addEventListener("contextmenu", e => { if (e.target.closest(".icon,.win")) return; e.preventDefault(); ctx(e, newMenu(null, $("#icons"))); });
@@ -316,7 +391,7 @@ function openApp(app) {
   const o = (n % 8) * 26;
   el.className = "win"; el.id = id;
   Object.assign(el.style, { width: Math.min(app.w || 760, innerWidth - 40) + "px", height: Math.min(app.h || 520, innerHeight - 120) + "px", left: 20 + o + "px", top: 20 + o + "px" });
-  el.innerHTML = `<div class="bar">${glyph(app, 16)}<div class="wt">${esc(app.name)}</div><button data-a="min"><svg width="10" height="10"><path d="M0 5.5h10" stroke="currentColor"/></svg></button><button data-a="max"><svg class="i1" width="10" height="10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg><svg class="i2" width="10" height="10"><path d="M2.5 2.5v-2h7v7h-2M.5 2.5h7v7h-7z" fill="none" stroke="currentColor"/></svg></button><button data-a="x" class="x"><svg width="10" height="10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></button></div><div class="body"><div class="load">Loading ${esc(app.name)}...</div></div><div class="rs"></div>`;
+  el.innerHTML = `<div class="bar">${glyph(app, 16)}<div class="wt">${esc(app.name)}</div><button data-a="min"><svg width="10" height="10"><path d="M0 5.5h10" stroke="currentColor"/></svg></button><button data-a="max"><svg class="i1" width="10" height="10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg><svg class="i2" width="10" height="10"><path d="M2.5 2.5v-2h7v7h-2M.5 2.5h7v7h-7z" fill="none" stroke="currentColor"/></svg></button><button data-a="x" class="x"><svg width="10" height="10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></button></div><div class="body"><div class="load">Loading ${esc(app.name)}...</div></div>${["n", "s", "e", "w", "ne", "nw", "se", "sw"].map(d => `<div class="rz ${d}" data-d="${d}"></div>`).join("")}`;
   $("#desktop").appendChild(el);
 
   const task = document.createElement("div");
@@ -355,13 +430,20 @@ function openApp(app) {
     };
     bar.onpointerup = () => { bar.onpointermove = bar.onpointerup = null; showSnap(null); if (zone) snapWin(el, zone); };
   };
-  const rs = el.querySelector(".rs");
-  rs.onpointerdown = e => {
-    const sx = e.clientX, sy = e.clientY, w = el.offsetWidth, h = el.offsetHeight;
-    rs.setPointerCapture(e.pointerId);
-    rs.onpointermove = ev => { el.style.width = Math.max(300, w + ev.clientX - sx) + "px"; el.style.height = Math.max(200, h + ev.clientY - sy) + "px"; };
-    rs.onpointerup = () => { rs.onpointermove = rs.onpointerup = null; };
-  };
+  el.querySelectorAll(".rz").forEach(h => h.onpointerdown = e => { // drag any edge or corner
+    if (el.classList.contains("max")) return;
+    e.preventDefault(); h.setPointerCapture(e.pointerId);
+    const d = h.dataset.d, sx = e.clientX, sy = e.clientY, w = el.offsetWidth, ht = el.offsetHeight, l = el.offsetLeft, t = el.offsetTop;
+    h.onpointermove = ev => {
+      const dx = ev.clientX - sx, dy = ev.clientY - sy; let nw = w, nh = ht, nl = l, nt = t;
+      if (d.includes("e")) nw = Math.max(300, w + dx);
+      if (d.includes("s")) nh = Math.max(200, ht + dy);
+      if (d.includes("w")) { nw = Math.max(300, w - dx); nl = l + w - nw; }
+      if (d.includes("n")) { nh = Math.max(200, ht - dy); nt = Math.max(0, t + ht - nh); nh = t + ht - nt; }
+      el.style.width = nw + "px"; el.style.height = nh + "px"; el.style.left = nl + "px"; el.style.top = nt + "px";
+    };
+    h.onpointerup = () => { h.onpointermove = h.onpointerup = null; };
+  });
   el.addEventListener("pointerdown", () => focus(id), true);
   focus(id);
   load(app, el.querySelector(".body"), el);
@@ -421,6 +503,7 @@ function makeOS(app, win) {
   return {
     storage: { get: (k, d) => LS("app_" + app.name + "_" + k, d), set: (k, v) => save("app_" + app.name + "_" + k, v) },
     setTitle: t => { win.querySelector(".wt").textContent = t; },
+    notify: (title, body) => notify(title, body),
     close: force => closeWin(win.id, force),
     guard: fn => { win.beforeClose = fn; } // return false to block closing (e.g. unsaved changes)
   };
@@ -429,7 +512,7 @@ function makeOS(app, win) {
 // ===================== CODE CACHE + UPDATES =====================
 // Code is saved in IndexedDB the first time an app opens. After that it opens from the saved copy.
 // Small metadata {name: {url, version}} lives in localStorage.
-const idb = new Promise((res, rej) => { const r = indexedDB.open("vos2", 2); r.onupgradeneeded = () => { ["code", "files"].forEach(n => { if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n); }); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const idb = new Promise((res, rej) => { const r = indexedDB.open(NS, 2); r.onupgradeneeded = () => { ["code", "files"].forEach(n => { if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n); }); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
 const dbGet = async (k, st = "code") => { try { const d = await idb; return await new Promise(res => { const q = d.transaction(st).objectStore(st).get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); } catch { return undefined; } };
 const dbSet = async (k, v, st = "code") => { try { const d = await idb; return await new Promise(res => { const t = d.transaction(st, "readwrite"); t.objectStore(st).put(v, k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
 const dbDel = async (k, st = "files") => { try { const d = await idb; return await new Promise(res => { const t = d.transaction(st, "readwrite"); t.objectStore(st).delete(k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
@@ -525,22 +608,28 @@ reg("text", "text/plain", "txt log ini cfg conf env yaml yml toml sql ts tsx jsx
 const extOf = n => (n.includes(".") ? n.split(".").pop() : "").toLowerCase();
 const kindOf = n => (EXT[extOf(n)] || ["text"])[0]; // unknown extensions open in Notepad
 const mimeOf = n => (EXT[extOf(n)] || [0, "application/octet-stream"])[1];
-const KIND_ICON = { text: ["📄", "blue"], html: ["🌐", "orange"], image: ["🖼️", "cyan"], audio: ["🎵", "rose"], video: ["🎬", "violet"], pdf: ["📕", "red"], binary: ["⚙️", "black"] };
+const KIND_ICON = { text: ["svg:text", "blue"], html: ["svg:html", "orange"], image: ["svg:image", "cyan"], audio: ["svg:audio", "rose"], video: ["svg:video", "violet"], pdf: ["svg:pdf", "red"], binary: ["svg:binary", "black"] };
 const fmeta = () => LS("files", []);
 const newId = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 
 let bypassLimit = false, settingsStart = "home";
-function winDialog(msg, buttons) { // resolves with the chosen button's value
+function winDialog(msg, buttons, title) { // resolves with the chosen button's value; Esc picks the last button
   return new Promise(res => {
     const o = document.createElement("div"); o.className = "dlg";
-    o.innerHTML = `<div class="dlgb"><p>${esc(msg).replace(/\n/g, "<br>")}</p><div class="dlgf">${buttons.map(([l, v, c], i) => `<button data-i="${i}" class="${c || ""}">${esc(l)}</button>`).join("")}</div></div>`;
-    o.onclick = e => { const b = e.target.closest("button"); if (!b) return; o.remove(); res(buttons[b.dataset.i][1]); };
+    o.innerHTML = `<div class="dlgb"><div class="dlgt">${esc(title || getSettings().site || "VUS-OS")}</div><div class="dlgm"><p>${esc(msg).replace(/\n/g, "<br>")}</p></div><div class="dlgf">${buttons.map(([l, v, c], i) => `<button data-i="${i}" class="${c || ""}">${esc(l)}</button>`).join("")}</div></div>`;
+    const finish = v => { document.removeEventListener("keydown", kd, true); o.remove(); res(v); };
+    const kd = e => { if (e.key === "Escape") { e.stopPropagation(); finish(buttons[buttons.length - 1][1]); } };
+    o.onclick = e => { const b = e.target.closest("button"); if (b) finish(buttons[b.dataset.i][1]); };
+    document.addEventListener("keydown", kd, true);
     document.body.appendChild(o);
+    (o.querySelector("button:not(.danger)") || o.querySelector("button:last-child")).focus(); // Enter never lands on a destructive button
   });
 }
+const winAlert = msg => winDialog(msg, [["OK", true]]);
+const winConfirm = (msg, yes = "OK") => winDialog(msg, [[yes, true], ["Cancel", false]]);
 const folders = () => LS("folders", []);
 const sameDir = (x, d) => (x.parent || null) === d;
-const usage = () => fmeta().reduce((n, f) => n + (f.size || 0), 0) + Object.values(metaAll()).reduce((n, m) => n + (m.size || 0), 0);
+const usage = () => fmeta().reduce((n, f) => n + (f.size || 0), 0) + getBin().files.reduce((n, f) => n + (f.size || 0), 0) + Object.values(metaAll()).reduce((n, m) => n + (m.size || 0), 0);
 const limitBytes = () => (getSettings().limitMB || 512) * 1048576;
 const fmt = b => b < 1024 ? b + " B" : b < 1048576 ? (b / 1024).toFixed(1) + " KB" : b < 1073741824 ? (b / 1048576).toFixed(1) + " MB" : (b / 1073741824).toFixed(2) + " GB";
 function pathOf(id) {
@@ -567,7 +656,7 @@ async function putFile(id, name, blob, parent, saved) {
     if (c !== "bypass") return false;
     bypassLimit = true; navigator.storage?.persist?.(); // bypass lasts until the page is reloaded
   }
-  if (!(await dbSet(id, blob, "files"))) { alert("Couldn't save " + name + " (browser storage may be full)."); return false; }
+  if (!(await dbSet(id, blob, "files"))) { winAlert("Couldn't save " + name + " (browser storage may be full)."); return false; }
   const e = { id, name, size: blob.size, parent: parent !== undefined ? parent : old ? old.parent || null : null, saved: saved !== undefined ? saved : old ? old.saved : false, mod: blob.lastModified || Date.now() };
   if (i < 0) m.push(e); else m[i] = e;
   save("files", m); renderIcons(); return true;
@@ -624,15 +713,23 @@ function markSaved(kind, id) { // moves an item (and everything inside a folder)
     save("files", fmeta().map(f => ids.includes(f.parent) ? { ...f, saved: true } : f));
   } else save("files", fmeta().map(f => f.id === id ? { ...f, saved: true } : f));
 }
-async function deleteFile(id) { await dbDel(id, "files"); save("files", fmeta().filter(f => f.id !== id)); renderIcons(); }
+const getBin = () => LS("bin", { files: [], folders: [] });
+const putBin = b => save("bin", b);
+const binAdd = (files, fo) => { const b = getBin(); putBin({ files: [...b.files, ...files], folders: [...b.folders, ...fo] }); };
+async function deleteFile(id, hard) { // hard = skip the Recycle Bin
+  const f = fmeta().find(x => x.id === id); if (!f) return;
+  if (hard) await dbDel(id, "files"); else binAdd([{ ...f, del: Date.now() }], []);
+  save("files", fmeta().filter(x => x.id !== id)); renderIcons();
+}
 async function deleteFolder(id) {
   const ids = [id, ...descendants(id)];
-  for (const f of fmeta().filter(f => ids.includes(f.parent))) await dbDel(f.id, "files");
+  const t = Date.now();
+  binAdd(fmeta().filter(f => ids.includes(f.parent)).map(f => ({ ...f, del: t })), folders().filter(f => ids.includes(f.id)).map(f => ({ ...f, del: t, top: f.id === id })));
   save("files", fmeta().filter(f => !ids.includes(f.parent)));
   save("folders", folders().filter(f => !ids.includes(f.id))); renderIcons();
 }
 function moveTo(kind, id, parent) {
-  if (kind === "folder" && (parent === id || descendants(id).includes(parent))) return alert("Can't move a folder into itself.");
+  if (kind === "folder" && (parent === id || descendants(id).includes(parent))) return winAlert("Can't move a folder into itself.");
   const key = kind === "folder" ? "folders" : "files", list = kind === "folder" ? folders() : fmeta();
   save(key, list.map(x => x.id === id ? { ...x, parent, name: uniqueName(x.name, id, parent, list) } : x)); renderIcons();
 }
@@ -654,7 +751,6 @@ const iconOf = e => e.target.closest(".icon");
 let marqMoved = false;
 async function deleteSel(sel) {
   const n = sel.length;
-  if (!confirm(n === 1 ? `Delete ${sel[0].dataset.name}?` : `Delete ${n} items? (apps are only removed from the desktop)`)) return;
   for (const i of sel) if (i._del) await i._del();
   renderIcons();
 }
@@ -674,8 +770,9 @@ function iconEl(a, label, open, menu, m) { // m = { kind: app|folder|file, id, d
     e.preventDefault(); e.stopPropagation();
     if (!el.classList.contains("sel")) { clearSel(); el.classList.add("sel"); }
     const sel = selIcons();
-    if (sel.length > 1) return ctx(e, [[`Open (${sel.length})`, () => sel.forEach(i => i._open())], [`Delete (${sel.length})`, () => deleteSel(sel)]]);
-    ctx(e, [["Open", open], ...menu]);
+    const cc = m.kind === "app" ? [] : [["Cut", () => clipSet("cut", selIcons())], ["Copy", () => clipSet("copy", selIcons())]];
+    if (sel.length > 1) return ctx(e, [[`Open (${sel.length})`, () => sel.forEach(i => i._open())], ...cc, [`Delete (${sel.length})`, () => deleteSel(sel)]]);
+    ctx(e, [["Open", open], ...cc, ...menu]);
   };
   el.onpointerdown = e => { el._dragged = false; dragIcons(el, e); };
   return el;
@@ -728,11 +825,19 @@ function dragIcons(el, e) { // left-drag moves icons; clicking and right-clickin
   const up = ev => {
     document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up);
     if (!on) return;
+    marqMoved = true; setTimeout(() => marqMoved = false, 50); // the click that follows a drag must not clear the selection
     const dx = ev.clientX - sx, dy = ev.clientY - sy, hit = document.elementFromPoint(ev.clientX, ev.clientY);
-    const folder = hit && hit.closest(".icon[data-kind=folder]"), side = hit && hit.closest("[data-drop]");
+    const folder = hit && hit.closest(".icon[data-kind=folder]"), side = hit && hit.closest("[data-drop]"), grid = hit && hit.closest(".fx"), binIcon = hit && hit.closest('.icon[data-id="__bin"]');
     group.forEach(i => { i.classList.remove("dragging"); i.style.transform = ""; });
-    const target = folder ? folder.dataset.id : side ? side.dataset.drop || null : undefined; // undefined = not dropped on a folder
-    if (target !== undefined) { group.forEach(i => { if (i.dataset.kind !== "app" && i.dataset.id !== target) moveTo(i.dataset.kind, i.dataset.id, target); }); return; }
+    if (binIcon) return deleteSel(group.filter(i => i.dataset.kind !== "app")); // dropped on the Recycle Bin
+    const parentOf = i => ((i.dataset.kind === "folder" ? folders() : fmeta()).find(x => x.id === i.dataset.id) || {}).parent || null;
+    // where did it land? a folder icon, the sidebar's Desktop, an Explorer window's file area, or the bare desktop (null = Desktop)
+    const target = folder ? folder.dataset.id : side ? side.dataset.drop || null : grid && grid._dir !== undefined ? grid._dir : hit && !hit.closest(".win") && hit.closest("#desktop") ? null : undefined;
+    if (target !== undefined) {
+      const mv = group.filter(i => i.dataset.kind !== "app" && i.dataset.id !== target && parentOf(i) !== target);
+      if (mv.length) { mv.forEach(i => moveTo(i.dataset.kind, i.dataset.id, target)); return; }
+      if (!(free && target === null)) return; // already lives there
+    }
     if (free) dropOnDesktop(group, dx, dy);
   };
   document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
@@ -761,10 +866,10 @@ function fillItems(box, fl, fi, openFolder, list) {
   if (list) box.insertAdjacentHTML("beforeend", '<div class="fxh"><span></span><span>Name</span><span>Date modified</span><span>Type</span><span>Size</span></div>');
   fl.forEach(f => {
     const n = fmeta().filter(x => x.parent === f.id).length + folders().filter(x => x.parent === f.id).length;
-    box.appendChild(iconEl({ name: f.name, icon: "📁", color: "amber" }, f.name, () => openFolder(f.id), [
+    box.appendChild(iconEl({ name: f.name, icon: "svg:folder", color: "amber" }, f.name, () => openFolder(f.id), [
       ...(f.saved === false ? [["Save", () => { markSaved("folder", f.id); renderIcons(); }]] : []),
       ["Rename", e => inlineRename(iconOf(e), "folder", f.id)], ["Move to...", e => moveMenu(e, "folder", f.id)],
-      ["Delete", () => { if (confirm(`Delete folder "${f.name}" and everything in it?`)) deleteFolder(f.id); }],
+      ["Delete", () => deleteFolder(f.id)],
       ["Details", () => openApp(detailsApp("folder", f.id, null, f.name))]], { kind: "folder", id: f.id, del: () => deleteFolder(f.id), cols: list ? ["", "Folder", n + " item" + (n === 1 ? "" : "s")] : null }));
   });
   fi.forEach(f => box.appendChild(iconEl(fileApp(f), f.name, () => openApp(fileApp(f)), [
@@ -772,13 +877,13 @@ function fillItems(box, fl, fi, openFolder, list) {
     ...(kindOf(f.name) === "html" || extOf(f.name) === "svg" ? [["Edit", () => openApp(editApp(f))]] : []),
     ...(f.saved === false ? [["Save", () => { markSaved("file", f.id); renderIcons(); }]] : []),
     ["Rename", e => inlineRename(iconOf(e), "file", f.id)], ["Move to...", e => moveMenu(e, "file", f.id)],
-    ["Delete", () => { if (confirm(`Delete ${f.name}?`)) deleteFile(f.id); }],
+    ["Delete", () => deleteFile(f.id)],
     ["Details", () => openApp(detailsApp("file", f.id, null, f.name))]], { kind: "file", id: f.id, del: () => deleteFile(f.id), cols: list ? [short(f.mod), KIND_NAME[kindOf(f.name)] + (extOf(f.name) ? " (." + extOf(f.name) + ")" : ""), fmt(f.size || 0)] : null })));
 }
 const fillDir = (box, dir, openFolder) => fillItems(box, folders().filter(f => sameDir(f, dir)), fmeta().filter(f => sameDir(f, dir)), openFolder);
 function folderApp(id) {
   const f = folders().find(x => x.id === id);
-  return { builtin: 1, name: f ? f.name : "Folder", icon: "📁", color: "amber", open: (root, os) => explorer(root, os, id) };
+  return { builtin: 1, name: f ? f.name : "Folder", icon: "svg:folder", color: "amber", open: (root, os) => explorer(root, os, id) };
 }
 // File Explorer: sidebar with Desktop / Temporary / Saved. New and uploaded items stay where you put them
 // but count as Temporary until you save them.
@@ -792,13 +897,13 @@ function explorer(root, os, dir0) {
     let d = cur.loc === "dir" && cur.dir && folders().find(f => f.id === cur.dir);
     if (cur.loc === "dir" && cur.dir && !d) cur.dir = null;
     const nTemp = folders().filter(unsaved).length + fmeta().filter(unsaved).length;
-    side.innerHTML = [["dir", "🖥️", "Desktop", ""], ["temp", "⏳", "Temporary", nTemp || ""], ["saved", "💾", "Saved", ""]].map(([k, i, l, n]) => `<div data-loc="${k}" ${k === "dir" ? 'data-drop=""' : ""} class="${k === cur.loc ? "on" : ""}">${i} ${l}<b>${n}</b></div>`).join("");
+    side.innerHTML = [["dir", svgI("desktop", 16), "Desktop", ""], ["temp", svgI("temp", 16), "Temporary", nTemp || ""], ["saved", svgI("saved", 16), "Saved", ""]].map(([k, i, l, n]) => `<div data-loc="${k}" ${k === "dir" ? 'data-drop=""' : ""} class="${k === cur.loc ? "on" : ""}">${i} ${l}<b>${n}</b></div>`).join("");
     root.querySelector(".fxp").textContent = cur.loc === "temp" ? "Temporary" : cur.loc === "saved" ? "Saved" : pathOf(cur.dir);
     act.innerHTML = cur.loc === "dir" ? "" : `<button data-a="all">Select all</button>${cur.loc === "temp" ? '<button data-a="save">Save selected</button>' : ""}<button data-a="del">Delete selected</button>`;
     os.setTitle(cur.loc === "temp" ? "Temporary" : cur.loc === "saved" ? "Saved" : d ? d.name : "File Explorer");
     const list = LS("fxview", "icons") === "list"; grid.classList.toggle("list", list);
     root.querySelector("[data-a=view]").textContent = list ? "▦ Icons" : "☰ Details";
-    grid.innerHTML = "";
+    grid.innerHTML = ""; grid._dir = cur.loc === "dir" ? cur.dir : undefined; // where a drop here goes (null = Desktop)
     const f = cur.loc === "temp" ? [folders().filter(unsaved), fmeta().filter(unsaved)]
       : cur.loc === "saved" ? [folders().filter(x => !unsaved(x)), fmeta().filter(x => !unsaved(x))]
       : [folders().filter(x => sameDir(x, cur.dir)), fmeta().filter(x => sameDir(x, cur.dir))];
@@ -826,14 +931,14 @@ function explorer(root, os, dir0) {
   marquee(grid);
   draw();
 }
-const EXPLORER = { builtin: 1, single: 1, name: "File Explorer", icon: "📁", color: "amber", open: (root, os) => explorer(root, os, null) };
+const EXPLORER = { builtin: 1, single: 1, name: "File Explorer", icon: "svg:folder", color: "amber", open: (root, os) => explorer(root, os, null) };
 
 function fileApp(f) {
   const k = kindOf(f.name), [icon, color] = KIND_ICON[k];
   return { builtin: 1, name: f.name, icon, color, size: f.size, open: (root, os) => k === "text" ? notepad(root, os, f.id) : viewer(root, os, f) };
 }
 function editApp(f) { // "Edit": open any text-based file (html, svg) in Notepad
-  return { builtin: 1, name: f.name, icon: "📄", color: "blue", size: f.size, open: (root, os) => notepad(root, os, f.id) };
+  return { builtin: 1, name: f.name, icon: "svg:text", color: "blue", size: f.size, open: (root, os) => notepad(root, os, f.id) };
 }
 
 // Floating player for html / images / audio / video / pdf
@@ -907,14 +1012,14 @@ async function notepad(root, os, id) {
       let name = n.value.trim(); if (!name) return;
       if (t.value && !/\.\w{1,8}$/.test(name)) name += "." + t.value; // typed extension wins, otherwise use the chosen type
       const same = fmeta().find(x => x.name.toLowerCase() === name.toLowerCase() && (x.parent || null) === doc.parent);
-      if (same && same.id !== doc.id && !confirm(name + " already exists. Replace it?")) return;
+      if (same && same.id !== doc.id && !(await winConfirm(name + " already exists. Replace it?", "Replace"))) return;
       const nid = same ? same.id : newId();
       if (await putFile(nid, name, blobOf(name), doc.parent, true)) { Object.assign(doc, { id: nid, name, dirty: false }); title(); o.remove(); res(true); }
     };
     n.focus(); n.select();
   }); }
-  function newDoc() {
-    if (doc.dirty && !confirm("Discard unsaved changes?")) return;
+  async function newDoc() {
+    if (doc.dirty && !(await winConfirm("Discard unsaved changes?", "Discard"))) return;
     Object.assign(doc, { id: null, name: "Untitled.txt", dirty: false }); ed.value = ""; title();
   }
   function openDlg() {
@@ -922,7 +1027,7 @@ async function notepad(root, os, id) {
     o.onclick = async e => {
       if (e.target === o || e.target.classList.contains("no")) return o.remove();
       const i = e.target.dataset.i; if (!i) return;
-      if (doc.dirty && !confirm("Discard unsaved changes?")) return;
+      if (doc.dirty && !(await winConfirm("Discard unsaved changes?", "Discard"))) return;
       const x = fmeta().find(z => z.id === i), b = await dbGet(i, "files");
       ed.value = b ? await b.text() : ""; Object.assign(doc, { id: i, name: x.name, dirty: false, parent: x.parent || null }); o.remove(); title();
     };
@@ -1002,7 +1107,7 @@ async function readZip(file) { // -> [{name, dir, data()}]
 }
 async function exportZip(icons) { // icons: the selected (or all shown) explorer icons
   const items = icons.filter(i => i.dataset.kind !== "app");
-  if (!items.length) return alert("Nothing to export here.");
+  if (!items.length) return winAlert("Nothing to export here.");
   const entries = [];
   const addFolder = (fid, prefix) => {
     entries.push({ name: prefix });
@@ -1023,7 +1128,7 @@ async function importZip(file, parent = null) {
       await putFile(newId(), uniqueName(fname, null, p), new File([await e.data()], fname, { type: mimeOf(fname) }), p);
     }
     renderIcons();
-  } catch (err) { alert("Couldn't read that zip file: " + err.message); }
+  } catch (err) { winAlert("Couldn't read that zip file: " + err.message); }
 }
 
 // ===================== DETAILS (properties) =====================
@@ -1038,7 +1143,7 @@ function ratio(w, h) {
 const dur = t => { t = Math.round(t); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), p = n => String(n).padStart(2, "0"); return (h ? h + ":" + p(m) : m) + ":" + p(t % 60); };
 const when = t => t ? new Date(t).toLocaleString() : "Unknown";
 const sizeStr = n => `${fmt(n || 0)} (${(n || 0).toLocaleString()} bytes)`;
-const detailsApp = (kind, id, a, name) => ({ builtin: 1, name: name + " properties", icon: "ℹ️", color: "cyan", w: 460, h: 540, open: (root, os) => details(root, kind, id, a) });
+const detailsApp = (kind, id, a, name) => ({ builtin: 1, name: name + " properties", icon: "svg:info", color: "cyan", w: 460, h: 540, open: (root, os) => details(root, kind, id, a) });
 
 async function mediaInfo(f, k, blob) { // extra rows that depend on what's inside the file
   if (!blob) return [["Contents", "File data not found"]];
@@ -1074,7 +1179,7 @@ async function details(root, kind, id, a) {
   }
   if (kind === "folder") {
     const f = folders().find(x => x.id === id); if (!f) return show("<h2>Folder not found</h2>");
-    const ids = [id, ...descendants(id)], files = fmeta().filter(x => ids.includes(x.parent)), head = `<h2>${glyph({ name: f.name, icon: "📁", color: "amber" }, 36)}${esc(f.name)}</h2>`;
+    const ids = [id, ...descendants(id)], files = fmeta().filter(x => ids.includes(x.parent)), head = `<h2>${glyph({ name: f.name, icon: "svg:folder", color: "amber" }, 36)}${esc(f.name)}</h2>`;
     return show(head + kv([["Name", esc(f.name)], ["Type", "Folder"], ["Location", esc(pathOf(f.parent || null))], ["Contains", `${files.length} file${files.length === 1 ? "" : "s"}, ${ids.length - 1} folder${ids.length === 2 ? "" : "s"}`], ["Total size", sizeStr(files.reduce((n, x) => n + (x.size || 0), 0))], ["Status", f.saved === false ? "Temporary (not saved yet)" : "Saved"]]));
   }
   const f = fmeta().find(x => x.id === id); if (!f) return show("<h2>File not found</h2>");
@@ -1085,7 +1190,7 @@ async function details(root, kind, id, a) {
 }
 
 // ===================== SYSTEM APPS =====================
-const STORE = { builtin: 1, single: 1, name: "App Store", icon: "🛒", color: "violet", open(root) {
+const STORE = { builtin: 1, single: 1, name: "App Store", icon: "svg:store", color: "violet", open(root) {
   root.innerHTML = `<div class="pad"><h2>App Store</h2><input id="q" placeholder="Search apps..." autocomplete="off"><div class="tabs"></div><div class="grid"></div></div>`;
   const tabsEl = root.querySelector(".tabs"), grid = root.querySelector(".grid"), q = root.querySelector("#q");
   let tab = "all";
@@ -1109,12 +1214,12 @@ const STORE = { builtin: 1, single: 1, name: "App Store", icon: "🛒", color: "
 
 const ICON_PX = { small: 36, medium: 42, large: 56 };
 const SWATCH = ["#0078d7", "#e81123", "#00b294", "#8764b8", "#ff8c00", "#107c10", "#e3008c", "#767676"];
-const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "⚙️", color: "cyan", open(root) {
+const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings", color: "cyan", open(root) {
   const NAV = [["home", "🏠", "Home"], ["system", "💻", "System"], ["person", "🎨", "Personalization"], ["apps", "🧩", "Apps"], ["time", "🕒", "Time & language"]];
   let page = settingsStart; settingsStart = "home";
   root.innerHTML = '<div class="st"><div class="stn"></div><div class="stc"></div></div>';
   const nav = root.querySelector(".stn"), box = root.querySelector(".stc");
-  const set = p => { save("settings", { ...getSettings(), ...p }); applyTheme(); tick(); if (p.autoUpdate === true) autoUpdate(); };
+  const set = p => { save("settings", { ...getSettings(), ...p }); applyTheme(); tick(); if (p.autoUpdate === true) autoUpdate(); if ("binDays" in p) { purgeBin(); renderIcons(); } };
   const opts = (list, cur) => list.map(([v, l]) => `<option value="${esc(String(v))}" ${String(v) === String(cur) ? "selected" : ""}>${esc(l)}</option>`).join("");
   const pages = {
     home: () => `<h2>Settings</h2><div class="sth">${NAV.slice(1).map(([k, i, l]) => `<div class="stt" data-go="${k}"><span>${i}</span>${l}</div>`).join("")}</div>`,
@@ -1124,9 +1229,12 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "⚙️", colo
         ...Object.entries(metaAll()).map(([n, m]) => ({ n: n + " (saved app)", size: m.size || 0, act: "delc", id: n, b: "Clear" }))].sort((a, b) => b.size - a.size).slice(0, 12);
       return `<h2>System</h2><h3>Storage</h3><div class="sbar"><i style="width:${Math.min(100, u / lim * 100)}%"></i></div><p>${fmt(u)} used of ${fmt(lim)}${u > lim ? " (over the limit)" : ""}</p><p id="est"></p>
         <label>Storage limit<select data-k="limitMB" data-n="1" data-r="1">${opts([[128, "128 MB"], [256, "256 MB"], [512, "512 MB"], [1024, "1 GB"], [2048, "2 GB"]], s.limitMB)}</select></label>
+        <label>Recycle Bin: delete items after<select data-k="binDays" data-n="1">${opts([[0, "Never (don't delete)"], [1, "1 day"], [3, "3 days"], [7, "1 week"], [14, "2 weeks"], [30, "1 month"], [180, "6 months"]], s.binDays)}</select></label>
         <label>Opening speed limiter<select data-k="limiter">${opts([["off", "Off (instant)"], ["low", "Low"], ["med", "Medium"], ["high", "High"]], s.limiter)}</select></label><p>Big files and apps open one at a time behind a progress bar. Small ones still open instantly.</p>
         <h3>Biggest items</h3>${items.map(x => `<div class="item row"><div style="flex:1;overflow:hidden"><b>${esc(x.n)}</b><small>${fmt(x.size)}</small></div><button data-act="${x.act}" data-i="${esc(x.id)}">${x.b}</button></div>`).join("") || "<p>Nothing stored yet.</p>"}
         <h3>Multitasking</h3><label>Snap windows to screen edges<input type="checkbox" data-k="snap" ${s.snap ? "checked" : ""}></label><p>Drag a window to the left or right edge for half the screen, or to the top edge to maximize it.</p>
+        <h3>Backup</h3><p>Save your apps, files and settings to one file, or restore them from one.</p><button data-act="bkexp">Export...</button> <button data-act="bkimp">Import...</button>
+        ${lockSection()}
         <h3>About</h3><label>Site name<input type="text" data-k="site" value="${esc(s.site)}" maxlength="40"></label>`;
     },
     person: () => {
@@ -1154,9 +1262,18 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "⚙️", colo
     const d = t.dataset;
     if (d.go) { page = d.go; draw(); }
     else if (d.sw) { set({ accent: d.sw }); draw(); }
-    else if (d.act === "delf") { if (confirm("Delete this file?")) deleteFile(d.i).then(draw); }
+    else if (d.act === "delf") winConfirm("Delete this file permanently? (It skips the Recycle Bin.)", "Delete").then(ok => ok && deleteFile(d.i, true).then(draw));
     else if (d.act === "delc") clearCache(d.i).then(draw);
     else if (d.act === "upd") openApp(UPDATES);
+    else if (d.act === "pwset") setPw().then(draw);
+    else if (d.act === "bkadd") addBackup().then(draw);
+    else if (d.act === "bkdel") { const a = getAuth(); a.pw.splice(+d.i, 1); putAuth(a); draw(); }
+    else if (d.act === "pwhash") toggleHash().then(draw);
+    else if (d.act === "delall") deleteAll();
+    else if (d.act === "gsign") guestSignIn();
+    else if (d.act === "gdel") deleteGuest();
+    else if (d.act === "bkexp") doExport();
+    else if (d.act === "bkimp") pickBackup();
     else if (d.act === "rm") { toggleInstall(catalog.find(a => key(a) === d.i)); draw(); }
   };
   root.oninput = e => { const t = e.target, k = t.dataset.k; if (k) set({ [k]: t.type === "checkbox" ? t.checked : t.dataset.n ? +t.value : t.value }); };
@@ -1164,7 +1281,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "⚙️", colo
   draw();
 }};
 
-const TASKMGR = { builtin: 1, single: 1, name: "Task Manager", icon: "📊", color: "blue", w: 600, h: 460, open(root) {
+const TASKMGR = { builtin: 1, single: 1, name: "Task Manager", icon: "svg:taskmgr", color: "blue", w: 600, h: 460, open(root) {
   let tab = "proc", sel = null;
   root.innerHTML = '<div class="tm"><div class="tabs tmt"><button data-t="proc">Processes</button><button data-t="perf">Performance</button></div><div class="tmb"></div><div class="tabs tmf"><button data-a="switch">Switch to</button><button data-a="end">End task</button></div></div>';
   const body = root.querySelector(".tmb"), foot = root.querySelector(".tmf");
@@ -1193,7 +1310,7 @@ const TASKMGR = { builtin: 1, single: 1, name: "Task Manager", icon: "📊", col
   };
   draw();
 }};
-const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "🔄", color: "lime", open(root) {
+const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "svg:update", color: "lime", open(root) {
   root.innerHTML = `<div class="pad"><h2>Updates</h2><div class="tabs"><button id="chk">Check now</button><button id="all">Update all</button></div><p id="st" style="font-size:12px;color:var(--mute)"></p><div id="rows"></div></div>`;
   const rows = root.querySelector("#rows"), st = root.querySelector("#st");
   const draw = () => {
@@ -1219,7 +1336,7 @@ const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "🔄", color: "
   check();
 }};
 
-const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: false, theme: "dark", limiter: "low" }, LS("settings", {}));
+const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: false, theme: "dark", limiter: "low", binDays: 7 }, LS("settings", {}));
 let bgUrl = null;
 async function applyTheme() {
   const s = getSettings(), r = document.documentElement.style;
@@ -1239,7 +1356,7 @@ async function applyTheme() {
 // ===================== TASKBAR + START MENU =====================
 [[EXPLORER, "files"], [STORE, "store"], [UPDATES, "updates"], [SETTINGS, "settings"]].forEach(([app, cls]) => {
   const t = document.createElement("div");
-  t.className = "sys " + cls; t.title = app.name; t.textContent = app.icon;
+  t.className = "sys " + cls; t.title = app.name; t.innerHTML = svgI(app.icon.slice(4), 20);
   t.onclick = () => openApp(app);
   $("#sys").appendChild(t);
 });
@@ -1253,8 +1370,8 @@ $("#startBtn").onclick = e => { e.stopPropagation(); toggleStart(!start.classLis
 $("#searchBtn").onclick = e => { e.stopPropagation(); toggleStart(true); };
 document.addEventListener("click", e => { if (!start.contains(e.target) && start.classList.contains("open")) toggleStart(false); });
 $("#startQ").oninput = drawStart;
-[["📁", "File Explorer", () => openApp(EXPLORER)], ["⚙️", "Settings", () => openApp(SETTINGS)], ["⏻", "Power", e => ctx(e, [["Restart", () => location.reload()]])]].forEach(([i, t, fn]) => {
-  const d = document.createElement("div"); d.textContent = i; d.title = t;
+[["folder", "File Explorer", () => openApp(EXPLORER)], ["settings", "Settings", () => openApp(SETTINGS)], ["power", "Power", e => ctx(e, [...(hasPw() && !GUEST ? [["Lock", lockNow]] : []), ...(GUEST ? [["Sign in to your account...", guestSignIn]] : []), ["Restart", () => location.reload()]])]].forEach(([i, t, fn]) => {
+  const d = document.createElement("div"); d.innerHTML = svgI(i, 20); d.title = t;
   d.onclick = e => { e.stopPropagation(); if (t === "Power") fn(e); else { fn(); toggleStart(false); } };
   $(".st-rail").appendChild(d);
 });
@@ -1278,7 +1395,7 @@ function drawStart() {
     const [bg, fg] = solid(a);
     const d = document.createElement("div");
     d.className = "tile"; d.style.background = bg; d.style.color = fg;
-    d.innerHTML = `<span class="ti">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</span><span class="tn">${esc(a.name)}</span>`;
+    d.innerHTML = `<span class="ti">${String(a.icon || "").startsWith("svg:") ? svgI(a.icon.slice(4), 32) : esc(a.icon || a.name.slice(0, 2).toUpperCase())}</span><span class="tn">${esc(a.name)}</span>`;
     d.onclick = () => { openApp(a); toggleStart(false); };
     d.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [["Open", () => { openApp(a); toggleStart(false); }], ["Remove from Start", () => toggleStartPin(a)], [pinnedKeys().includes(key(a)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(a)]]); };
     tiles.appendChild(d);
@@ -1295,6 +1412,328 @@ document.addEventListener("keydown", e => {
   if (e.key === "Enter" && e.target.id === "startQ") $("#startList .item")?.click();
 });
 
+// ===================== PASSWORDS + GUEST =====================
+const AUTH_KEY = "vos2_auth"; // always the main user's data, even while in Guest mode
+const getAuth = () => { try { return JSON.parse(localStorage.getItem(AUTH_KEY)) || { hash: false, pw: [] }; } catch { return { hash: false, pw: [] }; } };
+const putAuth = a => localStorage.setItem(AUTH_KEY, JSON.stringify(a));
+const hasPw = () => getAuth().pw.length > 0;
+async function sha(t) {
+  const d = new TextEncoder().encode("vus:" + t);
+  if (crypto.subtle) return [...new Uint8Array(await crypto.subtle.digest("SHA-256", d))].map(x => x.toString(16).padStart(2, "0")).join("");
+  let h = 5381; for (const c of d) h = (h * 33 ^ c) >>> 0; return "x" + h; // fallback on non-secure pages
+}
+const pwStore = async (t, hash) => hash ? { h: 1, v: await sha(t) } : { v: t }; // plain text unless hashing is on
+async function checkPw(v) { // 5 wrong tries = 30 second wait (survives reloads)
+  const until = +localStorage.getItem("vos2_pwUntil") || 0;
+  if (Date.now() < until) return { msg: `Too many tries. Wait ${Math.ceil((until - Date.now()) / 1000)}s.` };
+  const hs = await sha(v);
+  if (getAuth().pw.some(p => p.h ? p.v === hs : p.v === v)) { localStorage.setItem("vos2_pwFails", 0); return { ok: true }; }
+  const n = (+localStorage.getItem("vos2_pwFails") || 0) + 1; localStorage.setItem("vos2_pwFails", n % 5);
+  if (n >= 5) { localStorage.setItem("vos2_pwUntil", Date.now() + 30000); return { msg: "Too many tries. Wait 30 seconds." }; }
+  return { msg: `Wrong password (${5 - n} tries left)` };
+}
+function askPw(title, o = {}) { // resolves with the typed password, or null if cancelled
+  return new Promise(res => {
+    const check = o.check || (o.newPw ? null : checkPw);
+    const el = document.createElement("div"); el.className = "lock" + (o.full ? " full" : "");
+    el.innerHTML = `${o.full ? '<div class="lk-time"></div><div class="lk-date"></div>' : ""}<div class="lk-t">${esc(title)}</div><input class="lk-in" type="password" autocomplete="off" autocapitalize="off"><div class="lk-msg"></div><button class="lk-ok">OK</button><div class="lk-foot">${o.full ? '<a data-g="1">Enter as Guest</a>' : ""}${o.cancel ? '<a data-c="1">Cancel</a>' : ""}</div>`;
+    const inp = el.querySelector(".lk-in"), msg = el.querySelector(".lk-msg"); let busy = false;
+    const clock = () => { if (!o.full) return; const n = new Date(); el.querySelector(".lk-time").textContent = n.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); el.querySelector(".lk-date").textContent = n.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }); };
+    const done = r => { document.removeEventListener("keydown", kd, true); clearInterval(tm); el.remove(); res(r); };
+    const submit = async () => {
+      if (busy || !inp.value) return; busy = true;
+      const r = check ? await check(inp.value) : { ok: true };
+      if (r.ok) return done(inp.value);
+      msg.textContent = r.msg || ""; el.classList.add("shake"); setTimeout(() => el.classList.remove("shake"), 300); inp.value = ""; busy = false;
+    };
+    const kd = e => { if (e.key === "Escape" && o.cancel) { e.stopPropagation(); done(null); } else if (e.key === "Enter") { e.stopPropagation(); e.preventDefault(); submit(); } };
+    el.onclick = e => { if (e.target.closest(".lk-ok")) submit(); else if (e.target.closest("[data-c]")) done(null); else if (e.target.closest("[data-g]")) guestEnter(); };
+    document.addEventListener("keydown", kd, true);
+    const tm = setInterval(clock, 15000); clock();
+    document.body.appendChild(el); setTimeout(() => inp.focus(), 0);
+  });
+}
+function lockNow() { if (hasPw() && !GUEST && !$(".lock.full")) askPw("Enter your password", { full: true }); }
+async function setPw() {
+  const a = getAuth();
+  if (a.pw.length && !await askPw("Enter your current password", { cancel: true })) return;
+  const n = await askPw("Choose a password", { cancel: true, newPw: true }); if (!n) return;
+  if (!await askPw("Confirm your password", { cancel: true, check: v => v === n ? { ok: true } : { msg: "Passwords don't match" } })) return;
+  const b = getAuth(); b.pw[0] = await pwStore(n, b.hash); putAuth(b);
+}
+async function addBackup() { const n = await askPw("New backup password", { cancel: true, newPw: true }); if (!n) return; const a = getAuth(); a.pw.push(await pwStore(n, a.hash)); putAuth(a); }
+async function toggleHash() { const a = getAuth(); a.hash = !a.hash; if (a.hash) a.pw = await Promise.all(a.pw.map(async p => p.h ? p : { h: 1, v: await sha(p.v) })); putAuth(a); } // turning it off keeps old hashes working; new passwords are plain
+
+async function wipeNs(ns) {
+  Object.keys(localStorage).filter(k => k.startsWith(ns + "_")).forEach(k => localStorage.removeItem(k));
+  if (ns === NS) { try { (await idb).close(); } catch {} }
+  await new Promise(r => { const q = indexedDB.deleteDatabase(ns); q.onsuccess = q.onerror = q.onblocked = r; });
+}
+async function wipeAll() { await wipeNs("vos2"); await wipeNs("vosg"); sessionStorage.clear(); location.reload(); } // factory reset
+async function deleteGuest() { if (await winDialog("Delete everything saved in Guest mode?", [["Delete", "y", "danger"], ["Cancel", false]]) === "y") { await wipeNs("vosg"); location.reload(); } }
+async function deleteAll() {
+  if (GUEST) return deleteGuest();
+  if (hasPw() && !await askPw("Enter your password to delete everything", { cancel: true })) return;
+  if (await winDialog("Delete all erases every file, folder, app and setting, plus Guest data and your passwords. This can't be undone.\n\nDelete everything?", [["Delete everything", "y", "danger"], ["Cancel", false]]) === "y") wipeAll();
+}
+async function guestEnter() {
+  if (await winDialog("Guest mode hides your saved files and apps and uses default settings. You can't see your old data until you sign in with a password.\n\nContinue as Guest?", [["Enter as Guest", "y"], ["Cancel", false]]) !== "y") return;
+  sessionStorage.setItem("vos_guest", "1"); location.reload();
+}
+const rawDb = name => new Promise((res, rej) => { const r = indexedDB.open(name, 2); r.onupgradeneeded = () => ["code", "files"].forEach(n => { if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n); }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const idbPut = (db, k, v) => new Promise(res => { const t = db.transaction("files", "readwrite"); t.objectStore("files").put(v, k); t.oncomplete = t.onerror = res; });
+async function mergeGuest() { // copy Guest files, folders and apps into the main data (skips ones already there)
+  const rd = (ns, k) => { try { return JSON.parse(localStorage.getItem(ns + "_" + k)) || []; } catch { return []; } };
+  const put = (k, v) => localStorage.setItem("vos2_" + k, JSON.stringify(v));
+  const mdb = await rawDb("vos2"), mf = rd("vos2", "files"), have = new Set(mf.map(f => f.id));
+  const add = rd("vosg", "files").filter(f => !have.has(f.id));
+  for (const f of add) { const b = await dbGet(f.id, "files"); if (b) await idbPut(mdb, f.id, b); }
+  put("files", [...mf, ...add]);
+  const fo = rd("vos2", "folders"), fh = new Set(fo.map(f => f.id)); put("folders", [...fo, ...rd("vosg", "folders").filter(f => !fh.has(f.id))]);
+  put("installed", [...new Set([...rd("vos2", "installed"), ...rd("vosg", "installed")])]);
+  mdb.close();
+}
+async function guestSignIn() {
+  if (!await askPw("Enter your password", { cancel: true })) return;
+  const c = await winDialog("Welcome back. What should happen to what you did as Guest?", [["Merge", "m"], ["Revert to main", "r"], ["Start fresh", "f"], ["Cancel", false]]);
+  if (!c) return;
+  if (c === "f") { if (await winDialog("Start fresh erases ALL data: your saved files, Guest data and passwords, like a factory reset. This can't be undone.\n\nErase everything?", [["Erase everything", "y", "danger"], ["Cancel", false]]) === "y") wipeAll(); return; }
+  if (c === "m") await mergeGuest();
+  await wipeNs("vosg"); sessionStorage.removeItem("vos_guest"); sessionStorage.setItem("vos_ok", "1"); location.reload();
+}
+const lockSection = () => {
+  const a = getAuth(), has = a.pw.length > 0;
+  if (GUEST) return `<h3>Guest mode</h3><p>Your saved files, apps and settings are hidden. Sign in with a password to bring them back.</p><button data-act="gsign">Sign in to your account</button> <button data-act="gdel">Delete guest data</button>`;
+  return `<h3>Lock screen</h3><p>${has ? "VUS-OS asks for your password when it opens." : "Set a password to put a lock screen over your files."} It hides the screen only; it does not encrypt what is stored.</p><button data-act="pwset">${has ? "Change password" : "Set password"}</button>
+        ${has ? `<h3>Backup passwords</h3>${a.pw.slice(1).map((p, i) => `<div class="item row"><div style="flex:1">Backup ${i + 1}</div><button data-act="bkdel" data-i="${i + 1}">Remove</button></div>`).join("")}<button data-act="bkadd">Add backup password</button>
+        <label>Hash passwords (hides them from dev tools)<input type="checkbox" data-act="pwhash" ${a.hash ? "checked" : ""}></label>` : ""}
+        <h3>Delete everything</h3><p>Erases all files, apps, settings, Guest data and passwords.${has ? " Needs your password." : ""}</p><button data-act="delall">Delete all</button>`;
+};
+
+// ===================== BACKUP: EXPORT / IMPORT =====================
+const SETTING_GROUPS = { appearance: ["site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize"], clock: ["hour24"], windows: ["snap"], system: ["autoUpdate", "limiter", "limitMB", "binDays"] };
+function exportPicker() { // resolves with { apps, files, pos, appearance, clock, windows, system } or null
+  return new Promise(res => {
+    const o = document.createElement("div"); o.className = "dlg";
+    const cb = (n, t, sub) => `<label style="display:flex;gap:8px;align-items:center;margin:6px 0 6px ${sub ? 26 : 0}px"><input type="checkbox" data-c="${n}" checked>${t}</label>`;
+    o.innerHTML = `<div class="dlgb"><p><b>Export</b><br>Choose what to save. Passwords are never included.</p>${cb("apps", "Downloaded apps")}${cb("files", "Files and custom apps (text, HTML, music, video, anything you uploaded)")}${cb("pos", "Desktop positions (where icons sit)")}${cb("settings", "Settings")}${cb("appearance", "Appearance (theme, accent, background, icon size, name)", 1)}${cb("clock", "Clock (24-hour time)", 1)}${cb("windows", "Windows (snap to edges)", 1)}${cb("system", "Updates, storage and Recycle Bin", 1)}<div class="dlgf" style="margin-top:14px"><button data-ok="1">Export</button><button>Cancel</button></div></div>`;
+    o.onchange = e => { if (e.target.dataset.c === "settings") o.querySelectorAll("[data-c=appearance],[data-c=clock],[data-c=windows],[data-c=system]").forEach(c => c.checked = e.target.checked); };
+    o.onclick = e => { const b = e.target.closest("button"); if (!b) return; const r = b.dataset.ok ? Object.fromEntries([...o.querySelectorAll("[data-c]")].map(c => [c.dataset.c, c.checked])) : null; o.remove(); res(r); };
+    document.body.appendChild(o);
+  });
+}
+async function doExport() {
+  const c = await exportPicker(); if (!c) return;
+  const m = { app: "vus-os", v: 1, date: Date.now() }, entries = [], st = getSettings(), keep = {};
+  if (c.apps) m.apps = installed();
+  if (c.files) {
+    m.files = fmeta(); m.folders = folders();
+    for (const f of m.files) { const b = await dbGet(f.id, "files"); if (b) entries.push({ name: "files/" + f.id, data: new Uint8Array(await b.arrayBuffer()), date: f.mod }); }
+  }
+  if (c.pos) m.pos = LS("pos", {});
+  const known = Object.values(SETTING_GROUPS).flat(); // any setting not listed in a group is saved under the last one, so new settings are never skipped
+  for (const g in SETTING_GROUPS) if (c[g]) (g === "system" ? [...SETTING_GROUPS.system, ...Object.keys(st).filter(k => !known.includes(k))] : SETTING_GROUPS[g]).forEach(k => { if (k !== "bgFile" || c.files) keep[k] = st[k]; });
+  if (c.appearance && !c.files && st.bgMode === "file" && st.bgFile) { // background picture only
+    const f = fmeta().find(x => x.id === st.bgFile), b = f && await dbGet(f.id, "files");
+    if (b) { m.files = [{ ...f, parent: null }]; m.bgOnly = true; keep.bgFile = f.id; entries.push({ name: "files/" + f.id, data: new Uint8Array(await b.arrayBuffer()), date: f.mod }); }
+  }
+  if (Object.keys(keep).length) m.settings = keep;
+  if (!m.apps && !m.files && !m.pos && !m.settings) return winDialog("Nothing was selected.", [["OK", true]]);
+  entries.unshift({ name: "manifest.json", data: new TextEncoder().encode(JSON.stringify(m)) });
+  dlBlob("vus-os-backup.zip", await makeZip(entries));
+  notify("Backup saved", "vus-os-backup.zip was downloaded.");
+}
+function pickBackup() { const i = document.createElement("input"); i.type = "file"; i.accept = ".zip,application/zip"; i.onchange = () => i.files[0] && doImport(i.files[0]); i.click(); }
+async function doImport(file) {
+  let ents, m;
+  try { ents = await readZip(file); m = JSON.parse(new TextDecoder().decode(await ents.find(e => e.name === "manifest.json").data())); if (m.app !== "vus-os") throw 0; }
+  catch { return winDialog("That file is not a VUS-OS backup.", [["OK", true]]); }
+  const parts = [m.apps && `${m.apps.length} apps`, m.files && (m.bgOnly ? "background picture" : `${m.files.length} files`), m.folders && `${m.folders.length} folders`, m.pos && "desktop positions", m.settings && "settings"].filter(Boolean);
+  if (!parts.length) return winDialog("That backup is empty.", [["OK", true]]);
+  const mode = await winDialog(`This backup has: ${parts.join(", ")}.\n\nMerge adds what is missing and skips duplicates (backup settings overwrite the same settings here).\nReplace overwrites those same parts with the backup.`, [["Merge", "m"], ["Replace", "r"], ["Cancel", false]]);
+  if (!mode) return;
+  const isRep = mode === "r";
+  if (isRep) {
+    if (hasPw() && !GUEST && !await askPw("Enter your password to replace your data", { cancel: true })) return;
+    if (await winDialog("Replace overwrites your current files, folders, apps, icon positions and settings that are in this backup. This can't be undone.\n\nContinue?", [["Continue", "y", "danger"], ["Cancel", false]]) !== "y") return;
+    if (await winDialog("Last check: are you sure you want to replace your data?", [["Yes, replace", "y", "danger"], ["Cancel", false]]) !== "y") return;
+  }
+  if (m.files || m.folders) {
+    if (isRep && !m.bgOnly) { for (const f of fmeta()) await dbDel(f.id, "files"); save("files", []); save("folders", []); }
+    const fo = [...folders()], fmap = {}; let pend = [...(m.folders || [])], prog = true;
+    while (pend.length && prog) { // parents first; skips folders already here (same id, or same name in the same place)
+      prog = false;
+      pend = pend.filter(f => {
+        if (f.parent && !(f.parent in fmap)) return true;
+        const par = f.parent ? fmap[f.parent] : null, dup = fo.find(x => x.id === f.id || (x.name === f.name && (x.parent || null) === par));
+        if (dup) fmap[f.id] = dup.id; else { fmap[f.id] = f.id; fo.push({ ...f, parent: par }); }
+        prog = true; return false;
+      });
+    }
+    save("folders", fo);
+    const fl = [...fmeta()], db = await idb;
+    for (const f of m.files || []) {
+      const par = f.parent ? fmap[f.parent] ?? null : null;
+      if (fl.some(x => x.id === f.id || (x.name === f.name && (x.parent || null) === par && x.size === f.size))) continue;
+      const e = ents.find(z => z.name === "files/" + f.id); if (!e) continue;
+      await idbPut(db, f.id, new Blob([await e.data()])); fl.push({ ...f, parent: par });
+    }
+    save("files", fl);
+  }
+  if (m.apps) save("installed", isRep ? m.apps : [...new Set([...installed(), ...m.apps])]);
+  if (m.pos) save("pos", isRep ? m.pos : { ...m.pos, ...LS("pos", {}) });
+  if (m.settings) save("settings", isRep ? m.settings : { ...LS("settings", {}), ...m.settings });
+  renderIcons(); applyTheme(); tick();
+  notify("Import finished", parts.join(", "));
+}
+
+// ===================== RECYCLE BIN =====================
+function purgeBin(all = false) { // removes items older than the "delete after" setting (0 = never)
+  const days = getSettings().binDays; if (!all && !days) return;
+  const b = getBin(), old = x => all || x.del < Date.now() - days * 864e5, dead = b.files.filter(old);
+  if (!dead.length && !b.folders.some(old)) return;
+  dead.forEach(f => dbDel(f.id, "files"));
+  putBin({ files: b.files.filter(f => !old(f)), folders: b.folders.filter(f => !old(f)) });
+}
+const binKids = (b, id) => { const ids = [id]; for (let i = 0; i < ids.length; i++) b.folders.forEach(x => { if (x.parent === ids[i] && !ids.includes(x.id)) ids.push(x.id); }); return ids; };
+function binRestore(kind, id) { // goes back where it was, or to the desktop if that folder is gone; renames if the name is taken
+  const b = getBin(), live = folders(), strip = ({ del, top, ...r }) => r;
+  if (kind === "file") {
+    const f = b.files.find(x => x.id === id); if (!f) return;
+    const par = f.parent && live.some(x => x.id === f.parent) ? f.parent : null;
+    save("files", [...fmeta(), { ...strip(f), parent: par, name: uniqueName(f.name, null, par) }]);
+    putBin({ files: b.files.filter(x => x.id !== id), folders: b.folders });
+  } else {
+    const top = b.folders.find(x => x.id === id); if (!top) return;
+    const ids = binKids(b, id), par = top.parent && live.some(x => x.id === top.parent) ? top.parent : null;
+    save("folders", [...live, ...b.folders.filter(x => ids.includes(x.id)).map(x => x.id === id ? { ...strip(x), parent: par, name: uniqueName(x.name, null, par, live) } : strip(x))]);
+    save("files", [...fmeta(), ...b.files.filter(f => ids.includes(f.parent)).map(strip)]);
+    putBin({ files: b.files.filter(f => !ids.includes(f.parent)), folders: b.folders.filter(x => !ids.includes(x.id)) });
+  }
+}
+function binDelete(kind, id) {
+  const b = getBin(), ids = kind === "folder" ? binKids(b, id) : [id];
+  const files = kind === "file" ? b.files.filter(f => f.id === id) : b.files.filter(f => ids.includes(f.parent));
+  files.forEach(f => dbDel(f.id, "files"));
+  putBin({ files: b.files.filter(f => !files.includes(f)), folders: kind === "folder" ? b.folders.filter(x => !ids.includes(x.id)) : b.folders });
+}
+async function emptyBin() {
+  const b = getBin(); if (!b.files.length && !b.folders.length) return;
+  if (await winDialog("Permanently delete everything in the Recycle Bin? This can't be undone.", [["Empty", "y", "danger"], ["Cancel", false]]) === "y") { purgeBin(true); renderIcons(); }
+}
+const BIN = { builtin: 1, single: 1, name: "Recycle Bin", icon: "svg:bin", color: "blue", w: 640, h: 420, open(root, os) {
+  const sel = new Set(); let rows = [];
+  const draw = () => {
+    if (!root.isConnected) return refreshers.delete(draw);
+    purgeBin(); const b = getBin(), d = getSettings().binDays;
+    rows = [...b.folders.filter(f => f.top).map(f => ({ k: "folder:" + f.id, kind: "folder", id: f.id, name: f.name, t: f.del, ic: "svg:folder", size: "" })),
+      ...b.files.filter(f => !b.folders.some(x => x.id === f.parent)).map(f => ({ k: "file:" + f.id, kind: "file", id: f.id, name: f.name, t: f.del, ic: KIND_ICON[kindOf(f.name)][0], size: fmt(f.size || 0) }))].sort((x, y) => y.t - x.t);
+    [...sel].forEach(k => { if (!rows.some(r => r.k === k)) sel.delete(k); });
+    root.innerHTML = `<div style="display:flex;flex-direction:column;height:100%"><div style="padding:8px;display:flex;gap:8px"><button data-a="restore">Restore</button><button data-a="del">Delete permanently</button><button data-a="empty">Empty Recycle Bin</button></div><div style="flex:1;overflow:auto">${rows.length ? rows.map(r => `<div data-k="${esc(r.k)}" style="display:flex;align-items:center;gap:10px;padding:6px 10px;cursor:default;${sel.has(r.k) ? "background:var(--ac);color:#fff" : ""}">${glyph({ icon: r.ic }, 20)}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name)}</span><span style="width:100px">${new Date(r.t).toLocaleDateString()}</span><span style="width:70px">${r.size}</span></div>`).join("") : '<p style="padding:24px;text-align:center;opacity:.7">The Recycle Bin is empty.</p>'}</div><div style="padding:8px;font-size:12px;opacity:.7">${d ? `Items are deleted for good after ${d === 1 ? "1 day" : d + " days"}.` : "Items stay here until you delete them."} Change this in Settings > System.</div></div>`;
+  };
+  root.onclick = async e => {
+    const a = e.target.closest("[data-a]")?.dataset.a, row = e.target.closest("[data-k]")?.dataset.k;
+    if (row) { sel.has(row) ? sel.delete(row) : sel.add(row); return draw(); }
+    const picked = rows.filter(r => sel.has(r.k));
+    if (a === "empty") await emptyBin();
+    else if (a === "restore" && picked.length) { picked.forEach(r => binRestore(r.kind, r.id)); renderIcons(); }
+    else if (a === "del" && picked.length && await winDialog(`Permanently delete ${picked.length} item${picked.length > 1 ? "s" : ""}? This can't be undone.`, [["Delete", "y", "danger"], ["Cancel", false]]) === "y") { picked.forEach(r => binDelete(r.kind, r.id)); renderIcons(); }
+    sel.clear(); draw();
+  };
+  refreshers.add(draw); draw();
+} };
+
+// ===================== COPY / CUT / PASTE =====================
+function markCut() { document.querySelectorAll(".icon").forEach(i => i.classList.toggle("cut", !!clip && clip.mode === "cut" && clip.items.some(x => x.kind + ":" + x.id === i.dataset.key))); }
+function clipSet(mode, sel) { // apps can't be copied, only files and folders
+  const items = sel.filter(i => i.dataset.kind !== "app").map(i => ({ kind: i.dataset.kind, id: i.dataset.id }));
+  if (!items.length) return;
+  clip = { mode, items }; markCut();
+}
+async function copyFile(id, dir) {
+  const f = fmeta().find(x => x.id === id), b = f && await dbGet(id, "files"); if (!b) return false;
+  return putFile(newId(), uniqueName(f.name, null, dir), b, dir, f.saved);
+}
+async function copyFolder(id, dir) {
+  const fo = folders().find(x => x.id === id); if (!fo) return;
+  if (dir === id || descendants(id).includes(dir)) return winAlert("Can't copy a folder into itself.");
+  const files = fmeta().filter(x => x.parent === id), subs = folders().filter(x => x.parent === id), nid = newId(), list = folders(); // lists taken first so the new copy is never copied into itself
+  save("folders", [...list, { ...fo, id: nid, parent: dir, name: uniqueName(fo.name, null, dir, list) }]);
+  for (const f of files) await copyFile(f.id, nid);
+  for (const sf of subs) await copyFolder(sf.id, nid);
+}
+async function pasteTo(dir) {
+  if (!clip) return;
+  const { mode, items } = clip;
+  for (const it of items) {
+    if (mode === "cut") moveTo(it.kind, it.id, dir);
+    else if (it.kind === "file") await copyFile(it.id, dir);
+    else await copyFolder(it.id, dir);
+  }
+  if (mode === "cut") clip = null;
+  renderIcons();
+}
+
+// ===================== TRAY, CALENDAR, NOTIFICATIONS =====================
+Object.assign(SVG, {
+  wifi: ln('M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0') + '<circle cx="12" cy="19.5" r="1.3" fill="currentColor"/>',
+  nowifi: ln('M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M3 3l18 18'),
+  battery: ln('M3 8h15v8H3zM21 11v2'),
+  bell: ln('M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4')
+});
+const notes = []; // notifications from this session
+let flyMode = null, cal = null, batt = null;
+function notify(title, body = "") { // small toast + a line in the notification panel (apps can call os.notify)
+  notes.unshift({ title, body, time: Date.now() }); renderBell();
+  const t = document.createElement("div"); t.className = "toast"; t.innerHTML = `<b>${esc(title)}</b>${body ? `<div>${esc(body)}</div>` : ""}`;
+  $("#toasts").appendChild(t); setTimeout(() => t.remove(), 5000);
+  if (flyMode === "ac") drawFly();
+}
+function renderBell() { $("#bell").innerHTML = svgI("bell", 18) + (notes.length ? `<span class="bdg">${notes.length}</span>` : ""); }
+function renderTray() {
+  const on = navigator.onLine, pc = batt ? Math.round(batt.level * 100) : 0;
+  $("#tray").innerHTML = `<div class="tr" data-f="net" title="${on ? "Connected" : "No internet"}">${svgI(on ? "wifi" : "nowifi", 18)}</div>${batt ? `<div class="tr" data-f="bat" title="Battery ${pc}%">${svgI("battery", 18)}<span style="margin-left:3px">${pc}%</span></div>` : ""}`;
+}
+const calTime = () => new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: !getSettings().hour24 });
+function drawFly() {
+  const f = $("#flyout"), now = new Date();
+  if (flyMode === "cal") {
+    cal = cal || { y: now.getFullYear(), m: now.getMonth() };
+    const first = new Date(cal.y, cal.m, 1), cells = [];
+    for (let i = 0; i < 42; i++) { const d = new Date(cal.y, cal.m, 1 - first.getDay() + i); cells.push(`<span class="${d.getMonth() !== cal.m ? "o" : ""} ${d.toDateString() === now.toDateString() ? "t" : ""}">${d.getDate()}</span>`); }
+    f.innerHTML = `<div class="cal-h">${calTime()}</div><div class="cal-d">${now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</div><div class="cal-n"><b>${first.toLocaleDateString([], { month: "long", year: "numeric" })}</b><span><button data-c="-1">▲</button><button data-c="1">▼</button></span></div><div class="cal-g">${["S", "M", "T", "W", "T", "F", "S"].map(x => `<span class="w">${x}</span>`).join("")}${cells.join("")}</div><div style="margin-top:10px"><a data-c="today">Go to today</a></div>`;
+  } else if (flyMode === "ac") {
+    f.innerHTML = `<div class="ac-h"><b>Notifications</b><a data-a="clear">Clear all</a></div><div class="ac-l">${notes.length ? notes.map(n => `<div class="ac-n"><b>${esc(n.title)}</b>${n.body ? `<div>${esc(n.body)}</div>` : ""}<small>${new Date(n.time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</small></div>`).join("") : "<p>No new notifications</p>"}</div><div class="ac-q"><button data-a="theme">${getSettings().theme === "dark" ? "Light mode" : "Dark mode"}</button>${hasPw() && !GUEST ? '<button data-a="lock">Lock</button>' : ""}<button data-a="settings">All settings</button></div>`;
+  } else if (flyMode === "net") {
+    const c = navigator.connection;
+    f.innerHTML = `<b>${navigator.onLine ? "Connected" : "No internet"}</b><p style="margin-top:6px;opacity:.8;font-size:13px">${navigator.onLine ? "VUS-OS can reach the internet." + (c && c.effectiveType ? `<br>Connection: ${c.effectiveType}${c.downlink ? `, about ${c.downlink} Mbps` : ""}` : "") : "Apps you already opened still work offline."}</p>`;
+  } else if (flyMode === "bat" && batt) {
+    f.innerHTML = `<b>Battery ${Math.round(batt.level * 100)}%</b><p style="margin-top:6px;opacity:.8;font-size:13px">${batt.charging ? "Charging" : "On battery"}</p>`;
+  }
+}
+function hideFly() { flyMode = null; $("#flyout").style.display = "none"; }
+function toggleFly(mode) {
+  if (flyMode === mode) return hideFly();
+  flyMode = mode; cal = null; drawFly(); $("#flyout").style.display = "block"; toggleStart(false);
+}
+$("#clock").onclick = () => toggleFly("cal");
+$("#bell").onclick = () => toggleFly("ac");
+$("#tray").onclick = e => { const t = e.target.closest("[data-f]"); if (t) toggleFly(t.dataset.f); };
+$("#flyout").onclick = e => {
+  const c = e.target.closest("[data-c]")?.dataset.c, a = e.target.closest("[data-a]")?.dataset.a;
+  if (c) { if (c === "today") cal = null; else { const d = new Date(cal.y, cal.m + +c, 1); cal = { y: d.getFullYear(), m: d.getMonth() }; } drawFly(); }
+  else if (a === "clear") { notes.length = 0; renderBell(); drawFly(); }
+  else if (a === "theme") { save("settings", { ...getSettings(), theme: getSettings().theme === "dark" ? "light" : "dark" }); applyTheme(); drawFly(); }
+  else if (a === "lock") { hideFly(); lockNow(); }
+  else if (a === "settings") { hideFly(); openApp(SETTINGS); }
+};
+document.addEventListener("click", e => { if (flyMode && !e.target.closest("#flyout,#tray,#clock,#bell")) hideFly(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && flyMode) hideFly(); });
+setInterval(() => { if (flyMode === "cal") { const h = $(".cal-h"); if (h) h.textContent = calTime(); } }, 1000);
+addEventListener("online", renderTray); addEventListener("offline", renderTray);
+navigator.getBattery?.().then(b => { batt = b; ["levelchange", "chargingchange"].forEach(ev => b.addEventListener(ev, renderTray)); renderTray(); });
+renderTray(); renderBell();
+
 // ===================== BOOT =====================
 applyTheme();
 marquee($("#icons"));
@@ -1306,6 +1745,7 @@ Promise.all([loadCatalog(), minBoot]).then(([ok]) => {
   }
   renderIcons(); renderPins();
   autoUpdate(); // background; skipped when auto update is off
+  if (sessionStorage.getItem("vos_ok")) sessionStorage.removeItem("vos_ok"); else lockNow();
   $("#boot").classList.add("hide");
   setTimeout(() => $("#boot").remove(), 550);
 });
