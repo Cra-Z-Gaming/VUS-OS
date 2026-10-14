@@ -168,6 +168,14 @@ input,select,button{font-family:var(--font)}
 .fxs div{display:flex;gap:8px;align-items:center;padding:8px 14px;font-size:13px;cursor:default;border-left:3px solid transparent}
 .fxs div:hover{background:rgba(255,255,255,.08)}.fxs div.on{background:rgba(255,255,255,.1);border-left-color:var(--ac)}
 .fxs b{margin-left:auto;font-weight:400;font-size:11px;color:var(--mute)}
+.fxn{display:flex;gap:6px;padding:6px 6px 0;align-items:center;background:rgba(128,128,128,.14)}
+.fxn .nb{width:30px;height:28px;border:1px solid var(--bd);background:rgba(128,128,128,.18);color:inherit;font-size:14px;cursor:default;border-radius:0}.fxn .nb:hover{background:rgba(128,128,128,.32)}
+.fxad{flex:1;min-width:0;display:flex;align-items:center;gap:1px;height:28px;padding:0 4px;border:1px solid var(--bd);background:rgba(128,128,128,.1);font-size:12px;overflow:hidden;white-space:nowrap}
+.fxad .seg{padding:3px 6px;cursor:default}.fxad .seg:hover{background:rgba(128,128,128,.28)}.fxad i{opacity:.5;font-style:normal;font-size:11px}
+.fxq{width:170px;height:28px;padding:0 8px;border:1px solid var(--bd);background:rgba(128,128,128,.1);color:inherit;font-size:12px;outline:0}.fxq:focus{border-color:var(--ac)}
+.fxw .fxt{background:rgba(128,128,128,.14);padding:6px}
+.fxs{width:200px;overflow:auto}.fxs .tn{padding:5px 8px;gap:6px;font-size:13px}.fxs .tg{width:14px;text-align:center;font-size:9px;opacity:.7;flex-shrink:0}.fxs .tl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.fxs .tsep{height:1px;padding:0;margin:6px 8px;background:var(--bd);border:0}
+[data-theme=light] .fxn,[data-theme=light] .fxw .fxt{background:#f0f0f0}
 .fxe{grid-column:1/-1;color:var(--dim);font-size:13px;padding:20px}
 .fxa{margin-left:auto;display:flex;gap:6px}
 #pins{display:flex;flex-shrink:0}
@@ -835,7 +843,7 @@ function dragIcons(el, e) { // left-drag moves icons; clicking and right-clickin
     if (!on) return;
     marqMoved = true; setTimeout(() => marqMoved = false, 50); // the click that follows a drag must not clear the selection
     const dx = ev.clientX - sx, dy = ev.clientY - sy, hit = document.elementFromPoint(ev.clientX, ev.clientY);
-    const folder = hit && hit.closest(".icon[data-kind=folder]"), side = hit && hit.closest("[data-drop]"), grid = hit && hit.closest(".fx"), binIcon = hit && hit.closest('.icon[data-id="__bin"]');
+    const folder = hit && hit.closest(".icon[data-kind=folder]"), side = hit && hit.closest("[data-drop]"), grid = hit && hit.closest(".fx"), binIcon = hit && (hit.closest('.icon[data-id="__bin"]') || hit.closest("[data-loc=bin]"));
     group.forEach(i => { i.classList.remove("dragging"); i.style.transform = ""; });
     if (binIcon) return deleteSel(group.filter(i => i.dataset.kind !== "app")); // dropped on the Recycle Bin
     const parentOf = i => ((i.dataset.kind === "folder" ? folders() : fmeta()).find(x => x.id === i.dataset.id) || {}).parent || null;
@@ -897,36 +905,66 @@ function folderApp(id) {
 // but count as Temporary until you save them.
 function explorer(root, os, dir0) {
   const cur = { loc: "dir", dir: dir0 };
-  root.innerHTML = '<div class="fxw"><div class="tabs fxt"><button data-a="up">↑ Up</button><button data-a="imp" title="Import files">⬆ Files</button><button data-a="impd" title="Import a folder">⬆ Folder</button><button data-a="impz" title="Import a .zip">⬆ Zip</button><button data-a="expz" title="Export selected items (or everything shown) as a .zip">⬇ Zip</button><button data-a="view"></button><span class="fxp"></span><span class="fxa"></span></div><div class="fxb"><div class="fxs"></div><div class="fx"></div></div></div>';
+  root.innerHTML = `<div class="fxw"><div class="fxn"><button class="nb" data-n="up" title="Up">↑</button><div class="fxad"></div><input class="fxq" placeholder="Search this folder" autocomplete="off"></div><div class="tabs fxt"><button data-a="new">New ▾</button><button data-a="upl">Upload ▾</button><button data-a="expz" title="Export selected items (or everything shown) as a .zip">Export zip</button><span class="fxa"></span><button data-a="view" title="Change view"></button></div><div class="fxb"><div class="fxs"></div><div class="fx"></div><div class="fxbin" style="flex:1;min-width:0;display:none"></div></div></div>`;
   const grid = root.querySelector(".fx"), side = root.querySelector(".fxs"), act = root.querySelector(".fxa");
   const unsaved = x => x.saved === false;
+  let q = ""; const exp = new Set(); // q = search text, exp = expanded folders in the sidebar
+  const go = (loc, dir) => { cur.loc = loc; cur.dir = dir; q = ""; root.querySelector(".fxq").value = ""; draw(); };
+  const tree = () => {
+    for (let d = cur.loc === "dir" ? cur.dir : null; d;) { const f = folders().find(x => x.id === d); if (!f) break; if (f.parent) exp.add(f.parent); d = f.parent; } // keep the path to the open folder visible
+    const row = (f, depth) => { const kids = folders().filter(x => sameDir(x, f.id)); return `<div class="tn ${cur.loc === "dir" && cur.dir === f.id ? "on" : ""}" data-nav="${f.id}" data-drop="${f.id}" style="padding-left:${10 + depth * 14}px"><span class="tg" ${kids.length ? `data-tg="${f.id}"` : ""}>${kids.length ? (exp.has(f.id) ? "▾" : "▸") : ""}</span>${svgI("folder", 16)}<span class="tl">${esc(f.name)}</span></div>${exp.has(f.id) ? kids.map(k => row(k, depth + 1)).join("") : ""}`; };
+    const nTemp = folders().filter(unsaved).length + fmeta().filter(unsaved).length;
+    return `<div class="tn ${cur.loc === "dir" && !cur.dir ? "on" : ""}" data-nav="" data-drop="" style="padding-left:10px"><span class="tg"></span>${svgI("desktop", 16)}<span class="tl">Desktop</span></div>${folders().filter(x => sameDir(x, null)).map(f => row(f, 1)).join("")}<div class="tsep"></div>`
+      + [["temp", svgI("temp", 16), "Temporary", nTemp || ""], ["saved", svgI("saved", 16), "Saved", ""], ["bin", svgI(binCount() ? "binfull" : "bin", 16), "Recycle Bin", binCount() || ""]].map(([k, i, l, n]) => `<div class="tn ${k === cur.loc ? "on" : ""}" data-loc="${k}" style="padding-left:10px"><span class="tg"></span>${i}<span class="tl">${l}</span><b>${n}</b></div>`).join("");
+  };
+  const crumb = () => {
+    if (cur.loc !== "dir") return `<span class="seg">${cur.loc === "temp" ? "Temporary" : cur.loc === "bin" ? "Recycle Bin" : "Saved"}</span>`;
+    const chain = []; for (let d = cur.dir; d;) { const f = folders().find(x => x.id === d); if (!f) break; chain.unshift(f); d = f.parent; }
+    return [`<span class="seg" data-d="">Desktop</span>`, ...chain.map(f => `<span class="seg" data-d="${f.id}">${esc(f.name)}</span>`)].join("<i>›</i>");
+  };
+  const search = () => { // looks inside this folder and every folder under it
+    const ql = q.toLowerCase(), ids = cur.dir ? [cur.dir, ...descendants(cur.dir)] : null, inside = x => !ids || ids.includes(x.parent);
+    return [folders().filter(x => inside(x) && x.id !== cur.dir && x.name.toLowerCase().includes(ql)), fmeta().filter(x => inside(x) && x.name.toLowerCase().includes(ql))];
+  };
   const draw = () => {
     if (!root.isConnected) return refreshers.delete(draw); // window was closed
     let d = cur.loc === "dir" && cur.dir && folders().find(f => f.id === cur.dir);
     if (cur.loc === "dir" && cur.dir && !d) cur.dir = null;
     const nTemp = folders().filter(unsaved).length + fmeta().filter(unsaved).length;
-    side.innerHTML = [["dir", svgI("desktop", 16), "Desktop", ""], ["temp", svgI("temp", 16), "Temporary", nTemp || ""], ["saved", svgI("saved", 16), "Saved", ""]].map(([k, i, l, n]) => `<div data-loc="${k}" ${k === "dir" ? 'data-drop=""' : ""} class="${k === cur.loc ? "on" : ""}">${i} ${l}<b>${n}</b></div>`).join("");
-    root.querySelector(".fxp").textContent = cur.loc === "temp" ? "Temporary" : cur.loc === "saved" ? "Saved" : pathOf(cur.dir);
-    act.innerHTML = cur.loc === "dir" ? "" : `<button data-a="all">Select all</button>${cur.loc === "temp" ? '<button data-a="save">Save selected</button>' : ""}<button data-a="del">Delete selected</button>`;
-    os.setTitle(cur.loc === "temp" ? "Temporary" : cur.loc === "saved" ? "Saved" : d ? d.name : "File Explorer");
+    side.innerHTML = tree();
+    const inBin = cur.loc === "bin", binBox = root.querySelector(".fxbin"); // Recycle Bin shows right inside the window
+    root.querySelector(".fxt").style.display = root.querySelector(".fxq").style.display = grid.style.display = inBin ? "none" : "";
+    binBox.style.display = inBin ? "block" : "none";
+    if (inBin && !binBox.firstChild) BIN.open(binBox, os);
+    root.querySelector(".fxad").innerHTML = crumb();
+    act.innerHTML = cur.loc === "dir" || cur.loc === "bin" ? "" : `<button data-a="all">Select all</button>${cur.loc === "temp" ? '<button data-a="save">Save selected</button>' : ""}<button data-a="del">Delete selected</button>`;
+    os.setTitle(cur.loc === "temp" ? "Temporary" : cur.loc === "saved" ? "Saved" : cur.loc === "bin" ? "Recycle Bin" : d ? d.name : "File Explorer");
     const list = LS("fxview", "icons") === "list"; grid.classList.toggle("list", list);
     root.querySelector("[data-a=view]").textContent = list ? "▦ Icons" : "☰ Details";
     grid.innerHTML = ""; grid._dir = cur.loc === "dir" ? cur.dir : undefined; // where a drop here goes (null = Desktop)
     const f = cur.loc === "temp" ? [folders().filter(unsaved), fmeta().filter(unsaved)]
       : cur.loc === "saved" ? [folders().filter(x => !unsaved(x)), fmeta().filter(x => !unsaved(x))]
-      : [folders().filter(x => sameDir(x, cur.dir)), fmeta().filter(x => sameDir(x, cur.dir))];
-    fillItems(grid, f[0], f[1], id => { cur.loc = "dir"; cur.dir = id; draw(); }, list);
-    if (!grid.querySelector(".icon")) grid.insertAdjacentHTML("beforeend", `<p class="fxe">${cur.loc === "temp" ? "Nothing temporary. New and uploaded items wait here until you save them." : cur.loc === "saved" ? "Nothing saved yet." : "This folder is empty. Right-click to create something, or drop files here."}</p>`);
+      : q ? search() : [folders().filter(x => sameDir(x, cur.dir)), fmeta().filter(x => sameDir(x, cur.dir))];
+    fillItems(grid, f[0], f[1], id => go("dir", id), list);
+    if (!grid.querySelector(".icon")) grid.insertAdjacentHTML("beforeend", `<p class="fxe">${q ? "No matches." : cur.loc === "temp" ? "Nothing temporary. New and uploaded items wait here until you save them." : cur.loc === "saved" ? "Nothing saved yet." : "This folder is empty. Right-click to create something, or drop files here."}</p>`);
   };
   refreshers.add(draw);
   const here = () => cur.loc === "dir" ? cur.dir : null;
-  side.onclick = e => { const k = e.target.closest("[data-loc]"); if (k) { cur.loc = k.dataset.loc; cur.dir = null; draw(); } };
+  const menuAt = (btn, items) => { const r = btn.getBoundingClientRect(); ctx({ clientX: r.left, clientY: r.bottom }, items); };
+  side.onclick = e => {
+    const tg = e.target.closest("[data-tg]"); if (tg) { exp.has(tg.dataset.tg) ? exp.delete(tg.dataset.tg) : exp.add(tg.dataset.tg); return draw(); }
+    const nv = e.target.closest("[data-nav]"); if (nv) return go("dir", nv.dataset.nav || null);
+    const k = e.target.closest("[data-loc]"); if (k) go(k.dataset.loc, null);
+  };
+  root.querySelector(".fxn").onclick = e => {
+    if (e.target.closest("[data-n=up]")) { if (cur.loc !== "dir") go("dir", null); else { const d = folders().find(f => f.id === cur.dir); go("dir", d ? d.parent || null : null); } return; }
+    const sg = e.target.closest("[data-d]"); if (sg) go("dir", sg.dataset.d || null);
+  };
+  root.querySelector(".fxq").oninput = e => { q = e.target.value.trim(); draw(); };
   root.querySelector(".fxt").onclick = e => {
     const a = e.target.dataset.a, sel = selIcons().filter(i => grid.contains(i));
-    if (a === "up") { if (cur.loc !== "dir") { cur.loc = "dir"; cur.dir = null; } else { const d = folders().find(f => f.id === cur.dir); cur.dir = d ? d.parent || null : null; } draw(); }
-    else if (a === "imp") pickUpload(here(), false);
-    else if (a === "impd") pickUpload(here(), true);
-    else if (a === "impz") pickUpload(here(), "zip");
+    if (a === "new") { e.stopPropagation(); menuAt(e.target, [["Folder", () => newFolder(here(), grid)], ["Text document", () => newFile("txt", here(), grid)]]); }
+    else if (a === "upl") { e.stopPropagation(); menuAt(e.target, [["Files...", () => pickUpload(here(), false)], ["Folder...", () => pickUpload(here(), true)], ["Zip file...", () => pickUpload(here(), "zip")]]); }
     else if (a === "expz") exportZip(sel.length ? sel : [...grid.querySelectorAll(".icon")]);
     else if (a === "view") { save("fxview", LS("fxview", "icons") === "list" ? "icons" : "list"); draw(); }
     else if (a === "all") grid.querySelectorAll(".icon").forEach(i => i.classList.add("sel"));
@@ -1607,6 +1645,7 @@ async function doImport(file) {
 }
 
 // ===================== RECYCLE BIN =====================
+function binCount() { const b = getBin(); return b.folders.filter(f => f.top).length + b.files.filter(f => !b.folders.some(x => x.id === f.parent)).length; }
 function purgeBin(all = false) { // removes items older than the "delete after" setting (0 = never)
   const days = getSettings().binDays; if (!all && !days) return;
   const b = getBin(), old = x => all || x.del < Date.now() - days * 864e5, dead = b.files.filter(old);
@@ -1648,7 +1687,7 @@ const BIN = { builtin: 1, single: 1, name: "Recycle Bin", icon: "svg:bin", color
     rows = [...b.folders.filter(f => f.top).map(f => ({ k: "folder:" + f.id, kind: "folder", id: f.id, name: f.name, t: f.del, ic: "svg:folder", size: "" })),
       ...b.files.filter(f => !b.folders.some(x => x.id === f.parent)).map(f => ({ k: "file:" + f.id, kind: "file", id: f.id, name: f.name, t: f.del, ic: KIND_ICON[kindOf(f.name)][0], size: fmt(f.size || 0) }))].sort((x, y) => y.t - x.t);
     [...sel].forEach(k => { if (!rows.some(r => r.k === k)) sel.delete(k); });
-    root.innerHTML = `<div style="display:flex;flex-direction:column;height:100%"><div style="padding:8px;display:flex;gap:8px"><button data-a="restore">Restore</button><button data-a="del">Delete permanently</button><button data-a="empty">Empty Recycle Bin</button></div><div style="flex:1;overflow:auto">${rows.length ? rows.map(r => `<div data-k="${esc(r.k)}" style="display:flex;align-items:center;gap:10px;padding:6px 10px;cursor:default;${sel.has(r.k) ? "background:var(--ac);color:#fff" : ""}">${glyph({ icon: r.ic }, 20)}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name)}</span><span style="width:100px">${new Date(r.t).toLocaleDateString()}</span><span style="width:70px">${r.size}</span></div>`).join("") : '<p style="padding:24px;text-align:center;opacity:.7">The Recycle Bin is empty.</p>'}</div><div style="padding:8px;font-size:12px;opacity:.7">${d ? `Items are deleted for good after ${d === 1 ? "1 day" : d + " days"}.` : "Items stay here until you delete them."} Change this in Settings > System.</div></div>`;
+    root.innerHTML = `<div style="display:flex;flex-direction:column;height:100%"><div class="tabs" style="padding:8px;background:rgba(128,128,128,.14)"><button data-a="restore">Restore</button><button data-a="del">Delete permanently</button><button data-a="empty">Empty Recycle Bin</button></div><div style="flex:1;overflow:auto">${rows.length ? rows.map(r => `<div data-k="${esc(r.k)}" style="display:flex;align-items:center;gap:10px;padding:6px 10px;cursor:default;${sel.has(r.k) ? "background:var(--ac);color:#fff" : ""}">${glyph({ icon: r.ic }, 20)}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name)}</span><span style="width:100px">${new Date(r.t).toLocaleDateString()}</span><span style="width:70px">${r.size}</span></div>`).join("") : '<p style="padding:24px;text-align:center;opacity:.7">The Recycle Bin is empty.</p>'}</div><div style="padding:8px;font-size:12px;opacity:.7">${d ? `Items are deleted for good after ${d === 1 ? "1 day" : d + " days"}.` : "Items stay here until you delete them."} Change this in Settings > System.</div></div>`;
   };
   root.onclick = async e => {
     const a = e.target.closest("[data-a]")?.dataset.a, row = e.target.closest("[data-k]")?.dataset.k;
