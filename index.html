@@ -79,7 +79,7 @@ input,select,button{font-family:var(--font)}
 #tasks{flex:1;display:flex;overflow-x:auto;scrollbar-width:none;min-width:0}
 .task{display:flex;align-items:center;gap:8px;min-width:48px;max-width:170px;padding:0 12px;font-size:12px;border-bottom:2px solid var(--ac2);background:rgba(255,255,255,.06);cursor:default;flex-shrink:0}
 .task:hover{background:rgba(255,255,255,.14)}
-.task.active{background:rgba(255,255,255,.2)}
+.task{border-bottom-color:#777}.task.active{background:rgba(255,255,255,.2);border-bottom-color:var(--ac2)}
 .task span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #clock{padding:0 10px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:12px;line-height:1.3;flex-shrink:0}
 #tray{display:flex;align-items:stretch;flex-shrink:0}
@@ -212,7 +212,7 @@ input,select,button{font-family:var(--font)}
 [data-theme=light] #startBtn .win-logo i{background:#111}
 [data-theme=light] #searchBtn{background:#fff;border-color:#bbb;color:#555}
 [data-theme=light] #startBtn:hover,[data-theme=light] #startBtn.on,[data-theme=light] .sys:hover,[data-theme=light] .pin:hover,[data-theme=light] .task:hover,[data-theme=light] #showdesk:hover{background:rgba(0,0,0,.08)}
-[data-theme=light] .task{background:rgba(0,0,0,.05)}[data-theme=light] .task.active,[data-theme=light] .pin.active{background:rgba(0,0,0,.15)}
+[data-theme=light] .task{background:rgba(0,0,0,.05);border-bottom-color:#999}[data-theme=light] .task.active{border-bottom-color:var(--ac2)}[data-theme=light] .task.active,[data-theme=light] .pin.active{background:rgba(0,0,0,.15)}
 [data-theme=light] #showdesk{border-left-color:#aaa}
 [data-theme=light] #start{background:rgba(246,246,246,.98);border-color:#c8c8c8}
 [data-theme=light] .st-l{border-right-color:#ddd}
@@ -252,7 +252,7 @@ input,select,button{font-family:var(--font)}
 <div id="taskbar">
   <button id="startBtn" title="Start"><span class="win-logo"><i></i><i></i><i></i><i></i></span></button>
   <div id="searchBtn"><svg viewBox="0 0 24 24" width="16" height="16" style="margin-right:10px;vertical-align:-3px"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l6 6" stroke="currentColor" stroke-width="2"/></svg>Type here to search</div>
-  <div id="sys"></div>
+  
   <div id="pins"></div><div id="tasks"></div>
   <div id="tray"></div>
   <div id="clock"><div id="ck1"></div><div id="ck2"></div></div>
@@ -298,7 +298,7 @@ const SVG = {
   binary: PG('<rect x="5.5" y="11" width="13" height="8" fill="#0078d7"/><rect x="5.5" y="11" width="13" height="2" fill="#4cc2ff"/>'),
   notes: '<rect x="5" y="3" width="14" height="18" rx="1" fill="#4cc2ff"/><path d="M8 3v18" stroke="#0078d7"/><path d="M10.5 8h6M10.5 11h6M10.5 14h4" stroke="#fff" stroke-width="1.4"/>',
   info: '<circle cx="12" cy="12" r="9" fill="#0078d7"/><path d="M12 11v6M12 7.5v.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>',
-  settings: ln('M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1'),
+  settings: ln('M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'),
   store: ln('M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2'),
   update: ln('M20 12a8 8 0 1 1-2.5-5.8M20 4v5h-5'),
   taskmgr: ln('M3 20h18M6 17v-5M11 17V6M16 17v-8'),
@@ -375,7 +375,15 @@ $("#upd").onchange = e => { addFiles(e.target.files, upDir, true); e.target.valu
 $("#upz").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (f) await importZip(f, upDir); };
 $("#desktop").addEventListener("dragover", e => e.preventDefault());
 $("#desktop").addEventListener("drop", e => { e.preventDefault(); addFiles(e.dataTransfer.files, null); });
-$("#showdesk").onclick = () => { wins.forEach(w => { w.el.classList.add("min"); w.task.classList.remove("active"); }); renderPins(); };
+let deskHidden = null;
+$("#showdesk").onclick = () => {
+  if (deskHidden) { // second click: bring back the windows it hid
+    deskHidden.forEach(id => { const w = wins.get(id); if (w) w.el.classList.remove("min"); });
+    const last = deskHidden[deskHidden.length - 1]; deskHidden = null; if (wins.has(last)) focus(last); renderPins(); return;
+  }
+  const open = [...wins.values()].filter(w => !w.el.classList.contains("min")); if (!open.length) return;
+  deskHidden = open.map(w => w.id); open.forEach(w => { w.el.classList.add("min"); w.task.classList.remove("active"); }); renderPins();
+};
 
 // ===================== WINDOWS =====================
 let z = 10, n = 0;
@@ -1365,13 +1373,6 @@ async function applyTheme() {
 }
 
 // ===================== TASKBAR + START MENU =====================
-[[EXPLORER, "files"], [STORE, "store"], [UPDATES, "updates"], [SETTINGS, "settings"]].forEach(([app, cls]) => {
-  const t = document.createElement("div");
-  t.className = "sys " + cls; t.title = app.name; t.innerHTML = svgI(app.icon.slice(4), 20);
-  t.onclick = () => openApp(app);
-  $("#sys").appendChild(t);
-});
-
 const start = $("#start");
 function toggleStart(open) {
   start.classList.toggle("open", open); $("#startBtn").classList.toggle("on", open);
@@ -1381,7 +1382,7 @@ $("#startBtn").onclick = e => { e.stopPropagation(); toggleStart(!start.classLis
 $("#searchBtn").onclick = e => { e.stopPropagation(); toggleStart(true); };
 document.addEventListener("click", e => { if (!start.contains(e.target) && start.classList.contains("open")) toggleStart(false); });
 $("#startQ").oninput = drawStart;
-[["folder", "File Explorer", () => openApp(EXPLORER)], ["settings", "Settings", () => openApp(SETTINGS)], ["power", "Power", e => ctx(e, [...(hasPw() && !GUEST ? [["Lock", lockNow]] : []), ...(GUEST ? [["Sign in to your account...", guestSignIn]] : []), ["Restart", () => location.reload()]])]].forEach(([i, t, fn]) => {
+[["folder", "File Explorer", () => openApp(EXPLORER)], ["store", "App Store", () => openApp(STORE)], ["update", "Updates", () => openApp(UPDATES)], ["settings", "Settings", () => openApp(SETTINGS)], ["power", "Power", e => ctx(e, [...(hasPw() && !GUEST ? [["Lock", lockNow]] : []), ...(GUEST ? [["Sign in to your account...", guestSignIn]] : []), ["Sleep", sleepNow], ["Restart", () => location.reload()]])]].forEach(([i, t, fn]) => {
   const d = document.createElement("div"); d.innerHTML = svgI(i, 20); d.title = t;
   d.onclick = e => { e.stopPropagation(); if (t === "Power") fn(e); else { fn(); toggleStart(false); } };
   $(".st-rail").appendChild(d);
@@ -1401,6 +1402,13 @@ function drawStart() {
     d.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [["Open", () => { openApp(a); toggleStart(false); }], ...appMenu(a), [isInstalled(a) ? "Remove from desktop" : "Add to desktop", () => toggleInstall(a)]]); };
     box.appendChild(d);
   });
+  if (t) { // matching files and folders
+    const hits = [...folders().filter(f => f.name.toLowerCase().includes(t)).map(f => ({ n: f.name, a: folderApp(f.id) })), ...fmeta().filter(f => f.name.toLowerCase().includes(t)).map(f => ({ n: f.name, a: fileApp(f) }))].slice(0, 12);
+    if (hits.length) {
+      const h = document.createElement("div"); h.className = "st-h"; h.textContent = "Files"; box.appendChild(h);
+      hits.forEach(x => { const d = document.createElement("div"); d.className = "item"; d.innerHTML = glyph(x.a, 30) + `<div style="overflow:hidden"><b>${esc(x.n)}</b></div>`; d.onclick = () => { openApp(x.a); toggleStart(false); }; box.appendChild(d); });
+    }
+  }
   const tiles = $("#tiles"); tiles.innerHTML = "";
   startKeys().map(k => catalog.find(a => key(a) === k)).filter(Boolean).forEach(a => {
     const [bg, fg] = solid(a);
@@ -1744,6 +1752,14 @@ setInterval(() => { if (flyMode === "cal") { const h = $(".cal-h"); if (h) h.tex
 addEventListener("online", renderTray); addEventListener("offline", renderTray);
 navigator.getBattery?.().then(b => { batt = b; ["levelchange", "chargingchange"].forEach(ev => b.addEventListener(ev, renderTray)); renderTray(); });
 renderTray(); renderBell();
+
+function sleepNow() {
+  if ($(".sleep")) return;
+  const o = document.createElement("div"); o.className = "sleep"; o.style.cssText = "position:fixed;inset:0;background:#000;z-index:1100;cursor:none";
+  const wake = e => { e.stopPropagation(); removeEventListener("keydown", wake, true); o.remove(); lockNow(); };
+  o.addEventListener("click", wake); addEventListener("keydown", wake, true);
+  document.body.appendChild(o);
+}
 
 // ===================== BOOT =====================
 applyTheme();
