@@ -3,24 +3,24 @@ export default {
   open(root, os) {
     const sys = os.sys;
     root.innerHTML = `<style>
-.tm{display:flex;flex-direction:column;height:100%;background:#0c0c0c;color:#ccc;font:13px/1.5 Consolas,"Courier New",monospace}
-.tm button{background:#333;border:1px solid #555;color:#eee;padding:2px 10px;cursor:pointer;font:inherit;font-size:12px}.tm button:hover{background:#444}
-.tm .tb{display:flex;gap:6px;align-items:center;padding:4px 8px;background:#1f1f1f;font-size:12px}.tm .tb span{flex:1}
-.tm .to{flex:1;overflow:auto;padding:8px 10px;white-space:pre-wrap;word-break:break-word}.tm.noout .to{display:none}
-.tm .dim{color:#777}.tm .err{color:#f48771}.tm .dir{color:#6cb6ff}.tm .pr{color:#4ec9b0;margin-right:8px;white-space:pre}
-.tm .tl{display:flex;padding:2px 10px}.tm .tw{position:relative;flex:1}
-.tm .gh{position:absolute;inset:0;pointer-events:none;white-space:pre}.tm .gh span{visibility:hidden}.tm .gh i{font-style:normal;color:#666}
-.tm .ti{position:relative;width:100%;background:transparent;border:0;outline:0;color:#fff;font:inherit;padding:0}
-.tm .sg{padding:0 10px 8px;display:flex;flex-direction:column}.tm .sg div{padding:2px 8px;color:#aaa;cursor:pointer}.tm .sg div.b{color:#fff;background:#262626}.tm .sg div:hover{background:#333}.tm .sg small{color:#777;margin-left:8px}
-.tm .cb{margin:6px 0;border:1px solid #333;background:#141414;white-space:normal}.tm .cbh{display:flex;gap:6px;align-items:center;padding:4px 8px;background:#1f1f1f;font-size:12px}
-.tm .cbh span{flex:1;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tm .cb pre{margin:0;padding:8px;overflow:auto;white-space:pre;color:#d4d4d4}.tm .cb pre.sm{max-height:220px}
-</style><div class="tm"><div class="tb"><span>VUS Terminal</span><button data-a="out">Hide output</button><button data-a="clr">Clear</button></div><div class="to"></div><div class="tl"><span class="pr"></span><div class="tw"><div class="gh"></div><input class="ti" spellcheck="false" autocomplete="off" autocapitalize="off"></div></div><div class="sg"></div></div>`;
-    const $ = s => root.querySelector(s), out = $(".to"), inp = $(".ti"), gh = $(".gh"), sg = $(".sg");
+.trm{display:flex;flex-direction:column;width:100%;height:100%;background:#0c0c0c;color:#ccc;font:13px/1.5 Consolas,"Courier New",monospace}
+.trm button{background:#333;border:1px solid #555;color:#eee;padding:2px 10px;cursor:pointer;font:inherit;font-size:12px}.trm button:hover{background:#444}
+.trm .tb{display:flex;gap:6px;align-items:center;padding:4px 8px;background:#1f1f1f;font-size:12px}.trm .tb span{flex:1}
+.trm .to{flex:1;overflow:auto;padding:8px 10px;white-space:pre-wrap;word-break:break-word}.trm.noout .to{display:none}
+.trm .dim{color:#777}.trm .err{color:#f48771}.trm .dir{color:#6cb6ff}.trm .pr{color:#4ec9b0;margin-right:8px;white-space:pre}
+.trm .tln{display:flex;padding:2px 10px}.trm .tw{position:relative;flex:1}
+.trm .gh{position:absolute;inset:0;pointer-events:none;white-space:pre}.trm .gh span{visibility:hidden}.trm .gh i{font-style:normal;color:#666}
+.trm .tin{position:relative;width:100%;background:transparent;border:0;outline:0;color:#fff;font:inherit;padding:0}
+.trm .sg{padding:0 10px 8px;display:flex;flex-direction:column}.trm .sg div{padding:2px 8px;color:#aaa;cursor:pointer}.trm .sg div.b{color:#fff;background:#262626}.trm .sg div:hover{background:#333}.trm .sg small{color:#777;margin-left:8px}
+.trm .cb{margin:6px 0;border:1px solid #333;background:#141414;white-space:normal}.trm .cbh{display:flex;gap:6px;align-items:center;padding:4px 8px;background:#1f1f1f;font-size:12px}
+.trm .cbh span{flex:1;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.trm .cb pre{margin:0;padding:8px;overflow:auto;white-space:pre;color:#d4d4d4}.trm .cb pre.sm{max-height:220px}
+</style><div class="trm"><div class="tb"><span>VUS Terminal</span><button data-a="out">Hide output</button><button data-a="clr">Clear</button></div><div class="to"></div><div class="tln"><span class="pr"></span><div class="tw"><div class="gh"></div><input class="tin" spellcheck="false" autocomplete="off" autocapitalize="off"></div></div><div class="sg"></div></div>`;
+    const $ = s => root.querySelector(s), out = $(".to"), inp = $(".tin"), gh = $(".gh"), sg = $(".sg");
     let cwd = null, last = "", hist = [], hi = 0, cands = [];
     const folders = () => sys.folders(), files = () => sys.files();
     const here = () => ({ f: folders().filter(x => (x.parent || null) === cwd), n: files().filter(x => (x.parent || null) === cwd) });
     const pathOf = id => { const p = []; for (let d = id; d;) { const f = folders().find(x => x.id === d); if (!f) break; p.unshift(f.name); d = f.parent; } return ["Desktop", ...p].join("/"); };
-    const prompt = () => { $(".tl .pr").textContent = pathOf(cwd) + ">"; };
+    const prompt = () => { $(".tln .pr").textContent = pathOf(cwd) + ">"; };
     const print = (t, cls = "") => { const d = document.createElement("div"); d.className = cls; d.textContent = t; out.appendChild(d); out.scrollTop = out.scrollHeight; return d; };
     const find = (n, pool) => pool.find(x => x.name.toLowerCase() === n.toLowerCase());
     const rank = (list, q) => { // best match first: starts with, then a word starts with, then contains
@@ -84,14 +84,14 @@ export default {
       else if (e.key === "Enter") {
         const line = inp.value.trim(); inp.value = ""; suggest(); if (!line) return;
         hist.push(line); hi = hist.length;
-        const d = print(""), pr = document.createElement("span"); pr.className = "pr"; pr.textContent = $(".tl .pr").textContent; d.append(pr, line);
+        const d = print(""), pr = document.createElement("span"); pr.className = "pr"; pr.textContent = $(".tln .pr").textContent; d.append(pr, line);
         const c0 = line.split(/\s+/)[0], fn = cmds[c0.toLowerCase()];
         if (!fn) return print(`'${c0}' is not a command. Type help.`, "err");
         try { await fn(line.slice(c0.length).trim()); } catch (err) { print("Error: " + err.message, "err"); }
       }
     };
-    $(".tb").onclick = e => { const a = e.target.dataset.a; if (a === "out") { const h = $(".tm").classList.toggle("noout"); e.target.textContent = h ? "Show output" : "Hide output"; } else if (a === "clr") out.innerHTML = ""; };
-    $(".tm").onclick = e => { if (!e.target.closest("button,.cb,.sg") && !getSelection().toString()) inp.focus(); };
+    $(".tb").onclick = e => { const a = e.target.dataset.a; if (a === "out") { const h = $(".trm").classList.toggle("noout"); e.target.textContent = h ? "Show output" : "Hide output"; } else if (a === "clr") out.innerHTML = ""; };
+    $(".trm").onclick = e => { if (!e.target.closest("button,.cb,.sg") && !getSelection().toString()) inp.focus(); };
     print("VUS Terminal. Type help for commands.", "dim"); prompt(); inp.focus();
   }
 };
