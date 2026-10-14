@@ -1434,7 +1434,7 @@ $("#startBtn").onclick = e => { e.stopPropagation(); toggleStart(!start.classLis
 $("#searchBtn").onclick = e => { e.stopPropagation(); toggleStart(true); };
 document.addEventListener("click", e => { if (!start.contains(e.target) && start.classList.contains("open")) toggleStart(false); });
 $("#startQ").oninput = drawStart;
-[["folder", "File Explorer", () => openApp(EXPLORER)], ["store", "App Store", () => openApp(STORE)], ["update", "Updates", () => openApp(UPDATES)], ["settings", "Settings", () => openApp(SETTINGS)], ["power", "Power", e => ctx(e, [...(hasPw() && !GUEST ? [["Lock", lockNow]] : []), ...(GUEST ? [["Sign in to your account...", guestSignIn]] : []), ["Sleep", sleepNow], ["Restart", () => location.reload()]])]].forEach(([i, t, fn]) => {
+[["folder", "File Explorer", () => openApp(EXPLORER)], ["terminal", "Terminal", () => openApp(catalog.find(a => a.name === "Terminal"))], ["store", "App Store", () => openApp(STORE)], ["update", "Updates", () => openApp(UPDATES)], ["settings", "Settings", () => openApp(SETTINGS)], ["power", "Power", e => ctx(e, [...(hasPw() && !GUEST ? [["Lock", lockNow]] : []), ...(GUEST ? [["Sign in to your account...", guestSignIn]] : []), ["Sleep", sleepNow], ["Restart", () => location.reload()]])]].forEach(([i, t, fn]) => {
   const d = document.createElement("div"); d.innerHTML = svgI(i, 20); d.title = t;
   d.onclick = e => { e.stopPropagation(); if (t === "Power") fn(e); else { fn(); toggleStart(false); } };
   $(".st-rail").appendChild(d);
