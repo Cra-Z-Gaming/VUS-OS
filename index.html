@@ -587,7 +587,7 @@ async function loadNow(app, body, win) {
     }
   } catch (e) {
     console.error(e);
-    body.innerHTML = `<div class="load err">Failed to load ${esc(app.name)}</div>`;
+    body.innerHTML = `<div class="load err">${navigator.onLine ? "Failed to load " + esc(app.name) : esc(app.name) + " has not been saved on this device yet. Connect to the internet and open it once, then it works offline."}</div>`;
   }
 }
 
@@ -1311,7 +1311,7 @@ const TASKMGR = { builtin: 1, single: 1, name: "Task Manager", icon: "svg:taskmg
   draw();
 }};
 const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "svg:update", color: "lime", open(root) {
-  root.innerHTML = `<div class="pad"><h2>Updates</h2><div class="tabs"><button id="chk">Check now</button><button id="all">Update all</button></div><p id="st" style="font-size:12px;color:var(--mute)"></p><div id="rows"></div></div>`;
+  root.innerHTML = `<div class="pad"><h2>Updates</h2><div class="tabs"><button id="chk">Check now</button><button id="all">Update all</button><button id="off" title="Download every installed app so it opens without internet">Save all for offline</button></div><p id="st" style="font-size:12px;color:var(--mute)"></p><div id="rows"></div></div>`;
   const rows = root.querySelector("#rows"), st = root.querySelector("#st");
   const draw = () => {
     const list = cachedApps();
@@ -1329,6 +1329,17 @@ const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "svg:update", co
     st.textContent = "Checking...";
     const v = await getVersions(true);
     st.textContent = v ? "Auto update is " + (getSettings().autoUpdate ? "on" : "off") : "Couldn't reach the update file. Using saved versions.";
+    draw();
+  };
+  root.querySelector("#off").onclick = async e => { // download every installed app now, so none needs a first online visit
+    if (!navigator.onLine) { st.textContent = "You're offline. Connect to the internet to save apps."; return; }
+    const b = e.target; b.disabled = true;
+    const todo = installed().map(k => catalog.find(a => key(a) === k)).filter(a => a && a.url && !(metaAll()[a.name] && metaAll()[a.name].url === a.url));
+    await getVersions(); let n = 0;
+    for (const a of todo) { b.textContent = `Saving ${n + 1} of ${todo.length}...`; if (await updateApp(a)) n++; }
+    b.textContent = "Save all for offline"; b.disabled = false;
+    st.textContent = todo.length ? `Saved ${n} of ${todo.length} apps for offline use.` : "All your installed apps are already saved for offline use.";
+    if (todo.length) notify("Saved for offline", `${n} of ${todo.length} apps`);
     draw();
   };
   root.querySelector("#chk").onclick = check;
@@ -1739,14 +1750,15 @@ applyTheme();
 marquee($("#icons"));
 const minBoot = new Promise(r => setTimeout(r, 1800));
 Promise.all([loadCatalog(), minBoot]).then(([ok]) => {
-  if (ok && !LS("seeded", false)) {
-    save("installed", SEED.map(nm => catalog.find(a => a.name === nm)).filter(Boolean).map(key));
-    save("seeded", true);
+  if (!LS("seeded", false)) { // first run: add the starter apps (even offline); only counts as done once the catalog really loaded
+    save("installed", [...new Set([...installed(), ...SEED.map(nm => catalog.find(a => a.name === nm)).filter(Boolean).map(key)])]);
+    if (ok) save("seeded", true);
   }
   renderIcons(); renderPins();
   autoUpdate(); // background; skipped when auto update is off
   if (sessionStorage.getItem("vos_ok")) sessionStorage.removeItem("vos_ok"); else lockNow();
   $("#boot").classList.add("hide");
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {}); // lets the page itself open offline
   setTimeout(() => $("#boot").remove(), 550);
 });
 </script>
