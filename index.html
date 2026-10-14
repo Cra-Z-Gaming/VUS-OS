@@ -1758,7 +1758,6 @@ Promise.all([loadCatalog(), minBoot]).then(([ok]) => {
   autoUpdate(); // background; skipped when auto update is off
   if (sessionStorage.getItem("vos_ok")) sessionStorage.removeItem("vos_ok"); else lockNow();
   $("#boot").classList.add("hide");
-  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {}); // lets the page itself open offline
   setTimeout(() => $("#boot").remove(), 550);
 });
 </script>
