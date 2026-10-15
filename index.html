@@ -273,7 +273,7 @@ input,select,button{font-family:var(--font)}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "10.14.2026"; // release date (m.d.yyyy). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape.
+const OS_VERSION = "10.15.2026 7:14 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -598,7 +598,7 @@ async function autoUpdate(force) { // at most every 10 minutes unless forced
 let osLatest = null;
 async function latestOs(force) {
   if (osLatest && !force) return osLatest;
-  try { const r = await fetch(OS_REPO + "index.html", { cache: "no-cache" }); if (!r.ok) throw 0; const m = (await r.text()).match(/const OS_VERSION = "([\d.]+)"/); osLatest = m ? m[1] : null; }
+  try { const r = await fetch(OS_REPO + "index.html", { cache: "no-cache" }); if (!r.ok) throw 0; const m = (await r.text()).match(/const OS_VERSION = "([^"]+)"/); osLatest = m ? m[1] : null; }
   catch { osLatest = null; }
   return osLatest;
 }
@@ -2191,7 +2191,7 @@ async function updateOS(force) { // returns a message if it did NOT update
   try { const r = await fetch(OS_REPO + "index.html?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw 0; html = await r.text(); }
   catch { return "Couldn't download the update."; }
   if (!/<title>/i.test(html) || !/APPS_JSON/.test(html)) return "That doesn't look like VUS-OS, so it was not installed.";
-  const latest = (html.match(/const OS_VERSION = "([\d.]+)"/) || [])[1];
+  const latest = (html.match(/const OS_VERSION = "([^"]+)"/) || [])[1];
   if (!force && latest && latest === OS_VERSION) return 'Already up to date. Use "sys-upd force" to reinstall anyway.';
   const dirty = unsavedWins();
   if (dirty.length && await winDialog(unsavedMsg(dirty, "Update"), [["Update anyway", "y", "danger"], ["Cancel", false]]) !== "y") return "Update cancelled.";
