@@ -1,5 +1,5 @@
 # VUS-OS
-this should a cleaner version of VUS Hub, as the repo name says, its an OS.
+Web OS version of VUS Hub, This OS combines VUS Hub apps & OS-only apps like terminal
 
 why use VUS-OS? 
 - better for those who like personalization
