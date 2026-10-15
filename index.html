@@ -273,9 +273,7 @@ input,select,button{font-family:var(--font)}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-// One small file with a number per app, e.g. {"MZK PLAYA": 2}. Bump a number to update just that app.
-const VERSIONS_URL = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/versions.json";
-const OS_VERSION = "10.14.2026"; // release date (m.d.yyyy). Put the same date in versions.json as "_os" when you release.
+const OS_VERSION = "10.14.2026"; // release date (m.d.yyyy). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape.
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -540,7 +538,7 @@ function makeOS(app, win) {
       launch: a => openApp(a),
       theme: t => { save("settings", { ...getSettings(), theme: t }); applyTheme(); },
       lock: () => lockNow(), sleep: () => sleepNow(),
-      version: () => OS_VERSION, latest: async () => { const v = await getVersions(true); return (v && v._os) || null; }, update: f => updateOS(f),
+      version: () => OS_VERSION, latest: () => latestOs(true), update: f => updateOS(f),
       windows: () => [...wins.values()].map(w => ({ id: w.id, name: w.app.name })), kill: id => closeWin(id, true),
       copy: (kind, id, dir) => kind === "folder" ? copyFolder(id, dir) : copyFile(id, dir), move: (kind, id, dir) => moveTo(kind, id, dir), rename: (kind, id, name) => applyRename(kind, id, name),
       restart: () => softRestart(), run: id => runVsh(id)
@@ -558,27 +556,20 @@ const dbGet = async (k, st = "code") => { try { const d = await idb; return awai
 const dbSet = async (k, v, st = "code") => { try { const d = await idb; return await new Promise(res => { const t = d.transaction(st, "readwrite"); t.objectStore(st).put(v, k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
 const dbDel = async (k, st = "files") => { try { const d = await idb; return await new Promise(res => { const t = d.transaction(st, "readwrite"); t.objectStore(st).delete(k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
 
-let remote = null; // last versions.json we managed to fetch
-async function getVersions(force) {
-  if (remote && !force) return remote;
-  try { const r = await fetch(VERSIONS_URL + "?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw 0; remote = await r.json(); return remote; }
-  catch { return null; }
-}
-const remoteVer = name => (remote && remote[name]) || 1;
+// App updates need no version numbers: a saved app is compared with the copy on GitHub and updated when the code differs.
 const metaAll = () => LS("meta", {});
 async function fetchCode(app) {
-  const r = await fetch(app.url + (app.url.includes("?") ? "&" : "?") + "v=" + remoteVer(app.name)); // ?v= dodges stale CDN copies
+  const r = await fetch(app.url, { cache: "no-cache" }); // always asks GitHub whether the file changed (cheap when it hasn't)
   if (!r.ok) throw new Error(r.status);
   return r.text();
 }
 async function saveCode(app, text) {
   if (!(await dbSet(app.name, text))) return;
-  const m = metaAll(); m[app.name] = { url: app.url, version: remoteVer(app.name), size: text.length }; save("meta", m);
+  const m = metaAll(); m[app.name] = { url: app.url, date: Date.now(), size: text.length }; save("meta", m);
 }
 async function getCode(app) {
   const m = metaAll()[app.name];
   if (m && m.url === app.url) { const c = await dbGet(app.name); if (c) return c; }
-  await getVersions();
   const text = await fetchCode(app);
   await saveCode(app, text);
   return text;
@@ -587,10 +578,29 @@ async function updateApp(app) { // on any failure the old saved copy stays
   try { await saveCode(app, await fetchCode(app)); return true; } catch { return false; }
 }
 const cachedApps = () => Object.entries(metaAll()).map(([name, m]) => ({ app: catalog.find(a => a.name === name && a.url === m.url), m })).filter(x => x.app);
-const outdated = () => cachedApps().filter(x => remoteVer(x.app.name) > x.m.version);
-async function autoUpdate() {
-  if (!getSettings().autoUpdate || !(await getVersions(true))) return;
-  for (const x of outdated()) await updateApp(x.app);
+// Downloads each saved app again (4 at a time) and returns the ones whose code differs from the saved copy.
+async function checkApps(list = cachedApps()) {
+  const changed = []; let failed = 0; const q = [...list];
+  await Promise.all(Array.from({ length: 4 }, async () => {
+    while (q.length) { const x = q.shift(); try { const text = await fetchCode(x.app); if (text !== await dbGet(x.app.name)) changed.push({ ...x, text }); } catch { failed++; } }
+  }));
+  return { changed, failed, total: list.length };
+}
+async function autoUpdate(force) { // at most every 10 minutes unless forced
+  if (!getSettings().autoUpdate || !navigator.onLine) return;
+  if (!force && Date.now() - LS("lastAppCheck", 0) < 600000) return;
+  save("lastAppCheck", Date.now());
+  const { changed } = await checkApps();
+  for (const x of changed) await saveCode(x.app, x.text);
+  if (changed.length) notify("Apps updated", changed.map(x => x.app.name).join(", "));
+}
+// The latest OS version is read straight from the OS_VERSION line of index.html on GitHub.
+let osLatest = null;
+async function latestOs(force) {
+  if (osLatest && !force) return osLatest;
+  try { const r = await fetch(OS_REPO + "index.html", { cache: "no-cache" }); if (!r.ok) throw 0; const m = (await r.text()).match(/const OS_VERSION = "([\d.]+)"/); osLatest = m ? m[1] : null; }
+  catch { osLatest = null; }
+  return osLatest;
 }
 
 const MS_PER_MB = { off: 0, low: 250, med: 700, high: 1500 };
@@ -1247,7 +1257,7 @@ async function details(root, kind, id, a) {
   if (kind === "app") {
     const m = metaAll()[a.name], head = `<h2>${glyph(a, 36)}${esc(a.name)}</h2>`, yn = v => v ? "Yes" : "No";
     return show(head + kv([["Name", esc(a.name)], ["Type", isNative(a) ? "Native app (.js)" : "App"], ["Category", esc(a.category || "—")], ["Description", esc(a.desc || "—")], ["Source", esc(a.url)],
-      ["Saved copy", m ? `v${m.version} · ${fmt(m.size || 0)}` : "Not saved yet (it downloads the first time you open it)"], ["Latest version known", "v" + remoteVer(a.name)],
+      ["Saved copy", m ? `${m.date ? "updated " + new Date(m.date).toLocaleDateString() + " · " : ""}${fmt(m.size || 0)}` : "Not saved yet (it downloads the first time you open it)"],
       ["On the desktop", yn(isInstalled(a))], ["In Start", yn(startKeys().includes(key(a)))], ["Pinned to taskbar", yn(pinnedKeys().includes(key(a)))]]));
   }
   if (kind === "folder") {
@@ -1292,7 +1302,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
   let page = settingsStart; settingsStart = "home";
   root.innerHTML = '<div class="st"><div class="stn"></div><div class="stc"></div></div>';
   const nav = root.querySelector(".stn"), box = root.querySelector(".stc");
-  const set = p => { save("settings", { ...getSettings(), ...p }); applyTheme(); tick(); if (p.autoUpdate === true) autoUpdate(); if ("binDays" in p) { purgeBin(); renderIcons(); } };
+  const set = p => { save("settings", { ...getSettings(), ...p }); applyTheme(); tick(); if (p.autoUpdate === true) autoUpdate(true); if ("binDays" in p) { purgeBin(); renderIcons(); } };
   const opts = (list, cur) => list.map(([v, l]) => `<option value="${esc(String(v))}" ${String(v) === String(cur) ? "selected" : ""}>${esc(l)}</option>`).join("");
   const pages = {
     home: () => `<h2>Settings</h2><div class="sth">${NAV.slice(1).map(([k, i, l]) => `<div class="stt" data-go="${k}"><span>${i}</span>${l}</div>`).join("")}</div>`,
@@ -1391,29 +1401,30 @@ const TASKMGR = { builtin: 1, single: 1, name: "Task Manager", icon: "svg:taskmg
 const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "svg:update", color: "lime", open(root) {
   root.innerHTML = `<div class="pad"><h2>Updates</h2><div class="tabs"><button id="chk">Check now</button><button id="all">Update all</button><button id="off" title="Download every installed app so it opens without internet">Save all for offline</button></div><p id="st" style="font-size:12px;color:var(--mute)"></p><div id="rows"></div></div>`;
   const rows = root.querySelector("#rows"), st = root.querySelector("#st");
+  let pending = new Map(); // app name -> new code found by the last check
   const draw = () => {
     const list = cachedApps();
     rows.innerHTML = list.length ? "" : '<p style="color:var(--dim);font-size:13px">Apps show up here after you open them once.</p>';
     list.forEach(({ app, m }) => {
-      const rv = remoteVer(app.name), old = rv > m.version;
-      const d = document.createElement("div");
+      const old = pending.has(app.name), d = document.createElement("div");
       d.className = "item row";
-      d.innerHTML = glyph(app, 32) + `<div style="overflow:hidden"><b>${esc(app.name)}</b><small>${old ? `v${m.version} → v${rv}` : `v${m.version} · up to date`}</small></div>` + (old ? "<button>Update</button>" : "");
-      if (old) d.querySelector("button").onclick = async e => { e.target.textContent = "Updating..."; await updateApp(app); draw(); };
+      d.innerHTML = glyph(app, 32) + `<div style="overflow:hidden"><b>${esc(app.name)}</b><small>${old ? "Update available" : "Up to date"} · ${m.date ? "updated " + new Date(m.date).toLocaleDateString() : "saved earlier"}</small></div>` + (old ? "<button>Update</button>" : "");
+      if (old) d.querySelector("button").onclick = async e => { e.target.textContent = "Updating..."; await saveCode(app, pending.get(app.name)); pending.delete(app.name); draw(); };
       rows.appendChild(d);
     });
   };
   const check = async () => {
+    if (!navigator.onLine) { st.textContent = "You're offline. Using the saved copies."; draw(); return; }
     st.textContent = "Checking...";
-    const v = await getVersions(true);
-    st.textContent = v ? "Auto update is " + (getSettings().autoUpdate ? "on" : "off") : "Couldn't reach the update file. Using saved versions.";
+    const r = await checkApps(); pending = new Map(r.changed.map(x => [x.app.name, x.text]));
+    st.textContent = (r.total ? `${r.changed.length} of ${r.total} apps can be updated.` : "Nothing saved yet.") + (r.failed ? ` Couldn't reach ${r.failed}.` : "") + " Auto update is " + (getSettings().autoUpdate ? "on." : "off.");
     draw();
   };
   root.querySelector("#off").onclick = async e => { // download every installed app now, so none needs a first online visit
     if (!navigator.onLine) { st.textContent = "You're offline. Connect to the internet to save apps."; return; }
     const b = e.target; b.disabled = true;
     const todo = installed().map(k => catalog.find(a => key(a) === k)).filter(a => a && a.url && !(metaAll()[a.name] && metaAll()[a.name].url === a.url));
-    await getVersions(); let n = 0;
+    let n = 0;
     for (const a of todo) { b.textContent = `Saving ${n + 1} of ${todo.length}...`; if (await updateApp(a)) n++; }
     b.textContent = "Save all for offline"; b.disabled = false;
     st.textContent = todo.length ? `Saved ${n} of ${todo.length} apps for offline use.` : "All your installed apps are already saved for offline use.";
@@ -1421,7 +1432,11 @@ const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "svg:update", co
     draw();
   };
   root.querySelector("#chk").onclick = check;
-  root.querySelector("#all").onclick = async e => { e.target.textContent = "Updating..."; for (const x of outdated()) await updateApp(x.app); e.target.textContent = "Update all"; draw(); };
+  root.querySelector("#all").onclick = async e => {
+    e.target.textContent = "Updating...";
+    for (const [name, text] of [...pending]) { const a = catalog.find(x => x.name === name); if (a) await saveCode(a, text); }
+    pending.clear(); e.target.textContent = "Update all"; draw();
+  };
   check();
 }};
 
@@ -1971,7 +1986,7 @@ async function runCmd(line, ctx) { // returns the command's output as text. ctx 
       return "Copied.";
     }
     case "ver": case "version": {
-      const v = await getVersions(true), l = v && v._os, t = `Version-${OS_VERSION}\nLatest-${l || "unknown"}`;
+      const l = await latestOs(true), t = `Version-${OS_VERSION}\nLatest-${l || "unknown"}`;
       if (a.toLowerCase() === "notify") notify("VUS-OS version", t.replace("\n", " · "));
       return t;
     }
@@ -2138,12 +2153,12 @@ async function softRestart() { // closes everything and boots again without relo
   if (dirty.length && await winDialog(unsavedMsg(dirty, "Restart"), [["Restart anyway", "y", "danger"], ["Cancel", false]]) !== "y") return;
   [...wins.keys()].forEach(id => closeWin(id, true));
   toggleStart(false); hideFly(); $("#ctx").style.display = "none"; $("#toasts").innerHTML = "";
-  clip = null; deskHidden = null; launchQ.length = 0; bypassLimit = false; notes.length = 0; renderBell(); remote = null; vshRunning.clear();
+  clip = null; deskHidden = null; launchQ.length = 0; bypassLimit = false; notes.length = 0; renderBell(); osLatest = null; vshRunning.clear();
   const b = document.createElement("div"); b.id = "boot";
   b.innerHTML = `<div class="win-logo"><i></i><i></i><i></i><i></i></div><div class="spin"></div><div id="bootTitle">${esc(getSettings().site)}</div>`;
   document.body.appendChild(b);
   await new Promise(r => setTimeout(r, 1500));
-  applyTheme(); renderPins(); autoUpdate(); checkOsUpdate(); lockNow(); runStartup();
+  applyTheme(); renderPins(); autoUpdate(true); checkOsUpdate(); lockNow(); runStartup();
   b.classList.add("hide"); setTimeout(() => b.remove(), 550);
 }
 
@@ -2172,12 +2187,12 @@ function restoreWins() {
   renderPins();
 }
 async function updateOS(force) { // returns a message if it did NOT update
-  const v = await getVersions(true), latest = v && v._os;
-  if (!force && latest && latest === OS_VERSION) return 'Already up to date. Use "sys-upd force" to reinstall anyway.';
   let html;
   try { const r = await fetch(OS_REPO + "index.html?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw 0; html = await r.text(); }
   catch { return "Couldn't download the update."; }
   if (!/<title>/i.test(html) || !/APPS_JSON/.test(html)) return "That doesn't look like VUS-OS, so it was not installed.";
+  const latest = (html.match(/const OS_VERSION = "([\d.]+)"/) || [])[1];
+  if (!force && latest && latest === OS_VERSION) return 'Already up to date. Use "sys-upd force" to reinstall anyway.';
   const dirty = unsavedWins();
   if (dirty.length && await winDialog(unsavedMsg(dirty, "Update"), [["Update anyway", "y", "danger"], ["Cancel", false]]) !== "y") return "Update cancelled.";
   sessionStorage.setItem("vos_restore", JSON.stringify(snapshotWins())); sessionStorage.setItem("vos_ok", "1"); // vos_ok: don't lock again
@@ -2198,8 +2213,8 @@ function migrateKeys() {
 }
 
 // ===================== UPDATE NOTICE, CLOSE WARNING, IDLE LOCK, STARTUP SHORTCUTS =====================
-async function checkOsUpdate() { // toast when versions.json has a newer "_os" than this build
-  const v = await getVersions(), l = v && v._os;
+async function checkOsUpdate() { // toast when the OS on GitHub is newer than this build
+  const l = await latestOs();
   if (l && l !== OS_VERSION) notify("Update available", `Version-${l} is out (you have Version-${OS_VERSION}). Run sys-upd in Terminal.`);
 }
 addEventListener("beforeunload", e => { if (unsavedWins().length) { e.preventDefault(); e.returnValue = ""; } }); // closing the tab with unsaved work asks first
