@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- version near L275. under CONFIG -->
+<!-- version near L280. under CONFIG -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -81,6 +81,9 @@ input,select,button{font-family:var(--font)}
 .task{display:flex;align-items:center;gap:8px;min-width:48px;max-width:170px;padding:0 12px;font-size:12px;border-bottom:2px solid var(--ac2);background:rgba(255,255,255,.06);cursor:default;flex-shrink:0}
 .task:hover{background:rgba(255,255,255,.14)}
 .task{border-bottom-color:#777}.task.active{background:rgba(255,255,255,.2);border-bottom-color:var(--ac2)}
+#tasks[data-labels=full] .task{max-width:none}
+#tasks[data-labels=partial] .task{max-width:120px}
+#tasks[data-labels=hide] .task span,#tasks[data-labels=hover] .task span{display:none}
 .task span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #clock{padding:0 10px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:12px;line-height:1.3;flex-shrink:0}
 #tray{display:flex;align-items:stretch;flex-shrink:0}
@@ -274,7 +277,7 @@ input,select,button{font-family:var(--font)}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "10.15.2026 7:14 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "10.15.2026 2:51 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -418,6 +421,7 @@ function openApp(app) {
   const task = document.createElement("div");
   task.className = "task";
   task.innerHTML = glyph(app, 20) + `<span>${esc(app.name)}</span>`;
+  task.dataset.name = app.name; if (getSettings().taskLabels === "hover") task.title = app.name;
   task.onclick = () => toggle(id);
   task.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [...(catalog.includes(app) ? [[pinnedKeys().includes(key(app)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(app)]] : []), ["Close window", () => closeWin(id)]]); };
   $("#tasks").appendChild(task);
@@ -436,6 +440,7 @@ function openApp(app) {
     let sx = e.clientX, sy = e.clientY, l = el.offsetLeft, t = el.offsetTop, moved = false, zone = null;
     bar.setPointerCapture(e.pointerId);
     bar.onpointermove = ev => {
+      if (ev.pointerType === "mouse" && ev.buttons === 0) return bar.onpointerup(); // the button was let go while the pointer was away
       if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
       if (!moved) {
         moved = true;
@@ -449,13 +454,14 @@ function openApp(app) {
       zone = getSettings().snap ? (ev.clientX <= 6 ? "l" : ev.clientX >= innerWidth - 6 ? "r" : ev.clientY <= 6 ? "t" : null) : null;
       showSnap(zone);
     };
-    bar.onpointerup = () => { bar.onpointermove = bar.onpointerup = null; showSnap(null); if (zone) snapWin(el, zone); };
+    bar.onpointerup = bar.onlostpointercapture = () => { bar.onpointermove = bar.onpointerup = bar.onlostpointercapture = null; showSnap(null); if (zone) snapWin(el, zone); };
   };
   el.querySelectorAll(".rz").forEach(h => h.onpointerdown = e => { // drag any edge or corner
     if (el.classList.contains("max")) return;
     e.preventDefault(); h.setPointerCapture(e.pointerId);
     const d = h.dataset.d, sx = e.clientX, sy = e.clientY, w = el.offsetWidth, ht = el.offsetHeight, l = el.offsetLeft, t = el.offsetTop;
     h.onpointermove = ev => {
+      if (ev.pointerType === "mouse" && ev.buttons === 0) return h.onpointerup();
       const dx = ev.clientX - sx, dy = ev.clientY - sy; let nw = w, nh = ht, nl = l, nt = t;
       if (d.includes("e")) nw = Math.max(300, w + dx);
       if (d.includes("s")) nh = Math.max(200, ht + dy);
@@ -463,7 +469,7 @@ function openApp(app) {
       if (d.includes("n")) { nh = Math.max(200, ht - dy); nt = Math.max(0, t + ht - nh); nh = t + ht - nt; }
       el.style.width = nw + "px"; el.style.height = nh + "px"; el.style.left = nl + "px"; el.style.top = nt + "px";
     };
-    h.onpointerup = () => { h.onpointermove = h.onpointerup = null; };
+    h.onpointerup = h.onlostpointercapture = () => { h.onpointermove = h.onpointerup = h.onlostpointercapture = null; };
   });
   el.addEventListener("pointerdown", () => focus(id), true);
   focus(id);
@@ -665,7 +671,7 @@ const KIND_ICON = { text: ["svg:text", "blue"], html: ["svg:html", "orange"], im
 const fmeta = () => LS("files", []);
 const newId = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 
-let bypassLimit = false, settingsStart = "home";
+let bypassLimit = false, settingsStart = "home", settingsNav = null;
 function winDialog(msg, buttons, title) { // resolves with the chosen button's value; Esc picks the last button
   return new Promise(res => {
     const o = document.createElement("div"); o.className = "dlg";
@@ -1299,8 +1305,8 @@ const STORE = { builtin: 1, single: 1, name: "App Store", icon: "svg:store", col
 const ICON_PX = { small: 36, medium: 42, large: 56 };
 const SWATCH = ["#0078d7", "#e81123", "#00b294", "#8764b8", "#ff8c00", "#107c10", "#e3008c", "#767676"];
 const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings", color: "cyan", open(root) {
-  const NAV = [["home", "🏠", "Home"], ["system", "💻", "System"], ["person", "🎨", "Personalization"], ["apps", "🧩", "Apps"], ["time", "🕒", "Time & language"]];
-  let page = settingsStart; settingsStart = "home";
+  const NAV = [["home", "🏠", "Home"], ["system", "💻", "System"], ["person", "🎨", "Personalization"], ["taskbar", "▬", "Taskbar"], ["apps", "🧩", "Apps"], ["time", "🕒", "Time & language"]];
+  let page = settingsStart, bigAll = false; settingsStart = "home"; settingsNav = p => { page = p; draw(); };
   root.innerHTML = '<div class="st"><div class="stn"></div><div class="stc"></div></div>';
   const nav = root.querySelector(".stn"), box = root.querySelector(".stc");
   const set = p => { save("settings", { ...getSettings(), ...p }); applyTheme(); tick(); if (p.autoUpdate === true) autoUpdate(true); if ("binDays" in p) { purgeBin(); renderIcons(); } };
@@ -1310,12 +1316,12 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
     system: () => {
       const s = getSettings(), u = usage(), lim = limitBytes();
       const items = [...fmeta().map(f => ({ n: f.name, size: f.size || 0, act: "delf", id: f.id, b: "Delete" })),
-        ...Object.entries(metaAll()).map(([n, m]) => ({ n: n + " (saved app)", size: m.size || 0, act: "delc", id: n, b: "Clear" }))].sort((a, b) => b.size - a.size).slice(0, 12);
+        ...Object.entries(metaAll()).map(([n, m]) => ({ n: n + " (saved app)", size: m.size || 0, act: "delc", id: n, b: "Clear" }))].sort((a, b) => b.size - a.size);
       return `<h2>System</h2><h3>Storage</h3><div class="sbar"><i style="width:${Math.min(100, u / lim * 100)}%"></i></div><p>${fmt(u)} used of ${fmt(lim)}${u > lim ? " (over the limit)" : ""}</p><p id="est"></p>
         <label>Storage limit<select data-k="limitMB" data-n="1" data-r="1">${opts([[128, "128 MB"], [256, "256 MB"], [512, "512 MB"], [1024, "1 GB"], [2048, "2 GB"]], s.limitMB)}</select></label>
         <label>Recycle Bin: delete items after<select data-k="binDays" data-n="1">${opts([[0, "Never (don't delete)"], [1, "1 day"], [3, "3 days"], [7, "1 week"], [14, "2 weeks"], [30, "1 month"], [180, "6 months"]], s.binDays)}</select></label>
         <label>Opening speed limiter<select data-k="limiter">${opts([["off", "Off (instant)"], ["low", "Low"], ["med", "Medium"], ["high", "High"]], s.limiter)}</select></label><p>Big files and apps open one at a time behind a progress bar. Small ones still open instantly.</p>
-        <h3>Biggest items</h3>${items.map(x => `<div class="item row"><div style="flex:1;overflow:hidden"><b>${esc(x.n)}</b><small>${fmt(x.size)}</small></div><button data-act="${x.act}" data-i="${esc(x.id)}">${x.b}</button></div>`).join("") || "<p>Nothing stored yet.</p>"}
+        <h3>Biggest items</h3>${items.slice(0, bigAll ? 100 : 5).map(x => `<div class="item row"><div style="flex:1;overflow:hidden"><b>${esc(x.n)}</b><small>${fmt(x.size)}</small></div><button data-act="${x.act}" data-i="${esc(x.id)}">${x.b}</button></div>`).join("") || "<p>Nothing stored yet.</p>"}${items.length > 5 ? `<button data-act="bigtoggle">${bigAll ? "Show less" : `Show more (${Math.min(items.length, 100) - 5} more)`}</button>` : ""}
         <h3>Multitasking</h3><label>Snap windows to screen edges<input type="checkbox" data-k="snap" ${s.snap ? "checked" : ""}></label><p>Drag a window to the left or right edge for half the screen, or to the top edge to maximize it.</p>
         <h3>Backup</h3><p>Save your apps, files and settings to one file, or restore them from one.</p><button data-act="bkexp">Export...</button> <button data-act="bkimp">Import...</button>
         ${lockSection()}
@@ -1335,6 +1341,11 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
         ${s.favMode === "link" ? `<label>Image link<input type="text" data-k="favLink" value="${esc(s.favLink)}" placeholder="https://..."></label>` : ""}
         ${s.favMode === "file" ? `<label>Image<button data-act="favup">${s.favData ? "Change..." : "Choose..."}</button></label>` : ""}`;
     },
+    taskbar: () => {
+      const s = getSettings();
+      return `<h2>Taskbar</h2><label>Show search box<input type="checkbox" data-k="taskSearch" ${s.taskSearch ? "checked" : ""}></label>
+        <h3>Taskbar icons</h3><label>Window names<select data-k="taskLabels">${opts([["full", "Show full name"], ["hide", "Hide name"], ["hover", "Hide name, hover to show full name"], ["partial", "Show name partially"]], s.taskLabels)}</select></label><p>This applies to open windows. Apps pinned to the taskbar always show just their icon.</p>`;
+    },
     apps: () => `<h2>Apps</h2><label>Update apps automatically<input type="checkbox" data-k="autoUpdate" ${getSettings().autoUpdate ? "checked" : ""}></label><button data-act="upd">Open Updates</button>
       <h3>On the desktop</h3>${installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).map(a => `<div class="item row">${glyph(a, 28)}<div style="flex:1"><b>${esc(a.name)}</b></div><button data-act="rm" data-i="${esc(key(a))}">Remove</button></div>`).join("") || "<p>No apps on the desktop.</p>"}`,
     time: () => `<h2>Time & language</h2><label>Use 24-hour clock<input type="checkbox" data-k="hour24" ${getSettings().hour24 ? "checked" : ""}></label>`
@@ -1351,6 +1362,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
     else if (d.sw) { set({ accent: d.sw }); draw(); }
     else if (d.act === "delf") winConfirm("Delete this file permanently? (It skips the Recycle Bin.)", "Delete").then(ok => ok && deleteFile(d.i, true).then(draw));
     else if (d.act === "delc") clearCache(d.i).then(draw);
+    else if (d.act === "bigtoggle") { bigAll = !bigAll; draw(); }
     else if (d.act === "upd") openApp(UPDATES);
     else if (d.act === "pwset") setPw().then(draw);
     else if (d.act === "bkadd") addBackup().then(draw);
@@ -1370,28 +1382,43 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
   draw();
 }};
 
-const TASKMGR = { builtin: 1, single: 1, name: "Task Manager", icon: "svg:taskmgr", color: "blue", w: 600, h: 460, open(root) {
-  let tab = "proc", sel = null;
+const TASKMGR = { builtin: 1, single: 1, name: "Task Manager", icon: "svg:taskmgr", color: "blue", w: 680, h: 480, open(root) {
+  let tab = "proc", sel = null, sort = { k: "name", dir: 1 }; // dir 1 = A-Z or low to high, -1 = the reverse
   root.innerHTML = '<div class="tm"><div class="tabs tmt"><button data-t="proc">Processes</button><button data-t="perf">Performance</button></div><div class="tmb"></div><div class="tabs tmf"><button data-a="switch">Switch to</button><button data-a="end">End task</button></div></div>';
   const body = root.querySelector(".tmb"), foot = root.querySelector(".tmf");
   const typeOf = a => [STORE, SETTINGS, UPDATES, EXPLORER, TASKMGR].includes(a) ? "System" : catalog.includes(a) ? "App" : "File";
+  const COLS = [["name", "Name"], ["status", "Status"], ["type", "Type"], ["storage", "Storage"], ["mem", "Memory (est.)"]], NUM = { storage: 1, mem: 1 };
+  // Browsers don't report memory per window, so it is estimated from the app's code size, a file's size, and how many page elements the window has.
+  const info = w => {
+    const a = w.app, m = metaAll()[a.name], isApp = catalog.includes(a);
+    const storage = isApp ? (m && m.url === a.url ? m.size || 0 : 0) : a.fid ? a.size || 0 : 0;
+    let nodes = w.el.querySelectorAll("*").length; const fr = w.el.querySelector("iframe");
+    try { if (fr && fr.contentDocument) nodes += fr.contentDocument.getElementsByTagName("*").length; } catch {}
+    return { id: w.id, name: a.name, status: w.el.classList.contains("min") ? "Minimized" : "Running", type: typeOf(a), storage, mem: (isApp ? storage * 2 : storage) + nodes * 1024 };
+  };
+  const sorted = rows => rows.sort((x, y) => (NUM[sort.k] ? x[sort.k] - y[sort.k] : String(x[sort.k]).localeCompare(String(y[sort.k]), undefined, { numeric: true })) * sort.dir || x.name.localeCompare(y.name));
   const draw = async () => {
     if (!root.isConnected) return clearInterval(timer);
     root.querySelectorAll(".tmt button").forEach(b => b.classList.toggle("on", b.dataset.t === tab));
     foot.style.display = tab === "proc" ? "" : "none";
     if (tab === "proc") {
-      const ws = [...wins.values()];
-      body.innerHTML = `<table class="tmtable"><tr><th>Name</th><th>Status</th><th>Type</th></tr>${ws.map(w => `<tr data-id="${w.id}" class="${w.id === sel ? "on" : ""}"><td>${esc(w.app.name)}</td><td>${w.el.classList.contains("min") ? "Minimized" : "Running"}</td><td>${typeOf(w.app)}</td></tr>`).join("") || '<tr><td colspan="3">No open windows</td></tr>'}</table>`;
+      const rows = sorted([...wins.values()].map(info));
+      body.innerHTML = `<table class="tmtable"><tr>${COLS.map(([k, l]) => `<th data-s="${k}" style="cursor:pointer" title="Sort by ${l}">${l}${sort.k === k ? (sort.dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr>${rows.map(r => `<tr data-id="${r.id}" class="${r.id === sel ? "on" : ""}"><td>${esc(r.name)}</td><td>${r.status}</td><td>${r.type}</td><td>${r.storage ? fmt(r.storage) : "—"}</td><td>${fmt(r.mem)}</td></tr>`).join("") || '<tr><td colspan="5">No open windows</td></tr>'}</table><p>Click a heading to sort. Click it again to flip the order. Memory is an estimate, because browsers don't report it for each window.</p>`;
     } else {
       const u = usage(), lim = limitBytes(), est = await navigator.storage?.estimate?.().catch(() => null), mem = performance.memory;
+      const sum = a => a.reduce((n, f) => n + (f.size || 0), 0), code = sum(Object.values(metaAll())), bin = getBin();
       body.innerHTML = `<h3>Storage</h3><div class="sbar"><i style="width:${Math.min(100, u / lim * 100)}%"></i></div><p>${fmt(u)} of ${fmt(lim)} (OS limit)${est ? ` · browser: ${fmt(est.usage)} of about ${fmt(est.quota)}` : ""}</p>
         <h3>Memory</h3>${mem ? `<div class="sbar"><i style="width:${mem.usedJSHeapSize / mem.jsHeapSizeLimit * 100}%"></i></div><p>${fmt(mem.usedJSHeapSize)} used by this page (limit ${fmt(mem.jsHeapSizeLimit)})</p>` : "<p>This browser doesn't share memory details.</p>"}
-        <h3>System</h3>${kv([["Open windows", wins.size], ["Saved apps", Object.keys(metaAll()).length], ["Files and folders", fmeta().length + folders().length], ["Running for", dur(performance.now() / 1000)]])}`;
+        <h3>System</h3>${kv([["Open windows", wins.size], ["Saved apps", `${Object.keys(metaAll()).length} (${fmt(code)})`], ["Files and folders", `${fmeta().length + folders().length} (${fmt(sum(fmeta()))})`], ["Recycle Bin", `${bin.files.length + bin.folders.length} items (${fmt(sum(bin.files))})`], ["Page elements", document.getElementsByTagName("*").length.toLocaleString()], ["Running for", dur(performance.now() / 1000)]])}`;
     }
   };
   const timer = setInterval(draw, 1500);
   root.querySelector(".tmt").onclick = e => { if (e.target.dataset.t) { tab = e.target.dataset.t; sel = null; draw(); } };
-  body.onclick = e => { const r = e.target.closest("tr[data-id]"); if (r) { sel = r.dataset.id; body.querySelectorAll("tr").forEach(x => x.classList.toggle("on", x === r)); } };
+  body.onclick = e => {
+    const th = e.target.closest("th[data-s]");
+    if (th) { const k = th.dataset.s; if (sort.k === k) sort.dir *= -1; else sort = { k, dir: NUM[k] ? -1 : 1 }; draw(); return; } // numbers start with the biggest on top
+    const r = e.target.closest("tr[data-id]"); if (r) { sel = r.dataset.id; body.querySelectorAll("tr").forEach(x => x.classList.toggle("on", x === r)); }
+  };
   foot.onclick = e => {
     const a = e.target.dataset.a, w = wins.get(sel); if (!w) return;
     if (a === "end") { closeWin(sel, true); sel = null; draw(); } // like Windows: ends the task without asking to save
@@ -1441,11 +1468,11 @@ const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "svg:update", co
   check();
 }};
 
-const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: false, theme: "dark", limiter: "low", binDays: 7, lockBind: false, idleLock: 0, lockKey: "l", lockClicks: 3, favMode: "default", favLink: "", favData: "" }, LS("settings", {}));
+const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: true, taskSearch: true, taskLabels: "partial", theme: "dark", limiter: "low", binDays: 7, lockBind: false, idleLock: 0, lockKey: "l", lockClicks: 3, favMode: "default", favLink: "", favData: "" }, LS("settings", {}));
 let bgUrl = null;
 async function applyTheme() {
   const s = getSettings(), r = document.documentElement.style;
-  updateTitle(); applyFavicon(); const bt = $("#bootTitle"); if (bt) bt.textContent = s.site; // boot screen is removed after startup
+  updateTitle(); applyFavicon(); applyTaskbar(); const bt = $("#bootTitle"); if (bt) bt.textContent = s.site; // boot screen is removed after startup
   document.documentElement.dataset.theme = s.theme;
   r.setProperty("--ac", s.accent); r.setProperty("--ac2", s.theme === "light" ? s.accent : `color-mix(in srgb, ${s.accent} 65%, white)`);
   const px = ICON_PX[s.iconSize] || 42; r.setProperty("--cw", px + 38 + "px"); r.setProperty("--rh", px + 50 + "px");
@@ -1510,7 +1537,7 @@ function drawStart() {
 function tick() { const d = new Date(); $("#ck1").textContent = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: !getSettings().hour24 }); $("#ck2").textContent = d.toLocaleDateString(); }
 setInterval(tick, 15000); tick();
 
-$("#taskbar").addEventListener("contextmenu", e => { e.preventDefault(); ctx(e, [["Task Manager", () => openApp(TASKMGR)], ["Settings", () => openApp(SETTINGS)]]); });
+$("#taskbar").addEventListener("contextmenu", e => { e.preventDefault(); ctx(e, [["Task Manager", () => openApp(TASKMGR)], ["Taskbar settings", () => openSettings("taskbar")], ["Settings", () => openApp(SETTINGS)]]); });
 
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") { $("#ctx").style.display = "none"; if (start.classList.contains("open")) toggleStart(false); }
@@ -1618,7 +1645,7 @@ const lockSection = () => {
 };
 
 // ===================== BACKUP: EXPORT / IMPORT =====================
-const SETTING_GROUPS = { appearance: ["site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize"], clock: ["hour24"], windows: ["snap"], system: ["autoUpdate", "limiter", "limitMB", "binDays"] };
+const SETTING_GROUPS = { appearance: ["site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize", "taskSearch", "taskLabels"], clock: ["hour24"], windows: ["snap"], system: ["autoUpdate", "limiter", "limitMB", "binDays"] };
 function exportPicker() { // resolves with { apps, files, pos, appearance, clock, windows, system } or null
   return new Promise(res => {
     const o = document.createElement("div"); o.className = "dlg";
@@ -2211,6 +2238,7 @@ function migrateKeys() {
   const o = "Terminal|" + OS_REPO + "apps/OS/terminal.js", n = "Terminal|" + OS_REPO + "apps/Terminal/terminal.js";
   ["installed", "startPins", "pinned"].forEach(k => { const l = LS(k, null); if (Array.isArray(l) && l.includes(o)) save(k, l.map(x => x === o ? n : x)); });
   const p = LS("pos", {}); if (p["app:" + o]) { p["app:" + n] = p["app:" + o]; delete p["app:" + o]; save("pos", p); }
+  if (!LS("migSnap", false)) { const s = LS("settings", null); if (s && s.snap === false) save("settings", { ...s, snap: true }); save("migSnap", true); } // snap-to-edges is now on by default, switched on once for everyone
 }
 
 // ===================== UPDATE NOTICE, CLOSE WARNING, IDLE LOCK, STARTUP SHORTCUTS =====================
@@ -2231,6 +2259,19 @@ async function runStartup() { // shortcuts with "Run when VUS-OS starts" ticked
   for (const f of fmeta().filter(x => /\.vsh$/i.test(x.name))) {
     try { const b = await dbGet(f.id, "files"); if (b && vshParse(await b.text()).startup) await runVsh(f.id); } catch {}
   }
+}
+
+// ===================== TASKBAR SETTINGS + SETTINGS SHORTCUT =====================
+function applyTaskbar() {
+  const s = getSettings();
+  $("#searchBtn").style.display = s.taskSearch ? "" : "none";
+  $("#tasks").dataset.labels = s.taskLabels;
+  document.querySelectorAll("#tasks .task").forEach(t => { t.title = s.taskLabels === "hover" ? t.dataset.name || "" : ""; });
+}
+function openSettings(page) { // opens Settings on a page, or jumps there if Settings is already open
+  const w = [...wins.values()].find(x => x.app === SETTINGS);
+  if (w && settingsNav) { settingsNav(page); w.el.classList.remove("min"); focus(w.id); return; }
+  settingsStart = page; openApp(SETTINGS);
 }
 
 // ===================== BOOT =====================
