@@ -100,7 +100,15 @@ export default {
     ];
     const CMDNAMES = CMDS.flatMap(c => c.n).filter(n => /^[a-z]/i.test(n));
     const listApp = { builtin: 1, single: 1, name: "Terminal commands", icon: "svg:terminal", color: "amber", w: 580, h: 520, open(r) {
-      r.innerHTML = `<style>.cl{height:100%;overflow:auto;padding:12px 16px;background:var(--el);color:var(--fg);font-size:13px}.cc{border:1px solid var(--bd);background:var(--card);padding:10px 12px;margin-bottom:8px}.cc b{font:600 14px Consolas,monospace}.cc p{margin:4px 0 6px;color:var(--mute);font-size:12px}.cc code{display:block;font:12px Consolas,monospace;padding:4px 8px;background:rgba(128,128,128,.2)}</style><div class="cl">${CMDS.map(c => `<div class="cc"><b>${esc(c.n.join(" / "))}</b><p>${esc(c.d)}</p><code>${esc(c.ex)}</code></div>`).join("")}</div>`;
+      r.innerHTML = `<style>.cw{display:flex;flex-direction:column;height:100%;background:var(--el);color:var(--fg);font-size:13px}.cs{margin:10px 16px 0;padding:6px 8px;border:1px solid var(--bd);background:rgba(128,128,128,.15);color:inherit;font:inherit;outline:0;user-select:text}.cs:focus{border-color:var(--ac)}.cl{flex:1;overflow:auto;padding:10px 16px}.cc{border:1px solid var(--bd);background:var(--card);padding:10px 12px;margin-bottom:8px}.cc b{font:600 14px Consolas,monospace}.cc p{margin:4px 0 6px;color:var(--mute);font-size:12px}.cc code{display:block;font:12px Consolas,monospace;padding:4px 8px;background:rgba(128,128,128,.2)}.cn{color:var(--mute);padding:12px 0}</style><div class="cw"><input class="cs" placeholder="Search commands..." autocomplete="off" spellcheck="false"><div class="cl"></div></div>`;
+      const list = r.querySelector(".cl"), q = r.querySelector(".cs");
+      const draw = () => { // matches in the name come first, then ones that only match the description or example
+        const t = q.value.toLowerCase().trim();
+        const score = c => !t ? 0 : c.n.some(n => n.toLowerCase().startsWith(t)) ? 0 : c.n.some(n => n.toLowerCase().includes(t)) ? 1 : (c.d + " " + c.ex).toLowerCase().includes(t) ? 2 : 9;
+        const rows = CMDS.map(c => [score(c), c]).filter(p => p[0] < 9).sort((x, y) => x[0] - y[0]).map(p => p[1]);
+        list.innerHTML = rows.length ? rows.map(c => `<div class="cc"><b>${esc(c.n.join(" / "))}</b><p>${esc(c.d)}</p><code>${esc(c.ex)}</code></div>`).join("") : '<div class="cn">No matching commands.</div>';
+      };
+      q.oninput = draw; draw(); q.focus();
     } };
 
     const cmds = {
