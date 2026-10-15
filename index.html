@@ -275,12 +275,13 @@ const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
 // One small file with a number per app, e.g. {"MZK PLAYA": 2}. Bump a number to update just that app.
 const VERSIONS_URL = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/versions.json";
+const OS_VERSION = "10.14.2026"; // release date (m.d.yyyy). Put the same date in versions.json as "_os" when you release.
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
 const NATIVE = [
   { name: "Notes", url: OS_REPO + "apps/notes.js", desc: "Text files and code editor", icon: "svg:notes", color: "amber", category: "tools", type: "native" },
-  { name: "Terminal", url: OS_REPO + "apps/OS/terminal.js", desc: "Command line: fetch links, open files and apps", icon: "svg:terminal", color: "amber", category: "tools", type: "native" },
+  { name: "Terminal", url: OS_REPO + "apps/Terminal/terminal.js", desc: "Command line: fetch links, open files and apps", icon: "svg:terminal", color: "amber", category: "tools", type: "native" },
   { name: "Gallery", url: OS_REPO + "apps/OS/gallery.js", desc: "Photos, videos and music from your Files", icon: "svg:gallery", color: "violet", category: "tools", type: "native" }
 ];
 const SEED = ["Notes", "VUS Launcher"]; // installed on first run
@@ -317,7 +318,9 @@ const SVG = {
   temp: ln('M12 5a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM12 9v4l3 2'),
   saved: ln('M4 4h13l3 3v13H4zM8 4v5h7V4M8 20v-6h8v6'),
   bin: ln('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13'),
-  binfull: ln('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6')
+  binfull: ln('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6'),
+  terminal: ln('M3 5h18v14H3zM7 10l3 2-3 2M12 15h5'),
+  gallery: ln('M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6') + '<circle cx="8.5" cy="9" r="1.3" fill="currentColor"/>'
 };
 const svgI = (n, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}">${SVG[n] || ""}</svg>`;
 const glyph = (a, s = ICON_PX[getSettings().iconSize] || 42) => { if (String(a.icon || "").startsWith("svg:")) return `<div class="gl" style="width:${s}px;height:${s}px">${svgI(a.icon.slice(4), s)}</div>`; const [bg, fg] = solid(a); return `<div class="gl" style="width:${s}px;height:${s}px;font-size:${Math.round(s * .42)}px;background:${bg};color:${fg}">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</div>`; };
@@ -376,7 +379,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "F2" && sel.length === 1 && sel[0].dataset.kind !== "app") inlineRename(sel[0], sel[0].dataset.kind, sel[0].dataset.id);
 });
 let clip = null; // { mode: "copy" | "cut", items: [{ kind, id }] }
-const newMenu = (dir, box) => [...(clip ? [["Paste", () => pasteTo(dir)]] : []), ["New folder", () => newFolder(dir, box)], ["New text document", () => newFile("txt", dir, box)], ["Upload files...", () => pickUpload(dir, false)], ["Refresh", renderIcons]];
+const newMenu = (dir, box) => [...(clip ? [["Paste", () => pasteTo(dir)]] : []), ["New folder", () => newFolder(dir, box)], ["New text document", () => newFile("txt", dir, box)], ["New shortcut (.vsh)", () => newVsh(dir, box)], ["Upload files...", () => pickUpload(dir, false)], ["Refresh", renderIcons]];
 let upDir = null;
 const pickUpload = (dir, mode) => { upDir = dir; $(mode === "zip" ? "#upz" : mode ? "#upd" : "#up").click(); };
 $("#desktop").addEventListener("contextmenu", e => { if (e.target.closest(".icon,.win")) return; e.preventDefault(); ctx(e, newMenu(null, $("#icons"))); });
@@ -400,6 +403,7 @@ let z = 10, n = 0;
 const wins = new Map();
 
 function openApp(app) {
+  if (app.exec) return app.exec(); // shortcut files run instead of opening a window
   const ex = app.single && [...wins.values()].find(w => w.app === app);
   if (ex) return toggle(ex.id);
   if (!app.builtin && !isNative(app) && !/raw\.githubusercontent\.com/.test(app.url)) {
@@ -535,7 +539,11 @@ function makeOS(app, win) {
       setBackground: id => { save("settings", { ...getSettings(), bgMode: "file", bgFile: id }); applyTheme(); },
       launch: a => openApp(a),
       theme: t => { save("settings", { ...getSettings(), theme: t }); applyTheme(); },
-      lock: () => lockNow(), sleep: () => sleepNow()
+      lock: () => lockNow(), sleep: () => sleepNow(),
+      version: () => OS_VERSION, latest: async () => { const v = await getVersions(true); return (v && v._os) || null; }, update: f => updateOS(f),
+      windows: () => [...wins.values()].map(w => ({ id: w.id, name: w.app.name })), kill: id => closeWin(id, true),
+      copy: (kind, id, dir) => kind === "folder" ? copyFolder(id, dir) : copyFile(id, dir), move: (kind, id, dir) => moveTo(kind, id, dir), rename: (kind, id, name) => applyRename(kind, id, name),
+      restart: () => softRestart(), run: id => runVsh(id)
     },
     close: force => closeWin(win.id, force),
     guard: fn => { win.beforeClose = fn; } // return false to block closing (e.g. unsaved changes)
@@ -617,6 +625,7 @@ async function loadNow(app, body, win) {
       f.src = "about:blank";
       body.appendChild(f);
       const d = f.contentDocument; d.open(); d.write(text); d.close();
+      ["pointerdown", "keydown", "pointermove", "wheel"].forEach(ev => f.contentWindow.addEventListener(ev, () => { lastAct = Date.now(); }, true));
     }
   } catch (e) {
     console.error(e);
@@ -805,7 +814,7 @@ function iconEl(a, label, open, menu, m) { // m = { kind: app|folder|file, id, d
     const sel = selIcons();
     const cc = m.kind === "app" ? [] : [["Cut", () => clipSet("cut", selIcons())], ["Copy", () => clipSet("copy", selIcons())]];
     if (sel.length > 1) return ctx(e, [[`Open (${sel.length})`, () => sel.forEach(i => i._open())], ...cc, [`Delete (${sel.length})`, () => deleteSel(sel)]]);
-    ctx(e, [["Open", open], ...cc, ...menu]);
+    ctx(e, [[m.exec ? "Execute" : "Open", open], ...cc, ...menu]);
   };
   el.onpointerdown = e => { el._dragged = false; dragIcons(el, e); };
   return el;
@@ -907,16 +916,17 @@ function fillItems(box, fl, fi, openFolder, list) {
   });
   fi.forEach(f => box.appendChild(iconEl(fileApp(f), f.name, () => openApp(fileApp(f)), [
     ["Download", () => downloadFile(f.id)],
+    ...(kindOf(f.name) === "vsh" ? [["Edit", () => openApp(vshEditor(f))]] : []),
     ...(kindOf(f.name) === "html" || extOf(f.name) === "svg" ? [["Edit", () => openApp(editApp(f))]] : []),
     ...(f.saved === false ? [["Save", () => { markSaved("file", f.id); renderIcons(); }]] : []),
     ["Rename", e => inlineRename(iconOf(e), "file", f.id)], ["Move to...", e => moveMenu(e, "file", f.id)],
     ["Delete", () => deleteFile(f.id)],
-    ["Details", () => openApp(detailsApp("file", f.id, null, f.name))]], { kind: "file", id: f.id, del: () => deleteFile(f.id), cols: list ? [short(f.mod), KIND_NAME[kindOf(f.name)] + (extOf(f.name) ? " (." + extOf(f.name) + ")" : ""), fmt(f.size || 0)] : null })));
+    ["Details", () => openApp(detailsApp("file", f.id, null, f.name))]], { kind: "file", id: f.id, exec: kindOf(f.name) === "vsh", del: () => deleteFile(f.id), cols: list ? [short(f.mod), KIND_NAME[kindOf(f.name)] + (extOf(f.name) ? " (." + extOf(f.name) + ")" : ""), fmt(f.size || 0)] : null })));
 }
 const fillDir = (box, dir, openFolder) => fillItems(box, folders().filter(f => sameDir(f, dir)), fmeta().filter(f => sameDir(f, dir)), openFolder);
 function folderApp(id) {
   const f = folders().find(x => x.id === id);
-  return { builtin: 1, name: f ? f.name : "Folder", icon: "svg:folder", color: "amber", open: (root, os) => explorer(root, os, id) };
+  return { builtin: 1, name: f ? f.name : "Folder", icon: "svg:folder", color: "amber", did: id, open: (root, os) => explorer(root, os, id) };
 }
 // File Explorer: sidebar with Desktop / Temporary / Saved. New and uploaded items stay where you put them
 // but count as Temporary until you save them.
@@ -980,7 +990,7 @@ function explorer(root, os, dir0) {
   root.querySelector(".fxq").oninput = e => { q = e.target.value.trim(); draw(); };
   root.querySelector(".fxt").onclick = e => {
     const a = e.target.dataset.a, sel = selIcons().filter(i => grid.contains(i));
-    if (a === "new") { e.stopPropagation(); menuAt(e.target, [["Folder", () => newFolder(here(), grid)], ["Text document", () => newFile("txt", here(), grid)]]); }
+    if (a === "new") { e.stopPropagation(); menuAt(e.target, [["Folder", () => newFolder(here(), grid)], ["Text document", () => newFile("txt", here(), grid)], ["Shortcut (.vsh)", () => newVsh(here(), grid)]]); }
     else if (a === "upl") { e.stopPropagation(); menuAt(e.target, [["Files...", () => pickUpload(here(), false)], ["Folder...", () => pickUpload(here(), true)], ["Zip file...", () => pickUpload(here(), "zip")]]); }
     else if (a === "expz") exportZip(sel.length ? sel : [...grid.querySelectorAll(".icon")]);
     else if (a === "view") { save("fxview", LS("fxview", "icons") === "list" ? "icons" : "list"); draw(); }
@@ -998,7 +1008,7 @@ const EXPLORER = { builtin: 1, single: 1, name: "File Explorer", icon: "svg:fold
 
 function fileApp(f) {
   const k = kindOf(f.name), [icon, color] = KIND_ICON[k];
-  return { builtin: 1, name: f.name, icon, color, size: f.size, open: (root, os) => k === "text" ? notepad(root, os, f.id) : viewer(root, os, f) };
+  return { builtin: 1, name: f.name, icon, color, size: f.size, fid: f.id, ...(k === "vsh" ? { exec: () => runVsh(f.id) } : {}), open: (root, os) => k === "text" ? notepad(root, os, f.id) : viewer(root, os, f) };
 }
 function editApp(f) { // "Edit": open any text-based file (html, svg) in Notepad
   return { builtin: 1, name: f.name, icon: "svg:text", color: "blue", size: f.size, open: (root, os) => notepad(root, os, f.id) };
@@ -1309,7 +1319,10 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
         ${s.bgMode === "file" ? `<label>Picture<select data-k="bgFile">${opts([["", "Choose..."], ...imgs.map(f => [f.id, f.name])], s.bgFile)}</select></label>` : ""}
         <h3>Theme</h3><label>Mode<select data-k="theme">${opts([["dark", "Dark"], ["light", "Light"]], s.theme)}</select></label>
         <h3>Accent color</h3><div class="sws">${SWATCH.map(c => `<div class="sw ${c === s.accent ? "on" : ""}" data-sw="${c}" style="background:${c}"></div>`).join("")}<input type="color" data-k="accent" value="${s.accent}"></div>
-        <h3>Desktop icons</h3><label>Icon size<select data-k="iconSize">${opts([["small", "Small"], ["medium", "Medium"], ["large", "Large"]], s.iconSize)}</select></label>`;
+        <h3>Desktop icons</h3><label>Icon size<select data-k="iconSize">${opts([["small", "Small"], ["medium", "Medium"], ["large", "Large"]], s.iconSize)}</select></label>
+        <h3>Tab icon</h3><label>Favicon<select data-k="favMode" data-r="1">${opts([["default", "Default"], ["link", "Image link"], ["file", "Upload an image"]], s.favMode)}</select></label>
+        ${s.favMode === "link" ? `<label>Image link<input type="text" data-k="favLink" value="${esc(s.favLink)}" placeholder="https://..."></label>` : ""}
+        ${s.favMode === "file" ? `<label>Image<button data-act="favup">${s.favData ? "Change..." : "Choose..."}</button></label>` : ""}`;
     },
     apps: () => `<h2>Apps</h2><label>Update apps automatically<input type="checkbox" data-k="autoUpdate" ${getSettings().autoUpdate ? "checked" : ""}></label><button data-act="upd">Open Updates</button>
       <h3>On the desktop</h3>${installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).map(a => `<div class="item row">${glyph(a, 28)}<div style="flex:1"><b>${esc(a.name)}</b></div><button data-act="rm" data-i="${esc(key(a))}">Remove</button></div>`).join("") || "<p>No apps on the desktop.</p>"}`,
@@ -1335,6 +1348,8 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
     else if (d.act === "delall") deleteAll();
     else if (d.act === "gsign") guestSignIn();
     else if (d.act === "gdel") deleteGuest();
+    else if (d.act === "favup") pickFavicon(u => { set({ favData: u }); draw(); });
+    else if (d.act === "lkkey") { t.textContent = "Press a key..."; captureKey(k => { if (k) set({ lockKey: k }); draw(); }); }
     else if (d.act === "bkexp") doExport();
     else if (d.act === "bkimp") pickBackup();
     else if (d.act === "rm") { toggleInstall(catalog.find(a => key(a) === d.i)); draw(); }
@@ -1410,11 +1425,11 @@ const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "svg:update", co
   check();
 }};
 
-const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: false, theme: "dark", limiter: "low", binDays: 7 }, LS("settings", {}));
+const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: false, theme: "dark", limiter: "low", binDays: 7, lockBind: false, idleLock: 0, lockKey: "l", lockClicks: 3, favMode: "default", favLink: "", favData: "" }, LS("settings", {}));
 let bgUrl = null;
 async function applyTheme() {
   const s = getSettings(), r = document.documentElement.style;
-  document.title = s.site; const bt = $("#bootTitle"); if (bt) bt.textContent = s.site; // boot screen is removed after startup
+  updateTitle(); applyFavicon(); const bt = $("#bootTitle"); if (bt) bt.textContent = s.site; // boot screen is removed after startup
   document.documentElement.dataset.theme = s.theme;
   r.setProperty("--ac", s.accent); r.setProperty("--ac2", s.theme === "light" ? s.accent : `color-mix(in srgb, ${s.accent} 65%, white)`);
   const px = ICON_PX[s.iconSize] || 42; r.setProperty("--cw", px + 38 + "px"); r.setProperty("--rh", px + 50 + "px");
@@ -1437,7 +1452,7 @@ $("#startBtn").onclick = e => { e.stopPropagation(); toggleStart(!start.classLis
 $("#searchBtn").onclick = e => { e.stopPropagation(); toggleStart(true); };
 document.addEventListener("click", e => { if (!start.contains(e.target) && start.classList.contains("open")) toggleStart(false); });
 $("#startQ").oninput = drawStart;
-[["folder", "File Explorer", () => openApp(EXPLORER)], ["terminal", "Terminal", () => openApp(catalog.find(a => a.name === "Terminal"))], ["store", "App Store", () => openApp(STORE)], ["update", "Updates", () => openApp(UPDATES)], ["settings", "Settings", () => openApp(SETTINGS)], ["power", "Power", e => ctx(e, [...(hasPw() && !GUEST ? [["Lock", lockNow]] : []), ...(GUEST ? [["Sign in to your account...", guestSignIn]] : []), ["Sleep", sleepNow], ["Restart", () => location.reload()]])]].forEach(([i, t, fn]) => {
+[["folder", "File Explorer", () => openApp(EXPLORER)], ["terminal", "Terminal", () => openApp(catalog.find(a => a.name === "Terminal"))], ["store", "App Store", () => openApp(STORE)], ["update", "Updates", () => openApp(UPDATES)], ["settings", "Settings", () => openApp(SETTINGS)], ["power", "Power", e => ctx(e, [...(hasPw() && !GUEST ? [["Lock", lockNow]] : []), ...(GUEST ? [["Sign in to your account...", guestSignIn]] : []), ["Sleep", sleepNow], ["Restart", softRestart]])]].forEach(([i, t, fn]) => {
   const d = document.createElement("div"); d.innerHTML = svgI(i, 20); d.title = t;
   d.onclick = e => { e.stopPropagation(); if (t === "Power") fn(e); else { fn(); toggleStart(false); } };
   $(".st-rail").appendChild(d);
@@ -1580,7 +1595,9 @@ const lockSection = () => {
   if (GUEST) return `<h3>Guest mode</h3><p>Your saved files, apps and settings are hidden. Sign in with a password to bring them back.</p><button data-act="gsign">Sign in to your account</button> <button data-act="gdel">Delete guest data</button>`;
   return `<h3>Lock screen</h3><p>${has ? "VUS-OS asks for your password when it opens." : "Set a password to put a lock screen over your files."} It hides the screen only; it does not encrypt what is stored.</p><button data-act="pwset">${has ? "Change password" : "Set password"}</button>
         ${has ? `<h3>Backup passwords</h3>${a.pw.slice(1).map((p, i) => `<div class="item row"><div style="flex:1">Backup ${i + 1}</div><button data-act="bkdel" data-i="${i + 1}">Remove</button></div>`).join("")}<button data-act="bkadd">Add backup password</button>
-        <label>Hash passwords (hides them from dev tools)<input type="checkbox" data-act="pwhash" ${a.hash ? "checked" : ""}></label>` : ""}
+        <label>Hash passwords (hides them from dev tools)<input type="checkbox" data-act="pwhash" ${a.hash ? "checked" : ""}></label>
+        <h3>Auto-lock</h3><label>Lock after being idle<select data-k="idleLock" data-n="1">${[[0, "Never"], [1, "1 minute"], [5, "5 minutes"], [10, "10 minutes"], [15, "15 minutes"], [30, "30 minutes"]].map(([v, l]) => `<option value="${v}" ${v === getSettings().idleLock ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+        <h3>Lock shortcut</h3><label>Lock by pressing a key<input type="checkbox" data-k="lockBind" ${getSettings().lockBind ? "checked" : ""}></label><label>Key<button data-act="lkkey">${esc(getSettings().lockKey)}</button></label><label>Presses in a row<select data-k="lockClicks" data-n="1">${[1, 2, 3, 4, 5].map(n => `<option ${n === getSettings().lockClicks ? "selected" : ""}>${n}</option>`).join("")}</select></label>` : ""}
         <h3>Delete everything</h3><p>Erases all files, apps, settings, Guest data and passwords.${has ? " Needs your password." : ""}</p><button data-act="delall">Delete all</button>`;
 };
 
@@ -1819,17 +1836,399 @@ function sleepNow() {
   document.body.appendChild(o);
 }
 
+// ===================== LOCKED TITLE, LOCK SHORTCUT, FAVICON =====================
+function tabDoc() { try { return top.document; } catch { return document; } } // the page that owns the tab title and icon
+// The tab says "Locked" while a lock screen or sleep screen is on, then goes back to the site name from Settings.
+function updateTitle() { tabDoc().title = document.querySelector(".lock.full,.sleep") ? "Locked" : getSettings().site; }
+new MutationObserver(updateTitle).observe(document.body, { childList: true });
+
+const DEFAULT_FAV = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" fill="#000"/><g fill="#0078d7"><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/></g></svg>');
+function applyFavicon() {
+  const s = getSettings(), D = tabDoc(); let l = D.querySelector("link[rel~=icon]");
+  if (!l) { l = D.createElement("link"); l.rel = "icon"; D.head.appendChild(l); }
+  l.href = s.favMode === "link" && s.favLink ? s.favLink : s.favMode === "file" && s.favData ? s.favData : DEFAULT_FAV;
+}
+function pickFavicon(cb) { // uploaded images are shrunk to 64x64 and stored as text, so they survive closing the tab
+  const i = document.createElement("input"); i.type = "file"; i.accept = "image/*";
+  i.onchange = () => {
+    const f = i.files[0]; if (!f) return;
+    const u = URL.createObjectURL(f), im = new Image();
+    im.onload = () => { const c = document.createElement("canvas"); c.width = c.height = 64; c.getContext("2d").drawImage(im, 0, 0, 64, 64); URL.revokeObjectURL(u); cb(c.toDataURL("image/png")); };
+    im.onerror = () => { URL.revokeObjectURL(u); winAlert("Couldn't read that image."); };
+    im.src = u;
+  };
+  i.click();
+}
+
+const keyName = e => e.key.length === 1 ? e.key.toLowerCase() : e.key;
+function captureKey(done) { // next key pressed is the answer, Escape cancels
+  const h = e => { e.preventDefault(); e.stopPropagation(); removeEventListener("keydown", h, true); done(e.key === "Escape" ? null : keyName(e)); };
+  addEventListener("keydown", h, true);
+}
+let lkN = 0, lkT = 0; // presses in a row, and when the last one happened
+addEventListener("keydown", e => {
+  const s = getSettings(); if (!s.lockBind || GUEST || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable) return; // never fires while typing
+  if (keyName(e) !== s.lockKey) { lkN = 0; return; }
+  const now = Date.now(); lkN = now - lkT < 600 ? lkN + 1 : 1; lkT = now;
+  if (lkN >= s.lockClicks) { lkN = 0; lockNow(); }
+});
+
+// ===================== .VSH SHORTCUT FILES =====================
+reg("vsh", "application/json", "vsh");
+KIND_ICON.vsh = ["svg:vsh", "cyan"]; KIND_NAME.vsh = "Shortcut";
+Object.assign(SVG, { vsh: PG('<path d="M7 12.5l3 2-3 2M12 17.5h5" fill="none" stroke="#0078d7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>') });
+
+const vshParse = t => { const j = JSON.parse(t && t.trim() ? t : "{}"); return { lines: Array.isArray(j.lines) && j.lines.length ? j.lines : [{ name: "", cmd: "", delay: 0 }], output: !!j.output, skip: !!j.skip, startup: !!j.startup }; };
+async function newVsh(parent = null, box = null) {
+  const id = newId(), blank = JSON.stringify({ lines: [{ name: "", cmd: "", delay: 0 }], output: false, skip: false });
+  if (await putFile(id, uniqueName("New Shortcut.vsh", null, parent), new Blob([blank], { type: "application/json" }), parent)) inlineRename(findIcon(box, "file", id), "file", id);
+}
+
+// --- the commands a shortcut can run: the same as Terminal, minus the typing-only ones (cd, clear, exit, help, commands, history, paste) ---
+const VSH_CMDS = ["execute", "open", "ls", "cat", "edit", "mkdir", "rm", "cp", "mv", "rename", "find", "kill", "run", "fetch", "save", "copy", "ver", "version", "sys-upd", "system-update", "restart", "theme", "lock", "sleep", "notify", "wait", "echo"];
+const sysApps = () => [EXPLORER, SETTINGS, STORE, UPDATES, TASKMGR, BIN, ...catalog.filter(a => installed().includes(key(a)))];
+// Same rule as Terminal: only the shortcut's own folder is searched (apps count as the Desktop). A leading \ searches everywhere.
+const shTargets = (par, glob) => {
+  const fl = glob ? folders() : folders().filter(x => sameDir(x, par)), fi = glob ? fmeta() : fmeta().filter(x => sameDir(x, par));
+  return [...(glob || par === null ? sysApps().map(a => ({ name: a.name, kind: "app", run: () => openApp(a) })) : []),
+    ...fl.map(f => ({ name: f.name, kind: glob ? "folder · " + pathOf(f.parent || null) : "folder", id: f.id, run: () => openApp(folderApp(f.id)) })),
+    ...fi.map(f => ({ name: f.name, kind: glob ? "file · " + pathOf(f.parent || null) : "file", id: f.id, run: () => openApp(fileApp(f)) }))];
+};
+const shFind = (a, par) => {
+  const glob = a.startsWith("\\"); if (glob) a = a.slice(1).trim();
+  const t = shTargets(par, glob), q = a.toLowerCase();
+  return t.find(x => x.name.toLowerCase() === q) || t.find(x => x.name.toLowerCase().startsWith(q)) || t.find(x => x.name.toLowerCase().includes(q));
+};
+const shArgs = a => (a.match(/"[^"]*"|\S+/g) || []).map(x => x.replace(/^"|"$/g, "")); // "quoted names" stay in one piece
+const shDir = (p, par) => { // "/" = Desktop, .. = up, names go down; undefined = not found
+  let d = p.startsWith("/") ? null : par;
+  for (const part of p.split("/").filter(Boolean)) {
+    if (part === "..") { const f = folders().find(x => x.id === d); d = f ? f.parent || null : null; }
+    else { const f = folders().find(x => sameDir(x, d) && x.name.toLowerCase() === part.toLowerCase()); if (!f) return undefined; d = f.id; }
+  }
+  return d;
+};
+async function runCmd(line, ctx) { // returns the command's output as text. ctx = { par: folder, self: this file's id, prev: last output, last: last fetched text }
+  const sp = line.search(/\s/), c = (sp < 0 ? line : line.slice(0, sp)).toLowerCase(), a = sp < 0 ? "" : line.slice(sp).trim(), par = ctx.par;
+  const inHere = n => fmeta().find(x => sameDir(x, par) && x.name.toLowerCase() === n.toLowerCase());
+  const dirHere = n => folders().find(x => sameDir(x, par) && x.name.toLowerCase() === n.toLowerCase());
+  const item = n => { const f = inHere(n), o = dirHere(n); return f ? { kind: "file", id: f.id } : o ? { kind: "folder", id: o.id } : null; };
+  const pth = id => pathOf(id).replace(/ › /g, "/");
+  switch (c) {
+    case "execute": case "open": {
+      if (!a.replace(/^\\/, "").trim()) return "Usage: execute <name>   (start with \\ to search everywhere)";
+      const m = shFind(a, par); if (!m) return `Nothing found for "${a}"${a.startsWith("\\") ? "." : " here. Start with \\ to search everywhere."}`;
+      if (m.id === ctx.self) return "Skipped: a shortcut can't open itself.";
+      await m.run(); return "Opened " + m.name;
+    }
+    case "ls": return [...folders().filter(x => sameDir(x, par)).map(x => x.name + "/"), ...fmeta().filter(x => sameDir(x, par)).map(x => x.name)].join("\n") || "(empty)";
+    case "cat": { const f = inHere(a); if (!f) return `No file named "${a}" here.`; const b = await dbGet(f.id, "files"); return b ? await b.text() : ""; }
+    case "edit": { const f = inHere(a); if (!f) return `No file named "${a}" here.`; openApp(editApp(f)); return "Opened " + f.name + " in Notepad"; }
+    case "mkdir": { if (!a) return "Usage: mkdir <name>"; save("folders", [...folders(), { id: newId(), name: uniqueName(a, null, par, folders()), parent: par, saved: true }]); renderIcons(); return `Created ${a}/`; }
+    case "rm": { const f = inHere(a), o = dirHere(a); if (!f && !o) return `Nothing named "${a}" here.`; if (f) await deleteFile(f.id); else await deleteFolder(o.id); return `Moved ${a} to the Recycle Bin.`; }
+    case "cp": case "mv": {
+      const [n, d] = shArgs(a); if (!n || !d) return `Usage: ${c} <name> <folder>   (use "quotes" for names with spaces)`;
+      const it = item(n), t = shDir(d, par);
+      if (!it) return `Nothing named "${n}" here.`; if (t === undefined) return `No folder "${d}".`;
+      if (c === "cp") { await (it.kind === "folder" ? copyFolder(it.id, t) : copyFile(it.id, t)); return `Copied ${n} to ${pth(t)}`; }
+      moveTo(it.kind, it.id, t); return `Moved ${n} to ${pth(t)}`;
+    }
+    case "rename": {
+      const [n, nn] = shArgs(a); if (!n || !nn) return 'Usage: rename <name> <new name>   (use "quotes" for names with spaces)';
+      const it = item(n); if (!it) return `Nothing named "${n}" here.`;
+      applyRename(it.kind, it.id, nn); return `Renamed ${n} to ${nn}`;
+    }
+    case "find": {
+      if (!a) return "Usage: find <text>";
+      const q = a.toLowerCase(), hit = [...folders().map(f => ({ n: f.name, p: pth(f.parent || null) + "/" + f.name + "/" })), ...fmeta().map(f => ({ n: f.name, p: pth(f.parent || null) + "/" + f.name }))].filter(x => x.n.toLowerCase().includes(q));
+      return hit.length ? hit.slice(0, 50).map(x => x.p).join("\n") + (hit.length > 50 ? `\n...and ${hit.length - 50} more` : "") : `Nothing found for "${a}".`;
+    }
+    case "kill": {
+      const w = [...wins.values()].map(x => ({ name: x.app.name, id: x.id }));
+      if (!a) return w.map(x => x.name).join("\n") || "No open programs.";
+      const q = a.toLowerCase(), m = w.find(x => x.name.toLowerCase().startsWith(q)) || w.find(x => x.name.toLowerCase().includes(q));
+      if (!m) return `No open program matches "${a}".`; closeWin(m.id, true); return `Closed ${m.name}`;
+    }
+    case "run": {
+      const p = a.replace(/^"|"$/g, ""); if (!p) return "Usage: run <path to a .vsh file>";
+      const i = p.lastIndexOf("/"), dir = i < 0 ? par : shDir(i === 0 ? "/" : p.slice(0, i), par), nm = p.slice(i + 1);
+      if (dir === undefined) return `No folder "${p.slice(0, i)}".`;
+      const f = fmeta().find(x => sameDir(x, dir) && x.name.toLowerCase() === nm.toLowerCase());
+      if (!f || !/\.vsh$/i.test(f.name)) return `No .vsh shortcut at "${p}".`;
+      if (f.id === ctx.self) return "Skipped: a shortcut can't run itself.";
+      const o = await runVsh(f.id); return typeof o === "string" ? o || "Done." : "That shortcut is already running.";
+    }
+    case "fetch": {
+      if (!/^https?:\/\//i.test(a)) return "Usage: fetch <link starting with http>";
+      try { const r = await fetch(a); if (!r.ok) return `Failed: ${r.status} ${r.statusText}`; ctx.last = await r.text(); return `Fetched ${ctx.last.length.toLocaleString()} characters (use save <name> to keep them)`; }
+      catch { return "Could not fetch that link (blocked, offline, or the site does not allow it)."; }
+    }
+    case "save": { if (!ctx.last) return "Nothing to save. Run fetch first."; if (!a) return "Usage: save <file name>"; await putFile(newId(), uniqueName(a, null, par), new Blob([ctx.last]), par, true); return `Saved ${a}`; }
+    case "copy": {
+      const t = ctx.prev || ""; if (!t) return "Nothing to copy yet.";
+      try { await navigator.clipboard.writeText(t); } catch { const x = document.createElement("textarea"); x.value = t; document.body.appendChild(x); x.select(); document.execCommand("copy"); x.remove(); }
+      return "Copied.";
+    }
+    case "ver": case "version": {
+      const v = await getVersions(true), l = v && v._os, t = `Version-${OS_VERSION}\nLatest-${l || "unknown"}`;
+      if (a.toLowerCase() === "notify") notify("VUS-OS version", t.replace("\n", " · "));
+      return t;
+    }
+    case "sys-upd": case "system-update": return (await updateOS(a.toLowerCase() === "force")) || "Updating...";
+    case "restart": softRestart(); return "Restarting...";
+    case "theme": if (a !== "dark" && a !== "light") return "Usage: theme dark|light"; save("settings", { ...getSettings(), theme: a }); applyTheme(); return "Theme: " + a;
+    case "lock": lockNow(); return "Locked";
+    case "sleep": sleepNow(); return "Sleeping";
+    case "notify": notify("Shortcut", a || "Hello"); return "Notified";
+    case "wait": { const s = Math.min(60, Math.max(0, parseFloat(a) || 0)); await new Promise(r => setTimeout(r, s * 1000)); return `Waited ${s} s`; }
+    case "echo": return a;
+    default: return `'${c}' is not a command.`;
+  }
+}
+
+// --- running a shortcut ---
+const vshRunning = new Set(); // a shortcut that is already running can't be started again, which also stops two shortcuts looping through each other
+async function runVsh(id, data) { // data = what the editor currently shows (so Execute works before saving). Returns the output text.
+  const f = fmeta().find(x => x.id === id); if (!f || vshRunning.has(id)) return;
+  let d = data;
+  if (!d) { try { const b = await dbGet(id, "files"); d = vshParse(b ? await b.text() : ""); } catch { notify(f.name, "Couldn't read this shortcut."); return; } }
+  vshRunning.add(id); const log = [], ctx = { par: f.parent || null, self: id, prev: "", last: "" };
+  try {
+    for (const l of d.lines) {
+      const cmd = (l.cmd || "").trim(); if (!cmd) continue;
+      let o; try { o = await runCmd(cmd, ctx); } catch (err) { o = "Error: " + err.message; } if (!/^copy(\s|$)/i.test(cmd)) ctx.prev = o || "";
+      log.push(`${l.name ? "[" + l.name + "] " : ""}> ${cmd}` + (o ? "\n" + o : ""));
+      const w = Math.min(60, Math.max(0, +l.delay || 0)); if (w) await new Promise(r => setTimeout(r, w * 1000)); // wait after the command
+    }
+  } finally { vshRunning.delete(id); }
+  const text = log.join("\n\n");
+  if (d.output) { // one output file per shortcut, overwritten each run
+    const name = f.name.replace(/\.vsh$/i, "") + " output.txt", par = f.parent || null, ex = fmeta().find(x => x.name === name && sameDir(x, par));
+    if (await putFile(ex ? ex.id : newId(), name, new Blob([text], { type: "text/plain" }), par, true)) notify(f.name, "Output saved to " + name);
+  }
+  return text;
+}
+
+// --- ghost text + clickable options, same idea as Terminal ---
+function vshSuggest(v, par) {
+  const rk = (arr, q) => { q = q.toLowerCase(); const sc = n => { n = n.toLowerCase(); return n.startsWith(q) ? 0 : n.includes(q) ? 1 : 9; }; return arr.map(x => [sc(x.name), x]).filter(p => p[0] < 9).sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name)).map(p => p[1]); };
+  const sp = v.indexOf(" "); let pre = "", list = [];
+  if (sp < 0) list = v ? rk(VSH_CMDS.map(name => ({ name, kind: "command" })), v) : [];
+  else {
+    const c = v.slice(0, sp).toLowerCase(); let typed = v.slice(sp + 1).replace(/^\s+/, ""); pre = v.slice(0, sp + 1);
+    const here = () => [...folders().filter(x => sameDir(x, par)).map(x => ({ name: x.name, kind: "folder" })), ...fmeta().filter(x => sameDir(x, par)).map(x => ({ name: x.name, kind: "file" }))];
+    if (c === "execute" || c === "open") { const g = typed.startsWith("\\"); if (g) { pre += "\\"; typed = typed.slice(1); } list = rk(shTargets(par, g), typed); }
+    else if (c === "cp" || c === "mv" || c === "rename") {
+      const m = typed.match(/^("[^"]*"|\S+)\s+(.*)$/);
+      if (m && c !== "rename") { pre += m[1] + " "; typed = m[2]; list = rk(here().filter(x => x.kind === "folder"), typed); }
+      else if (!m) { typed = typed.replace(/^"/, ""); list = rk(here().map(x => ({ ...x, quote: 1 })), typed); }
+    }
+    else if (c === "cat" || c === "edit") list = rk(here().filter(x => x.kind === "file"), typed);
+    else if (c === "rm") list = rk(here(), typed);
+    else if (c === "run") list = rk(here().filter(x => /\.vsh$/i.test(x.name)), typed);
+    else if (c === "kill") list = rk([...wins.values()].map(w => ({ name: w.app.name, kind: "open" })), typed);
+    else if (c === "theme") list = rk(["dark", "light"].map(name => ({ name, kind: "" })), typed);
+  }
+  return list.slice(0, 6).map(x => ({ ...x, full: pre + (x.quote && /\s/.test(x.name) ? `"${x.name}"` : x.name) }));
+}
+
+// --- the editor window ---
+const vshEditor = f => ({ builtin: 1, name: f.name, icon: "svg:vsh", color: "cyan", w: 660, h: 520, open: (root, os) => vshEdit(root, os, f.id) });
+async function vshEdit(root, os, id) {
+  const meta = () => fmeta().find(x => x.id === id);
+  if (!meta()) { root.innerHTML = '<div class="load err">File not found</div>'; return; }
+  const b0 = await dbGet(id, "files"); let d;
+  try { d = vshParse(b0 ? await b0.text() : ""); } catch { d = vshParse(""); }
+  let dirty = false, asking = false, cands = [];
+  const PRE = [0, 0.5, 1, 2, 3];
+  root.innerHTML = `<style>
+.vsh{display:flex;flex-direction:column;height:100%;background:var(--el);color:var(--fg);font-size:13px}
+.vsh .vt{display:flex;gap:6px;align-items:center;padding:6px 8px;background:rgba(128,128,128,.14);flex-wrap:wrap}
+.vsh button{padding:5px 12px;border:1px solid var(--bd);background:rgba(128,128,128,.2);color:inherit;cursor:default}.vsh button:hover{border-color:var(--ac)}
+.vsh .vo{display:flex;gap:16px;padding:6px 10px;flex-wrap:wrap;border-bottom:1px solid var(--bd)}.vsh .vo label{display:flex;gap:6px;align-items:center}
+.vsh .vm{padding:5px 10px;font-size:12px;color:var(--mute)}.vsh .vm.err{color:#ff6b6b}
+.vsh .vh,.vsh .vr{display:grid;grid-template-columns:minmax(80px,1fr) minmax(120px,2fr) 100px 28px;gap:6px;padding:4px 10px}
+.vsh .vh{color:var(--mute);font-size:11px;border-bottom:1px solid var(--bd)}
+.vsh .vl{flex:1;overflow:auto;padding-bottom:8px}
+.vsh input,.vsh select{min-width:0;width:100%;padding:5px 6px;border:1px solid var(--bd);background:rgba(128,128,128,.15);color:inherit;font:inherit;outline:0;user-select:text}
+.vsh input:focus,.vsh select:focus{border-color:var(--ac)}.vsh select option{color:#000}.vsh input[type=checkbox]{width:auto}.vsh .vx{margin-top:4px}
+.vsh .vc{position:relative;background:rgba(128,128,128,.15)}.vsh .vi{position:relative;background:transparent;font-family:Consolas,monospace}
+.vsh .gh{position:absolute;left:0;top:0;padding:6px 7px;font:13px Consolas,monospace;pointer-events:none;white-space:pre;overflow:hidden;max-width:100%}.vsh .gh span{visibility:hidden}.vsh .gh i{font-style:normal;opacity:.45}
+.vsh .vs div{padding:2px 8px;cursor:pointer;opacity:.85}.vsh .vs div:hover,.vsh .vs div.b{background:rgba(128,128,128,.25)}.vsh .vs small{opacity:.55;margin-left:8px}
+.vsh .vr.bad .vc{outline:1px solid #e81123}
+</style><div class="vsh"><div class="vt"><button data-a="save">Save</button><button data-a="run">Execute</button><button data-a="add">+ New line</button></div>
+<div class="vo"><label><input type="checkbox" data-o="output">Save the output to a text file</label><label><input type="checkbox" data-o="skip">Don't ask to save when closing</label><label><input type="checkbox" data-o="startup">Run when VUS-OS starts</label></div>
+<div class="vm"></div><div class="vh"><span>Name</span><span>Command</span><span>Wait after</span><span></span></div><div class="vl"></div></div>`;
+  const q = s => root.querySelector(s), list = q(".vl"), msg = q(".vm");
+  q("[data-o=output]").checked = d.output; q("[data-o=skip]").checked = d.skip; q("[data-o=startup]").checked = d.startup;
+  const selfBad = cmd => { const m = (cmd || "").trim().match(/^(execute|open)\s+(.+)$/i); if (!m) return false; const t = shFind(m[2].trim(), (meta() || {}).parent || null); return !!t && t.id === id; };
+  const title = () => os.setTitle((dirty ? "*" : "") + (meta() || { name: "Shortcut" }).name + " - Shortcut");
+  const check = () => { // a line that opens this same file is blocked
+    const bad = d.lines.findIndex(l => selfBad(l.cmd));
+    list.querySelectorAll(".vr").forEach((r, n) => r.classList.toggle("bad", !!d.lines[n] && selfBad(d.lines[n].cmd)));
+    msg.className = "vm" + (bad >= 0 ? " err" : ""); msg.textContent = bad >= 0 ? `Line ${bad + 1} opens this shortcut itself. Change it before saving.` : "Execute runs what you see here, even if it isn't saved yet.";
+    return bad < 0;
+  };
+  const touch = () => { dirty = true; title(); check(); };
+  const draw = () => {
+    list.innerHTML = d.lines.map((l, i) => { const cu = !PRE.includes(+l.delay); return `<div class="vr" data-i="${i}"><input class="vn" placeholder="Name (just for you)" value="${esc(l.name || "")}"><div class="vc"><div class="gh"></div><input class="vi" placeholder="Command" spellcheck="false" autocomplete="off" autocapitalize="off" value="${esc(l.cmd || "")}"><div class="vs"></div></div><div><select class="vd">${PRE.map(p => `<option value="${p}" ${!cu && +l.delay === p ? "selected" : ""}>${p ? p + " s" : "Instant"}</option>`).join("")}<option value="c" ${cu ? "selected" : ""}>Custom...</option></select><input class="vx" type="number" min="0" max="60" step="0.1" value="${+l.delay || 0}" style="${cu ? "" : "display:none"}"></div><button data-a="del" title="Delete line">✕</button></div>`; }).join("");
+    check();
+  };
+  const hint = (r, t) => {
+    const v = t.value;
+    cands = vshSuggest(v, (meta() || {}).parent || null);
+    const b = cands[0], ghost = b && v && b.full.toLowerCase().startsWith(v.toLowerCase()) ? b.full.slice(v.length) : "";
+    r.querySelector(".gh").innerHTML = `<span>${esc(v)}</span><i>${esc(ghost)}</i>`;
+    r.querySelector(".vs").innerHTML = cands.map((c, i) => `<div data-s="${i}" class="${i ? "" : "b"}">${esc(c.name)}<small>${c.kind}</small></div>`).join("");
+  };
+  const accept = (t, i) => { const r = t.closest(".vr"), c = cands[i]; if (!c) return; t.value = c.full + (t.value.includes(" ") ? "" : " "); d.lines[+r.dataset.i].cmd = t.value; hint(r, t); touch(); t.focus(); };
+  list.oninput = e => {
+    const r = e.target.closest(".vr"); if (!r) return; const l = d.lines[+r.dataset.i], t = e.target;
+    if (t.classList.contains("vn")) l.name = t.value;
+    else if (t.classList.contains("vi")) { l.cmd = t.value; hint(r, t); }
+    else if (t.classList.contains("vx")) l.delay = Math.min(60, Math.max(0, +t.value || 0));
+    touch();
+  };
+  list.onchange = e => {
+    if (!e.target.classList.contains("vd")) return;
+    const r = e.target.closest(".vr"), l = d.lines[+r.dataset.i], x = r.querySelector(".vx");
+    if (e.target.value === "c") { x.style.display = ""; l.delay = Math.min(60, Math.max(0, +x.value || 0)); x.focus(); } else { x.style.display = "none"; l.delay = +e.target.value; }
+    touch();
+  };
+  list.onfocusin = e => { if (e.target.classList.contains("vi")) hint(e.target.closest(".vr"), e.target); };
+  list.onfocusout = e => { if (e.target.classList.contains("vi")) { const r = e.target.closest(".vr"); if (r) { r.querySelector(".vs").innerHTML = ""; r.querySelector(".gh").innerHTML = ""; } } };
+  list.onmousedown = e => { const s = e.target.closest("[data-s]"); if (!s) return; e.preventDefault(); accept(s.closest(".vr").querySelector(".vi"), +s.dataset.s); };
+  list.onkeydown = e => { if (e.key === "Tab" && e.target.classList.contains("vi") && cands[0]) { e.preventDefault(); accept(e.target, 0); } };
+  q(".vo").onchange = e => { d[e.target.dataset.o] = e.target.checked; touch(); };
+  async function save() {
+    if (!check()) return false;
+    const m = meta(); if (!m) return false;
+    const ok = await putFile(id, m.name, new Blob([JSON.stringify(d)], { type: "application/json" }), undefined, true);
+    if (ok) { dirty = false; title(); } return ok;
+  }
+  root.onclick = e => {
+    const a = e.target.closest("[data-a]")?.dataset.a; if (!a) return;
+    if (a === "add") { d.lines.push({ name: "", cmd: "", delay: 0 }); draw(); touch(); list.scrollTop = list.scrollHeight; list.querySelector(".vr:last-child .vn").focus(); }
+    else if (a === "del") { d.lines.splice(+e.target.closest(".vr").dataset.i, 1); if (!d.lines.length) d.lines.push({ name: "", cmd: "", delay: 0 }); draw(); touch(); }
+    else if (a === "save") save();
+    else if (a === "run" && check()) runVsh(id, d);
+  };
+  root.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); } });
+  os.guard(() => { // closing with unsaved changes asks first, unless "Don't ask" is ticked
+    if (!dirty || d.skip) return true;
+    if (!asking) {
+      asking = true;
+      winDialog(`Do you want to save changes to ${(meta() || { name: "this shortcut" }).name}?`, [["Save", "save"], ["Don't Save", "discard"], ["Cancel", false]]).then(async c => {
+        asking = false;
+        if (c === "save") { if (await save()) os.close(true); } else if (c === "discard") os.close(true);
+      });
+    }
+    return false;
+  });
+  draw(); title();
+}
+
+// ===================== RESTART, SYSTEM UPDATE, MIGRATION =====================
+const unsavedWins = () => [...wins.values()].filter(w => w.el.querySelector(".wt").textContent.startsWith("*")); // apps mark unsaved work with a leading *
+const unsavedMsg = (l, verb) => `These have unsaved changes:\n${l.map(w => "• " + w.el.querySelector(".wt").textContent.replace(/^\*/, "")).join("\n")}\n\n${verb} anyway? Unsaved changes will be lost.`;
+
+async function softRestart() { // closes everything and boots again without reloading, so about:blank survives
+  const dirty = unsavedWins();
+  if (dirty.length && await winDialog(unsavedMsg(dirty, "Restart"), [["Restart anyway", "y", "danger"], ["Cancel", false]]) !== "y") return;
+  [...wins.keys()].forEach(id => closeWin(id, true));
+  toggleStart(false); hideFly(); $("#ctx").style.display = "none"; $("#toasts").innerHTML = "";
+  clip = null; deskHidden = null; launchQ.length = 0; bypassLimit = false; notes.length = 0; renderBell(); remote = null; vshRunning.clear();
+  const b = document.createElement("div"); b.id = "boot";
+  b.innerHTML = `<div class="win-logo"><i></i><i></i><i></i><i></i></div><div class="spin"></div><div id="bootTitle">${esc(getSettings().site)}</div>`;
+  document.body.appendChild(b);
+  await new Promise(r => setTimeout(r, 1500));
+  applyTheme(); renderPins(); autoUpdate(); checkOsUpdate(); lockNow(); runStartup();
+  b.classList.add("hide"); setTimeout(() => b.remove(), 550);
+}
+
+// Remembers which windows are open so an update can bring them back. Apps the update removed simply don't come back.
+const SYS_APPS = () => [EXPLORER, SETTINGS, STORE, UPDATES, TASKMGR, BIN];
+const snapshotWins = () => [...wins.values()].map(w => {
+  const a = w.app, s = w.el.style, o = { z: +s.zIndex, l: s.left, t: s.top, w: s.width, h: s.height, max: w.el.classList.contains("max"), min: w.el.classList.contains("min") };
+  if (catalog.includes(a)) return { ...o, key: key(a) };
+  if (SYS_APPS().includes(a)) return { ...o, sys: a.name };
+  if (a.fid) return { ...o, fid: a.fid };
+  if (a.did) return { ...o, did: a.did };
+  return null;
+}).filter(Boolean);
+function restoreWins() {
+  let l = null; try { l = JSON.parse(sessionStorage.getItem("vos_restore") || "null"); } catch {}
+  sessionStorage.removeItem("vos_restore"); if (!l) return;
+  const sys = Object.fromEntries(SYS_APPS().map(a => [a.name, a]));
+  l.sort((x, y) => x.z - y.z).forEach(o => {
+    const f = o.fid && fmeta().find(x => x.id === o.fid);
+    const a = o.sys ? sys[o.sys] : o.key ? catalog.find(x => key(x) === o.key) : f ? fileApp(f) : o.did && folders().some(x => x.id === o.did) ? folderApp(o.did) : null;
+    if (!a) return;
+    openApp(a); const w = [...wins.values()].pop(); if (!w) return;
+    Object.assign(w.el.style, { left: o.l, top: o.t, width: o.w, height: o.h }); w.el.classList.toggle("max", o.max);
+    if (o.min) { w.el.classList.add("min"); w.task.classList.remove("active"); }
+  });
+  renderPins();
+}
+async function updateOS(force) { // returns a message if it did NOT update
+  const v = await getVersions(true), latest = v && v._os;
+  if (!force && latest && latest === OS_VERSION) return 'Already up to date. Use "sys-upd force" to reinstall anyway.';
+  let html;
+  try { const r = await fetch(OS_REPO + "index.html?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw 0; html = await r.text(); }
+  catch { return "Couldn't download the update."; }
+  if (!/<title>/i.test(html) || !/APPS_JSON/.test(html)) return "That doesn't look like VUS-OS, so it was not installed.";
+  const dirty = unsavedWins();
+  if (dirty.length && await winDialog(unsavedMsg(dirty, "Update"), [["Update anyway", "y", "danger"], ["Cancel", false]]) !== "y") return "Update cancelled.";
+  sessionStorage.setItem("vos_restore", JSON.stringify(snapshotWins())); sessionStorage.setItem("vos_ok", "1"); // vos_ok: don't lock again
+  // The new version runs in a fresh full-screen frame (a fresh page, so nothing clashes with this one), and the old frame is dropped on later updates.
+  const nested = window.frameElement && window.frameElement.dataset.vosShell, host = nested ? window.parent : window;
+  const f = host.document.createElement("iframe"); f.dataset.vosShell = "1";
+  f.style.cssText = "position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483000;background:#000";
+  host.document.body.appendChild(f);
+  const d = f.contentDocument; d.open(); d.write(html); d.close();
+  if (nested) window.frameElement.remove();
+}
+
+// Terminal moved from apps/OS to apps/Terminal: carry installs, Start pins, taskbar pins and icon spots over to the new key.
+function migrateKeys() {
+  const o = "Terminal|" + OS_REPO + "apps/OS/terminal.js", n = "Terminal|" + OS_REPO + "apps/Terminal/terminal.js";
+  ["installed", "startPins", "pinned"].forEach(k => { const l = LS(k, null); if (Array.isArray(l) && l.includes(o)) save(k, l.map(x => x === o ? n : x)); });
+  const p = LS("pos", {}); if (p["app:" + o]) { p["app:" + n] = p["app:" + o]; delete p["app:" + o]; save("pos", p); }
+}
+
+// ===================== UPDATE NOTICE, CLOSE WARNING, IDLE LOCK, STARTUP SHORTCUTS =====================
+async function checkOsUpdate() { // toast when versions.json has a newer "_os" than this build
+  const v = await getVersions(), l = v && v._os;
+  if (l && l !== OS_VERSION) notify("Update available", `Version-${l} is out (you have Version-${OS_VERSION}). Run sys-upd in Terminal.`);
+}
+addEventListener("beforeunload", e => { if (unsavedWins().length) { e.preventDefault(); e.returnValue = ""; } }); // closing the tab with unsaved work asks first
+
+let lastAct = Date.now(); // any click, key, scroll or touch counts as activity
+["pointerdown", "pointermove", "keydown", "wheel", "touchstart"].forEach(ev => addEventListener(ev, () => { lastAct = Date.now(); }, { capture: true, passive: true }));
+setInterval(() => {
+  const m = getSettings().idleLock;
+  if (m && !GUEST && hasPw() && !$(".lock.full,.sleep") && Date.now() - lastAct > m * 60000) lockNow();
+}, 10000);
+
+async function runStartup() { // shortcuts with "Run when VUS-OS starts" ticked
+  for (const f of fmeta().filter(x => /\.vsh$/i.test(x.name))) {
+    try { const b = await dbGet(f.id, "files"); if (b && vshParse(await b.text()).startup) await runVsh(f.id); } catch {}
+  }
+}
+
 // ===================== BOOT =====================
 applyTheme();
 marquee($("#icons"));
 const minBoot = new Promise(r => setTimeout(r, 1800));
 Promise.all([loadCatalog(), minBoot]).then(([ok]) => {
+  migrateKeys();
   if (!LS("seeded", false)) { // first run: add the starter apps (even offline); only counts as done once the catalog really loaded
     save("installed", [...new Set([...installed(), ...SEED.map(nm => catalog.find(a => a.name === nm)).filter(Boolean).map(key)])]);
     if (ok) save("seeded", true);
   }
   renderIcons(); renderPins();
-  autoUpdate(); // background; skipped when auto update is off
+  const resumed = !!sessionStorage.getItem("vos_restore"); restoreWins(); autoUpdate(); checkOsUpdate(); if (!resumed) runStartup(); // background; skipped when auto update is off
   if (sessionStorage.getItem("vos_ok")) sessionStorage.removeItem("vos_ok"); else lockNow();
   $("#boot").classList.add("hide");
   setTimeout(() => $("#boot").remove(), 550);
