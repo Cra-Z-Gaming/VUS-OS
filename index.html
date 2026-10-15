@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- version near L280. under CONFIG -->
+<!-- version near L316. under CONFIG -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -251,6 +251,42 @@ input,select,button{font-family:var(--font)}
 .tmtable th{text-align:left;color:var(--mute);font-weight:400;padding:6px 8px;border-bottom:1px solid var(--bd)}
 .tmtable td{padding:7px 8px}.tmtable tr:hover td{background:rgba(128,128,128,.12)}.tmtable tr.on td{background:color-mix(in srgb,var(--ac) 35%,transparent)}
 .tmb .sbar{height:10px;background:rgba(128,128,128,.3)}.tmb .sbar i{display:block;height:100%;background:var(--ac)}
+.win.ontop .wt::before{content:"📌 "}
+/* taskbar position: top / left / right (bottom is the default above) */
+:root{--tbv:68px}
+html[data-tb=top] #taskbar{top:0;bottom:auto}
+html[data-tb=top] #desktop{inset:var(--tb) 0 0 0}
+html[data-tb=top] #start{top:var(--tb);bottom:auto;border-top:0;border-bottom:1px solid #3a3a3a}
+html[data-tb=top] #flyout{top:var(--tb);bottom:auto;border-top:0;border-bottom:1px solid #3a3a3a}
+html[data-tb=top] #toasts{top:calc(var(--tb) + 12px);bottom:auto}
+html[data-tb=left] #taskbar,html[data-tb=right] #taskbar{top:0;bottom:0;height:auto;width:var(--tbv);flex-direction:column}
+html[data-tb=left] #taskbar{left:0;right:auto}
+html[data-tb=right] #taskbar{right:0;left:auto}
+html[data-tb=left] #desktop{inset:0 0 0 var(--tbv)}
+html[data-tb=right] #desktop{inset:0 var(--tbv) 0 0}
+html[data-tb=left] #searchBtn,html[data-tb=right] #searchBtn{display:none}
+html[data-tb=left] #startBtn,html[data-tb=right] #startBtn{width:100%;height:48px}
+html[data-tb=left] #pins,html[data-tb=right] #pins{flex-direction:column}
+html[data-tb=left] .pin,html[data-tb=right] .pin{width:100%;height:46px;border-bottom:0}
+html[data-tb=left] .pin.run{border-left:2px solid var(--ac2)}
+html[data-tb=right] .pin.run{border-right:2px solid var(--ac2)}
+html[data-tb=left] #tasks,html[data-tb=right] #tasks{flex-direction:column;overflow-x:hidden;overflow-y:auto}
+html[data-tb=left] .task,html[data-tb=right] .task{min-width:0;max-width:none;width:100%;height:46px;padding:0;justify-content:center;border-bottom:0}
+html[data-tb=left] .task{border-left:2px solid #777}
+html[data-tb=right] .task{border-right:2px solid #777}
+html[data-tb=left] .task.active{border-left-color:var(--ac2)}
+html[data-tb=right] .task.active{border-right-color:var(--ac2)}
+html[data-tb=left] .task span,html[data-tb=right] .task span{display:none}
+html[data-tb=left] #tray,html[data-tb=right] #tray{flex-direction:column}
+html[data-tb=left] #tray .tr,html[data-tb=right] #tray .tr,html[data-tb=left] #bell,html[data-tb=right] #bell{width:100%;min-height:34px}
+html[data-tb=left] #clock,html[data-tb=right] #clock{padding:8px 2px;font-size:11px;text-align:center;overflow:hidden}
+html[data-tb=left] #showdesk,html[data-tb=right] #showdesk{width:100%;height:6px;border-left:0;border-top:1px solid #555}
+html[data-tb=left] #start{left:var(--tbv);bottom:0;height:min(600px,100%);max-width:calc(100% - var(--tbv));border-left:0;border-bottom:1px solid #3a3a3a}
+html[data-tb=right] #start{left:auto;right:var(--tbv);bottom:0;height:min(600px,100%);max-width:calc(100% - var(--tbv));border-right:0;border-bottom:1px solid #3a3a3a}
+html[data-tb=left] #flyout{right:auto;left:var(--tbv);bottom:0;max-height:100%;border-left:0;border-bottom:1px solid #3a3a3a}
+html[data-tb=right] #flyout{right:var(--tbv);bottom:0;max-height:100%;border-right:0;border-bottom:1px solid #3a3a3a}
+html[data-tb=left] #toasts{right:auto;left:calc(var(--tbv) + 12px);bottom:12px}
+html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 </style>
 </head>
 <body>
@@ -277,7 +313,7 @@ input,select,button{font-family:var(--font)}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "10.15.2026 2:51 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "10.15.2026 5:51 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -421,9 +457,9 @@ function openApp(app) {
   const task = document.createElement("div");
   task.className = "task";
   task.innerHTML = glyph(app, 20) + `<span>${esc(app.name)}</span>`;
-  task.dataset.name = app.name; if (getSettings().taskLabels === "hover") task.title = app.name;
+  task.dataset.name = app.name; task.title = tipOn() ? app.name : "";
   task.onclick = () => toggle(id);
-  task.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [...(catalog.includes(app) ? [[pinnedKeys().includes(key(app)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(app)]] : []), ["Close window", () => closeWin(id)]]); };
+  task.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [...(catalog.includes(app) ? [[pinnedKeys().includes(key(app)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(app)]] : []), [wins.get(id) && wins.get(id).onTop ? "Turn off always on top" : "Always on top", () => toggleOnTop(id)], ["Close window", () => closeWin(id)]]); };
   $("#tasks").appendChild(task);
   wins.set(id, { id, app, el, task });
 
@@ -447,11 +483,11 @@ function openApp(app) {
         if (el.dataset.restore) { // dragging a snapped window pulls it back to its old size
           const r = JSON.parse(el.dataset.restore); delete el.dataset.restore;
           el.style.width = r.w + "px"; el.style.height = r.h + "px";
-          l = Math.min(Math.max(0, ev.clientX - r.w / 2), innerWidth - r.w); t = el.offsetTop; sx = ev.clientX; sy = ev.clientY;
+          l = Math.min(Math.max(0, ev.clientX - $("#desktop").getBoundingClientRect().left - r.w / 2), $("#desktop").clientWidth - r.w); t = el.offsetTop; sx = ev.clientX; sy = ev.clientY;
         }
       }
-      el.style.left = Math.min(Math.max(l + ev.clientX - sx, 80 - el.offsetWidth), innerWidth - 80) + "px"; el.style.top = Math.min(Math.max(0, t + ev.clientY - sy), $("#desktop").clientHeight - 32) + "px";
-      zone = getSettings().snap ? (ev.clientX <= 6 ? "l" : ev.clientX >= innerWidth - 6 ? "r" : ev.clientY <= 6 ? "t" : null) : null;
+      el.style.left = Math.min(Math.max(l + ev.clientX - sx, 80 - el.offsetWidth), $("#desktop").clientWidth - 80) + "px"; el.style.top = Math.min(Math.max(0, t + ev.clientY - sy), $("#desktop").clientHeight - 32) + "px";
+      const R = $("#desktop").getBoundingClientRect(); zone = getSettings().snap ? (ev.clientX <= R.left + 6 ? "l" : ev.clientX >= R.right - 6 ? "r" : ev.clientY <= R.top + 6 ? "t" : null) : null;
       showSnap(zone);
     };
     bar.onpointerup = bar.onlostpointercapture = () => { bar.onpointermove = bar.onpointerup = bar.onlostpointercapture = null; showSnap(null); if (zone) snapWin(el, zone); };
@@ -509,13 +545,13 @@ function snapWin(el, z) {
 }
 function focus(id) {
   wins.forEach(w => { w.el.classList.toggle("focus", w.id === id); w.task.classList.toggle("active", w.id === id); });
-  wins.get(id).el.style.zIndex = ++z;
+  { const w = wins.get(id); w.el.style.zIndex = (w.onTop ? 100000 : 0) + ++z; }
   renderPins();
 }
 function toggle(id) {
   const w = wins.get(id);
   if (w.el.classList.contains("min")) { w.el.classList.remove("min"); focus(id); }
-  else if (+w.el.style.zIndex === z) { w.el.classList.add("min"); w.task.classList.remove("active"); renderPins(); }
+  else if (w.el.classList.contains("focus")) { w.el.classList.add("min"); w.task.classList.remove("active"); renderPins(); }
   else focus(id);
 }
 function closeWin(id, force) {
@@ -1343,12 +1379,12 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
     },
     taskbar: () => {
       const s = getSettings();
-      return `<h2>Taskbar</h2><label>Show search box<input type="checkbox" data-k="taskSearch" ${s.taskSearch ? "checked" : ""}></label>
-        <h3>Taskbar icons</h3><label>Window names<select data-k="taskLabels">${opts([["full", "Show full name"], ["hide", "Hide name"], ["hover", "Hide name, hover to show full name"], ["partial", "Show name partially"]], s.taskLabels)}</select></label><p>This applies to open windows. Apps pinned to the taskbar always show just their icon.</p>`;
+      return `<h2>Taskbar</h2><label>Taskbar position<select data-k="taskPos">${opts([["bottom", "Bottom"], ["top", "Top"], ["left", "Left"], ["right", "Right"]], s.taskPos)}</select></label><label>Show search box<input type="checkbox" data-k="taskSearch" ${s.taskSearch ? "checked" : ""}></label>
+        <h3>Taskbar icons</h3><label>Window names<select data-k="taskLabels">${opts([["full", "Show full name"], ["hide", "Hide name"], ["hover", "Hide name, hover to show full name"], ["partial", "Show name partially"]], s.taskLabels)}</select></label><p>This applies to open windows. Apps pinned to the taskbar always show just their icon. On the left or right, the search box is hidden and windows show just their icon.</p>`;
     },
     apps: () => `<h2>Apps</h2><label>Update apps automatically<input type="checkbox" data-k="autoUpdate" ${getSettings().autoUpdate ? "checked" : ""}></label><button data-act="upd">Open Updates</button>
       <h3>On the desktop</h3>${installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).map(a => `<div class="item row">${glyph(a, 28)}<div style="flex:1"><b>${esc(a.name)}</b></div><button data-act="rm" data-i="${esc(key(a))}">Remove</button></div>`).join("") || "<p>No apps on the desktop.</p>"}`,
-    time: () => `<h2>Time & language</h2><label>Use 24-hour clock<input type="checkbox" data-k="hour24" ${getSettings().hour24 ? "checked" : ""}></label>`
+    time: () => `<h2>Time & language</h2><label>Use 24-hour clock<input type="checkbox" data-k="hour24" ${getSettings().hour24 ? "checked" : ""}></label><label>Show seconds on the taskbar clock<input type="checkbox" data-k="clockSeconds" ${getSettings().clockSeconds ? "checked" : ""}></label><label>Show the weekday on the taskbar clock<input type="checkbox" data-k="clockWeekday" ${getSettings().clockWeekday ? "checked" : ""}></label>`
   };
   const draw = () => {
     nav.innerHTML = NAV.map(([k, i, l]) => `<div data-go="${k}" class="${k === page ? "on" : ""}">${i}&nbsp; ${l}</div>`).join("");
@@ -1468,7 +1504,7 @@ const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "svg:update", co
   check();
 }};
 
-const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: true, taskSearch: true, taskLabels: "partial", theme: "dark", limiter: "low", binDays: 7, lockBind: false, idleLock: 0, lockKey: "l", lockClicks: 3, favMode: "default", favLink: "", favData: "" }, LS("settings", {}));
+const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: true, taskSearch: true, taskLabels: "partial", taskPos: "bottom", clockSeconds: false, clockWeekday: false, theme: "dark", limiter: "low", binDays: 7, lockBind: false, idleLock: 0, lockKey: "l", lockClicks: 3, favMode: "default", favLink: "", favData: "" }, LS("settings", {}));
 let bgUrl = null;
 async function applyTheme() {
   const s = getSettings(), r = document.documentElement.style;
@@ -1534,8 +1570,12 @@ function drawStart() {
   });
 }
 
-function tick() { const d = new Date(); $("#ck1").textContent = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: !getSettings().hour24 }); $("#ck2").textContent = d.toLocaleDateString(); }
-setInterval(tick, 15000); tick();
+function tick() {
+  const d = new Date(), s = getSettings();
+  $("#ck1").textContent = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...(s.clockSeconds ? { second: "2-digit" } : {}), hour12: !s.hour24 });
+  $("#ck2").textContent = d.toLocaleDateString([], s.clockWeekday ? { weekday: "short", year: "numeric", month: "numeric", day: "numeric" } : undefined);
+}
+setInterval(tick, 1000); tick();
 
 $("#taskbar").addEventListener("contextmenu", e => { e.preventDefault(); ctx(e, [["Task Manager", () => openApp(TASKMGR)], ["Taskbar settings", () => openSettings("taskbar")], ["Settings", () => openApp(SETTINGS)]]); });
 
@@ -1645,7 +1685,7 @@ const lockSection = () => {
 };
 
 // ===================== BACKUP: EXPORT / IMPORT =====================
-const SETTING_GROUPS = { appearance: ["site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize", "taskSearch", "taskLabels"], clock: ["hour24"], windows: ["snap"], system: ["autoUpdate", "limiter", "limitMB", "binDays"] };
+const SETTING_GROUPS = { appearance: ["site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize", "taskSearch", "taskLabels", "taskPos"], clock: ["hour24", "clockSeconds", "clockWeekday"], windows: ["snap"], system: ["autoUpdate", "limiter", "limitMB", "binDays"] };
 function exportPicker() { // resolves with { apps, files, pos, appearance, clock, windows, system } or null
   return new Promise(res => {
     const o = document.createElement("div"); o.className = "dlg";
@@ -2193,7 +2233,7 @@ async function softRestart() { // closes everything and boots again without relo
 // Remembers which windows are open so an update can bring them back. Apps the update removed simply don't come back.
 const SYS_APPS = () => [EXPLORER, SETTINGS, STORE, UPDATES, TASKMGR, BIN];
 const snapshotWins = () => [...wins.values()].map(w => {
-  const a = w.app, s = w.el.style, o = { z: +s.zIndex, l: s.left, t: s.top, w: s.width, h: s.height, max: w.el.classList.contains("max"), min: w.el.classList.contains("min") };
+  const a = w.app, s = w.el.style, o = { z: +s.zIndex, l: s.left, t: s.top, w: s.width, h: s.height, max: w.el.classList.contains("max"), min: w.el.classList.contains("min"), top: !!w.onTop };
   if (catalog.includes(a)) return { ...o, key: key(a) };
   if (SYS_APPS().includes(a)) return { ...o, sys: a.name };
   if (a.fid) return { ...o, fid: a.fid };
@@ -2209,7 +2249,7 @@ function restoreWins() {
     const a = o.sys ? sys[o.sys] : o.key ? catalog.find(x => key(x) === o.key) : f ? fileApp(f) : o.did && folders().some(x => x.id === o.did) ? folderApp(o.did) : null;
     if (!a) return;
     openApp(a); const w = [...wins.values()].pop(); if (!w) return;
-    Object.assign(w.el.style, { left: o.l, top: o.t, width: o.w, height: o.h }); w.el.classList.toggle("max", o.max);
+    Object.assign(w.el.style, { left: o.l, top: o.t, width: o.w, height: o.h }); w.el.classList.toggle("max", o.max); if (o.top) toggleOnTop(w.id);
     if (o.min) { w.el.classList.add("min"); w.task.classList.remove("active"); }
   });
   renderPins();
@@ -2265,9 +2305,11 @@ async function runStartup() { // shortcuts with "Run when VUS-OS starts" ticked
 function applyTaskbar() {
   const s = getSettings();
   $("#searchBtn").style.display = s.taskSearch ? "" : "none";
-  $("#tasks").dataset.labels = s.taskLabels;
-  document.querySelectorAll("#tasks .task").forEach(t => { t.title = s.taskLabels === "hover" ? t.dataset.name || "" : ""; });
+  $("#tasks").dataset.labels = s.taskLabels; document.documentElement.dataset.tb = s.taskPos;
+  document.querySelectorAll("#tasks .task").forEach(t => { t.title = tipOn() ? t.dataset.name || "" : ""; });
 }
+function tipOn() { const s = getSettings(); return s.taskLabels === "hover" || s.taskPos === "left" || s.taskPos === "right"; } // names are hidden, so show a tooltip
+function toggleOnTop(id) { const w = wins.get(id); if (!w) return; w.onTop = !w.onTop; w.el.classList.toggle("ontop", w.onTop); focus(id); }
 function openSettings(page) { // opens Settings on a page, or jumps there if Settings is already open
   const w = [...wins.values()].find(x => x.app === SETTINGS);
   if (w && settingsNav) { settingsNav(page); w.el.classList.remove("min"); focus(w.id); return; }
