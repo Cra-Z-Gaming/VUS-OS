@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- version near L316. under CONFIG -->
+<!-- version near L327. under CONFIG -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -252,6 +252,17 @@ input,select,button{font-family:var(--font)}
 .tmtable td{padding:7px 8px}.tmtable tr:hover td{background:rgba(128,128,128,.12)}.tmtable tr.on td{background:color-mix(in srgb,var(--ac) 35%,transparent)}
 .tmb .sbar{height:10px;background:rgba(128,128,128,.3)}.tmb .sbar i{display:block;height:100%;background:var(--ac)}
 .win.ontop .wt::before{content:"📌 "}
+#updscr{position:fixed;inset:0;z-index:985;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(6px)}
+.updb{width:min(460px,92vw);max-height:80vh;display:flex;flex-direction:column;background:var(--el);color:var(--fg);border:1px solid var(--bd);box-shadow:0 12px 40px rgba(0,0,0,.6);padding:18px}
+.updh{font-size:16px;font-weight:600;margin-bottom:10px}
+.updp,.ub{height:6px;background:rgba(128,128,128,.3);overflow:hidden}
+.updp i,.ub i{display:block;height:100%;width:0;background:var(--ac);transition:width .3s ease}
+.updl{overflow:auto;margin:12px 0;display:flex;flex-direction:column;gap:8px}
+.ur{display:grid;grid-template-columns:22px minmax(80px,1fr) 110px 96px;gap:8px;align-items:center;font-size:12.5px}
+.ur .un{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ur .us{color:var(--mute);text-align:right;white-space:nowrap}
+.ur.updated .us{color:#4ade80}.ur.failed .us{color:#ff8a8a}
+.updf{display:flex;gap:8px;align-items:center}.updf .updm{flex:1;font-size:12px;color:var(--mute)}
+.updf button{padding:5px 14px;border:1px solid var(--bd);background:rgba(128,128,128,.2);color:inherit;cursor:pointer}.updf button:hover{border-color:var(--ac)}.updf button.go{background:var(--ac);border-color:var(--ac);color:#fff}
 /* taskbar position: top / left / right (bottom is the default above) */
 :root{--tbv:68px}
 html[data-tb=top] #taskbar{top:0;bottom:auto}
@@ -313,7 +324,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "10.15.2026 5:51 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "10.16.2026 5:13 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -621,22 +632,91 @@ async function updateApp(app) { // on any failure the old saved copy stays
   try { await saveCode(app, await fetchCode(app)); return true; } catch { return false; }
 }
 const cachedApps = () => Object.entries(metaAll()).map(([name, m]) => ({ app: catalog.find(a => a.name === name && a.url === m.url), m })).filter(x => x.app);
-// Downloads each saved app again (4 at a time) and returns the ones whose code differs from the saved copy.
-async function checkApps(list = cachedApps()) {
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const fetchFresh = async app => { // a copy that skips every cache (the ?t= makes it a brand new link)
+  const r = await fetch(app.url + (app.url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store" });
+  if (!r.ok) throw new Error(r.status);
+  return r.text();
+};
+// Returns the new code if the app really changed, otherwise null. GitHub can briefly serve an older cached copy,
+// so a difference is confirmed with a fresh copy before it counts as an update (this stops "false" updates).
+async function checkOne(x) {
+  const saved = await dbGet(x.app.name), text = await fetchCode(x.app);
+  if (text === saved) return null;
+  const fresh = await fetchFresh(x.app);
+  return fresh !== saved ? fresh : null;
+}
+// Checks each saved app (4 at a time). Optional hooks: start(x), done(x, "same"|"updated"|"failed"), apply(x) saves an update, stop() cancels.
+async function checkApps(list = cachedApps(), h = {}) {
   const changed = []; let failed = 0; const q = [...list];
   await Promise.all(Array.from({ length: 4 }, async () => {
-    while (q.length) { const x = q.shift(); try { const text = await fetchCode(x.app); if (text !== await dbGet(x.app.name)) changed.push({ ...x, text }); } catch { failed++; } }
+    while (q.length && !(h.stop && h.stop())) {
+      const x = q.shift(); if (h.start) h.start(x);
+      try {
+        const text = await checkOne(x);
+        if (text !== null) { const y = { ...x, text }; changed.push(y); if (h.apply) await h.apply(y); }
+        if (h.done) h.done(x, text !== null ? "updated" : "same");
+      } catch { failed++; if (h.done) h.done(x, "failed"); }
+    }
   }));
   return { changed, failed, total: list.length };
 }
-async function autoUpdate(force) { // at most every 10 minutes unless forced
-  if (!getSettings().autoUpdate || !navigator.onLine) return;
-  if (!force && Date.now() - LS("lastAppCheck", 0) < 600000) return;
-  save("lastAppCheck", Date.now());
-  const { changed } = await checkApps();
-  for (const x of changed) await saveCode(x.app, x.text);
-  if (changed.length) notify("Apps updated", changed.map(x => x.app.name).join(", "));
+
+function updateScreen(list) { // the visual side of an automatic update: one bar per app, and it closes itself when nothing needs a restart
+  const el = document.createElement("div"); el.id = "updscr";
+  el.innerHTML = `<div class="updb"><div class="updh">Updating apps</div><div class="updp"><i></i></div><div class="updl">${list.map(({ app }, i) => `<div class="ur" data-i="${i}">${glyph(app, 20)}<span class="un">${esc(app.name)}</span><div class="ub"><i></i></div><span class="us">Waiting</span></div>`).join("")}</div><div class="updf"><span class="updm">Checking ${list.length} app${list.length === 1 ? "" : "s"}...</span><button data-a="skip">Skip</button></div></div>`;
+  document.body.appendChild(el);
+  let done = 0, gone = false;
+  const row = x => el.querySelector(`.ur[data-i="${list.indexOf(x)}"]`), msg = el.querySelector(".updm"), all = el.querySelector(".updp i"), foot = el.querySelector(".updf");
+  const close = () => { gone = true; el.remove(); };
+  el.onclick = e => { const a = e.target.dataset.a; if (a === "skip" || a === "later") close(); else if (a === "restart") { close(); softRestart(); } };
+  return {
+    stopped: () => gone,
+    start(x) { const r = row(x); if (!r) return; r.querySelector(".us").textContent = "Checking..."; const b = r.querySelector(".ub i"); b.style.transition = "width 1.8s cubic-bezier(.1,.6,.3,1)"; b.style.width = "80%"; }, // the bar creeps while the check runs
+    done(x, state) {
+      done++; const r = row(x); if (!r) return;
+      r.classList.add(state); const b = r.querySelector(".ub i"); b.style.transition = "width .25s ease"; b.style.width = "100%";
+      r.querySelector(".us").textContent = { same: "Up to date", updated: "Updated", failed: "Couldn't reach" }[state];
+      all.style.width = done / list.length * 100 + "%";
+    },
+    async finish(updated, failed) {
+      if (gone) return;
+      if (updated) {
+        msg.textContent = `Updated ${updated} app${updated === 1 ? "" : "s"}. Restart to use the new versions.`;
+        foot.querySelector("[data-a=skip]").remove();
+        foot.insertAdjacentHTML("beforeend", '<button data-a="later">Later</button><button class="go" data-a="restart">Restart now</button>');
+        return;
+      }
+      msg.textContent = failed === list.length ? "Couldn't reach GitHub." : "Everything is up to date." + (failed ? ` (Couldn't reach ${failed}.)` : "");
+      await sleep(1100); if (!gone) close();
+    }
+  };
 }
+function suggestRestart(n) { notify("Restart to finish updating", `${n} app${n === 1 ? "" : "s"} updated. Click here to restart.`, () => softRestart()); }
+
+let updating = false;
+async function autoUpdate(force, quiet) { // saved apps are checked at startup, then every 6 hours. "quiet" skips the update screen.
+  if (!getSettings().autoUpdate || !navigator.onLine || updating) return;
+  if (!force && Date.now() - LS("lastAppCheck", 0) < 6 * 3600000) return;
+  const list = cachedApps(); save("lastAppCheck", Date.now());
+  if (!list.length) return;
+  updating = true;
+  try {
+    const scr = quiet ? null : updateScreen(list), t0 = Date.now();
+    const r = await checkApps(list, { stop: () => scr && scr.stopped(), start: x => scr && scr.start(x), done: (x, s) => scr && scr.done(x, s), apply: x => saveCode(x.app, x.text) });
+    if (scr) await sleep(Math.max(0, 1500 - (Date.now() - t0))); // let the bars be seen
+    const n = r.changed.length;
+    if (scr && !scr.stopped()) await scr.finish(n, r.failed); else if (n) suggestRestart(n);
+  } finally { updating = false; }
+}
+function remindUpdates() { // when auto update is off: remind once a week (counted from the last check or the last reminder)
+  if (getSettings().autoUpdate || !cachedApps().length) return;
+  const ref = Math.max(LS("lastAppCheck", 0), LS("lastRemind", 0));
+  if (!ref) { save("lastRemind", Date.now()); return; } // start the weekly clock
+  if (Date.now() - ref >= 7 * 864e5) { save("lastRemind", Date.now()); notify("Time to update your apps", "Auto update is off. Click here to check for updates.", () => openApp(UPDATES)); }
+}
+setInterval(() => { autoUpdate(false, true); remindUpdates(); }, 3600000); // for tabs that stay open for days
+
 // The latest OS version is read straight from the OS_VERSION line of index.html on GitHub.
 let osLatest = null;
 async function latestOs(force) {
@@ -1382,7 +1462,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
       return `<h2>Taskbar</h2><label>Taskbar position<select data-k="taskPos">${opts([["bottom", "Bottom"], ["top", "Top"], ["left", "Left"], ["right", "Right"]], s.taskPos)}</select></label><label>Show search box<input type="checkbox" data-k="taskSearch" ${s.taskSearch ? "checked" : ""}></label>
         <h3>Taskbar icons</h3><label>Window names<select data-k="taskLabels">${opts([["full", "Show full name"], ["hide", "Hide name"], ["hover", "Hide name, hover to show full name"], ["partial", "Show name partially"]], s.taskLabels)}</select></label><p>This applies to open windows. Apps pinned to the taskbar always show just their icon. On the left or right, the search box is hidden and windows show just their icon.</p>`;
     },
-    apps: () => `<h2>Apps</h2><label>Update apps automatically<input type="checkbox" data-k="autoUpdate" ${getSettings().autoUpdate ? "checked" : ""}></label><button data-act="upd">Open Updates</button>
+    apps: () => `<h2>Apps</h2><label>Update apps automatically<input type="checkbox" data-k="autoUpdate" ${getSettings().autoUpdate ? "checked" : ""}></label><p>On: saved apps are checked at startup and then every 6 hours. Off: you get a reminder once a week.</p><button data-act="upd">Open Updates</button>
       <h3>On the desktop</h3>${installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).map(a => `<div class="item row">${glyph(a, 28)}<div style="flex:1"><b>${esc(a.name)}</b></div><button data-act="rm" data-i="${esc(key(a))}">Remove</button></div>`).join("") || "<p>No apps on the desktop.</p>"}`,
     time: () => `<h2>Time & language</h2><label>Use 24-hour clock<input type="checkbox" data-k="hour24" ${getSettings().hour24 ? "checked" : ""}></label><label>Show seconds on the taskbar clock<input type="checkbox" data-k="clockSeconds" ${getSettings().clockSeconds ? "checked" : ""}></label><label>Show the weekday on the taskbar clock<input type="checkbox" data-k="clockWeekday" ${getSettings().clockWeekday ? "checked" : ""}></label>`
   };
@@ -1473,14 +1553,14 @@ const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "svg:update", co
       const old = pending.has(app.name), d = document.createElement("div");
       d.className = "item row";
       d.innerHTML = glyph(app, 32) + `<div style="overflow:hidden"><b>${esc(app.name)}</b><small>${old ? "Update available" : "Up to date"} · ${m.date ? "updated " + new Date(m.date).toLocaleDateString() : "saved earlier"}</small></div>` + (old ? "<button>Update</button>" : "");
-      if (old) d.querySelector("button").onclick = async e => { e.target.textContent = "Updating..."; await saveCode(app, pending.get(app.name)); pending.delete(app.name); draw(); };
+      if (old) d.querySelector("button").onclick = async e => { e.target.textContent = "Updating..."; await saveCode(app, pending.get(app.name)); pending.delete(app.name); suggestRestart(1); draw(); };
       rows.appendChild(d);
     });
   };
   const check = async () => {
     if (!navigator.onLine) { st.textContent = "You're offline. Using the saved copies."; draw(); return; }
     st.textContent = "Checking...";
-    const r = await checkApps(); pending = new Map(r.changed.map(x => [x.app.name, x.text]));
+    save("lastAppCheck", Date.now()); const r = await checkApps(); pending = new Map(r.changed.map(x => [x.app.name, x.text]));
     st.textContent = (r.total ? `${r.changed.length} of ${r.total} apps can be updated.` : "Nothing saved yet.") + (r.failed ? ` Couldn't reach ${r.failed}.` : "") + " Auto update is " + (getSettings().autoUpdate ? "on." : "off.");
     draw();
   };
@@ -1498,7 +1578,7 @@ const UPDATES = { builtin: 1, single: 1, name: "Updates", icon: "svg:update", co
   root.querySelector("#chk").onclick = check;
   root.querySelector("#all").onclick = async e => {
     e.target.textContent = "Updating...";
-    for (const [name, text] of [...pending]) { const a = catalog.find(x => x.name === name); if (a) await saveCode(a, text); }
+    let n = 0; for (const [name, text] of [...pending]) { const a = catalog.find(x => x.name === name); if (a) { await saveCode(a, text); n++; } } if (n) suggestRestart(n);
     pending.clear(); e.target.textContent = "Update all"; draw();
   };
   check();
@@ -1860,10 +1940,11 @@ Object.assign(SVG, {
 });
 const notes = []; // notifications from this session
 let flyMode = null, cal = null, batt = null;
-function notify(title, body = "") { // small toast + a line in the notification panel (apps can call os.notify)
-  notes.unshift({ title, body, time: Date.now() }); renderBell();
+function notify(title, body = "", fn) { // small toast + a line in the notification panel (apps can call os.notify). fn = what happens when it's clicked
+  notes.unshift({ title, body, fn, time: Date.now() }); renderBell();
   const t = document.createElement("div"); t.className = "toast"; t.innerHTML = `<b>${esc(title)}</b>${body ? `<div>${esc(body)}</div>` : ""}`;
-  $("#toasts").appendChild(t); setTimeout(() => t.remove(), 5000);
+  if (fn) { t.style.cursor = "pointer"; t.onclick = () => { t.remove(); fn(); }; }
+  $("#toasts").appendChild(t); setTimeout(() => t.remove(), fn ? 9000 : 5000);
   if (flyMode === "ac") drawFly();
 }
 function renderBell() { $("#bell").innerHTML = svgI("bell", 18) + (notes.length ? `<span class="bdg">${notes.length}</span>` : ""); }
@@ -1880,7 +1961,7 @@ function drawFly() {
     for (let i = 0; i < 42; i++) { const d = new Date(cal.y, cal.m, 1 - first.getDay() + i); cells.push(`<span class="${d.getMonth() !== cal.m ? "o" : ""} ${d.toDateString() === now.toDateString() ? "t" : ""}">${d.getDate()}</span>`); }
     f.innerHTML = `<div class="cal-h">${calTime()}</div><div class="cal-d">${now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</div><div class="cal-n"><b>${first.toLocaleDateString([], { month: "long", year: "numeric" })}</b><span><button data-c="-1">▲</button><button data-c="1">▼</button></span></div><div class="cal-g">${["S", "M", "T", "W", "T", "F", "S"].map(x => `<span class="w">${x}</span>`).join("")}${cells.join("")}</div><div style="margin-top:10px"><a data-c="today">Go to today</a></div>`;
   } else if (flyMode === "ac") {
-    f.innerHTML = `<div class="ac-h"><b>Notifications</b><a data-a="clear">Clear all</a></div><div class="ac-l">${notes.length ? notes.map(n => `<div class="ac-n"><b>${esc(n.title)}</b>${n.body ? `<div>${esc(n.body)}</div>` : ""}<small>${new Date(n.time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</small></div>`).join("") : "<p>No new notifications</p>"}</div><div class="ac-q"><button data-a="theme">${getSettings().theme === "dark" ? "Light mode" : "Dark mode"}</button>${hasPw() && !GUEST ? '<button data-a="lock">Lock</button>' : ""}<button data-a="settings">All settings</button></div>`;
+    f.innerHTML = `<div class="ac-h"><b>Notifications</b><a data-a="clear">Clear all</a></div><div class="ac-l">${notes.length ? notes.map((n, i) => `<div class="ac-n" data-i="${i}"${n.fn ? ' style="cursor:pointer"' : ""}><b>${esc(n.title)}</b>${n.body ? `<div>${esc(n.body)}</div>` : ""}<small>${new Date(n.time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</small></div>`).join("") : "<p>No new notifications</p>"}</div><div class="ac-q"><button data-a="theme">${getSettings().theme === "dark" ? "Light mode" : "Dark mode"}</button>${hasPw() && !GUEST ? '<button data-a="lock">Lock</button>' : ""}<button data-a="settings">All settings</button></div>`;
   } else if (flyMode === "net") {
     const c = navigator.connection;
     f.innerHTML = `<b>${navigator.onLine ? "Connected" : "No internet"}</b><p style="margin-top:6px;opacity:.8;font-size:13px">${navigator.onLine ? "VUS-OS can reach the internet." + (c && c.effectiveType ? `<br>Connection: ${c.effectiveType}${c.downlink ? `, about ${c.downlink} Mbps` : ""}` : "") : "Apps you already opened still work offline."}</p>`;
@@ -1898,6 +1979,7 @@ $("#bell").onclick = () => toggleFly("ac");
 $("#tray").onclick = e => { const t = e.target.closest("[data-f]"); if (t) toggleFly(t.dataset.f); };
 $("#flyout").onclick = e => {
   const c = e.target.closest("[data-c]")?.dataset.c, a = e.target.closest("[data-a]")?.dataset.a;
+  const nn = e.target.closest(".ac-n"); if (nn && notes[+nn.dataset.i] && notes[+nn.dataset.i].fn) { const f = notes[+nn.dataset.i].fn; hideFly(); f(); return; }
   if (c) { if (c === "today") cal = null; else { const d = new Date(cal.y, cal.m + +c, 1); cal = { y: d.getFullYear(), m: d.getMonth() }; } drawFly(); }
   else if (a === "clear") { notes.length = 0; renderBell(); drawFly(); }
   else if (a === "theme") { save("settings", { ...getSettings(), theme: getSettings().theme === "dark" ? "light" : "dark" }); applyTheme(); drawFly(); }
@@ -1962,7 +2044,34 @@ reg("vsh", "application/json", "vsh");
 KIND_ICON.vsh = ["svg:vsh", "cyan"]; KIND_NAME.vsh = "Shortcut";
 Object.assign(SVG, { vsh: PG('<path d="M7 12.5l3 2-3 2M12 17.5h5" fill="none" stroke="#0078d7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>') });
 
-const vshParse = t => { const j = JSON.parse(t && t.trim() ? t : "{}"); return { lines: Array.isArray(j.lines) && j.lines.length ? j.lines : [{ name: "", cmd: "", delay: 0 }], output: !!j.output, skip: !!j.skip, startup: !!j.startup }; };
+const vshParse = t => { const j = JSON.parse(t && t.trim() ? t : "{}"); return { lines: Array.isArray(j.lines) && j.lines.length ? j.lines : [{ name: "", cmd: "", delay: 0 }], output: !!j.output, skip: !!j.skip, startup: !!j.startup, antiRepeat: j.antiRepeat !== false }; }; // anti-repeat is on unless switched off
+// Swaps (prev), (cmd N) and (cmd Name) for the output of an earlier line. i = this line's position (0 = first). Returns { text } or { error }.
+// (cmd 2) is always line number 2. A line's name works too: (cmd Get version). To use a name that is only digits, put it in quotes: (cmd "2").
+function vshRefs(cmd, i, outs, lines) {
+  let error = ""; const total = lines.length;
+  const text = cmd.replace(/\((prev|cmd\s+([^()]+?))\)/gi, (all, w, arg) => {
+    if (error) return all;
+    let k;
+    if (/^prev$/i.test(w)) { if (i === 0) { error = "(prev) has nothing above it (this is the first line)"; return all; } k = i; } // (prev) is the line right above
+    else {
+      const raw = arg.trim();
+      if (/^\d+$/.test(raw)) k = parseInt(raw, 10); // line numbers start at 1
+      else {
+        const q = raw.replace(/^"(.*)"$/, "$1").trim().toLowerCase();
+        const hits = lines.map((l, n) => (l.name || "").trim().toLowerCase() === q ? n + 1 : 0).filter(Boolean);
+        if (!hits.length) { error = `${all} doesn't match any line name`; return all; }
+        if (hits.length > 1) { error = `${all} matches more than one line (use the line number instead)`; return all; }
+        k = hits[0];
+      }
+    }
+    if (!(k >= 1 && k <= total)) { error = `${all} doesn't exist (this shortcut has ${total} line${total === 1 ? "" : "s"})`; return all; }
+    if (k > i) { error = `${all} points to a line that hasn't run yet`; return all; }
+    if (outs[k - 1] === undefined) { error = `${all} has no output (that line was empty or skipped)`; return all; }
+    return outs[k - 1];
+  });
+  return error ? { error } : { text };
+}
+const vshRefProblem = (cmd, i, lines) => vshRefs(cmd || "", i, Array(i).fill("x"), lines).error || ""; // for the editor: only checks that the link points at a real earlier line
 async function newVsh(parent = null, box = null) {
   const id = newId(), blank = JSON.stringify({ lines: [{ name: "", cmd: "", delay: 0 }], output: false, skip: false });
   if (await putFile(id, uniqueName("New Shortcut.vsh", null, parent), new Blob([blank], { type: "application/json" }), parent)) inlineRename(findIcon(box, "file", id), "file", id);
@@ -2043,8 +2152,9 @@ async function runCmd(line, ctx) { // returns the command's output as text. ctx 
       const o = await runVsh(f.id); return typeof o === "string" ? o || "Done." : "That shortcut is already running.";
     }
     case "fetch": {
-      if (!/^https?:\/\//i.test(a)) return "Usage: fetch <link starting with http>";
-      try { const r = await fetch(a); if (!r.ok) return `Failed: ${r.status} ${r.statusText}`; ctx.last = await r.text(); return `Fetched ${ctx.last.length.toLocaleString()} characters (use save <name> to keep them)`; }
+      let url = a; if (!/^https?:\/\//i.test(url) && /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(url)) url = "https://" + url; // links without https:// are fine
+      if (!/^https?:\/\//i.test(url)) return "Usage: fetch <link, like https://raw.githubusercontent.com/...>";
+      try { const r = await fetch(url); if (!r.ok) return `Failed: ${r.status} ${r.statusText}`; ctx.last = await r.text(); ctx.value = ctx.last; return `Fetched ${ctx.last.length.toLocaleString()} characters (use save <name> to keep them)`; }
       catch { return "Could not fetch that link (blocked, offline, or the site does not allow it)."; }
     }
     case "save": { if (!ctx.last) return "Nothing to save. Run fetch first."; if (!a) return "Usage: save <file name>"; await putFile(newId(), uniqueName(a, null, par), new Blob([ctx.last]), par, true); return `Saved ${a}`; }
@@ -2071,17 +2181,32 @@ async function runCmd(line, ctx) { // returns the command's output as text. ctx 
 }
 
 // --- running a shortcut ---
+const vshRepeats = new Map(); // command text -> when it recently ran (for anti-repeat)
+function vshTooFast(cmd) { // true once the same command has run more than 20 times within 3 seconds
+  const now = performance.now(), l = (vshRepeats.get(cmd) || []).filter(t => now - t < 3000); l.push(now); vshRepeats.set(cmd, l);
+  if (vshRepeats.size > 200) for (const [k, v] of vshRepeats) if (!v.length || now - v[v.length - 1] > 3000) vshRepeats.delete(k);
+  return l.length > 20;
+}
 const vshRunning = new Set(); // a shortcut that is already running can't be started again, which also stops two shortcuts looping through each other
 async function runVsh(id, data) { // data = what the editor currently shows (so Execute works before saving). Returns the output text.
   const f = fmeta().find(x => x.id === id); if (!f || vshRunning.has(id)) return;
   let d = data;
   if (!d) { try { const b = await dbGet(id, "files"); d = vshParse(b ? await b.text() : ""); } catch { notify(f.name, "Couldn't read this shortcut."); return; } }
-  vshRunning.add(id); const log = [], ctx = { par: f.parent || null, self: id, prev: "", last: "" };
+  vshRunning.add(id); const log = [], outs = [], ctx = { par: f.parent || null, self: id, prev: "", last: "", value: undefined };
   try {
-    for (const l of d.lines) {
-      const cmd = (l.cmd || "").trim(); if (!cmd) continue;
-      let o; try { o = await runCmd(cmd, ctx); } catch (err) { o = "Error: " + err.message; } if (!/^copy(\s|$)/i.test(cmd)) ctx.prev = o || "";
-      log.push(`${l.name ? "[" + l.name + "] " : ""}> ${cmd}` + (o ? "\n" + o : ""));
+    for (let i = 0; i < d.lines.length; i++) {
+      const l = d.lines[i], shown = (l.cmd || "").trim(); if (!shown) continue;
+      const rr = vshRefs(shown, i, outs, d.lines), tag = l.name ? "[" + l.name + "] " : "";
+      if (rr.error) { log.push(`${tag}> ${shown}\nSkipped: ${rr.error}.`); continue; } // a broken link skips just that line
+      if (d.antiRepeat && vshTooFast(rr.text)) { // the same command more than 20 times in 3 seconds: end the whole script
+        log.push(`${tag}> ${shown}\nStopped by anti-repeat: this command ran more than 20 times in 3 seconds.`);
+        notify(f.name, "Stopped by anti-repeat: the same command ran more than 20 times in 3 seconds."); break;
+      }
+      ctx.value = undefined; let o;
+      try { o = await runCmd(rr.text, ctx); } catch (err) { o = "Error: " + err.message; }
+      if (!/^copy(\s|$)/i.test(shown)) ctx.prev = o || "";
+      outs[i] = String(ctx.value !== undefined ? ctx.value : o || "").trim(); // what (prev) and (cmd ...) plug in later
+      log.push(`${tag}> ${shown}` + (o ? "\n" + o : ""));
       const w = Math.min(60, Math.max(0, +l.delay || 0)); if (w) await new Promise(r => setTimeout(r, w * 1000)); // wait after the command
     }
   } finally { vshRunning.delete(id); }
@@ -2094,7 +2219,22 @@ async function runVsh(id, data) { // data = what the editor currently shows (so 
 }
 
 // --- ghost text + clickable options, same idea as Terminal ---
-function vshSuggest(v, par) {
+function vshSuggest(v, par, link) {
+  const open = v.match(/\(([^()]*)$/); // typing inside an unfinished ( ... ) link: offer the earlier lines, with their number AND name
+  if (link && open) {
+    const frag = open[1].toLowerCase(), head = v.slice(0, open.index), out = [];
+    if (link.i > 0 && (!frag || "prev".startsWith(frag))) out.push({ name: "(prev)", kind: "the line above", full: head + "(prev)", link: 1 });
+    if (!frag || "cmd".startsWith(frag) || frag.startsWith("cmd")) {
+      const q = frag.startsWith("cmd") ? frag.slice(3).trim().replace(/^"/, "") : "";
+      link.lines.slice(0, link.i).forEach((l, n) => {
+        const nm = (l.name || "").trim(), num = String(n + 1);
+        if (q && !(num.startsWith(q) || nm.toLowerCase().includes(q))) return;
+        out.push({ name: `(cmd ${num})`, kind: nm ? `line ${num} · named "${nm}"` : `line ${num} · ${(l.cmd || "(empty)").slice(0, 22)}`, full: head + `(cmd ${num})`, link: 1 });
+        if (nm && !/[()"]/.test(nm)) { const t = `(cmd ${/^\d+$/.test(nm) ? '"' + nm + '"' : nm})`; out.push({ name: t, kind: `by name · line ${num}`, full: head + t, link: 1 }); }
+      });
+    }
+    return out.slice(0, 10);
+  }
   const rk = (arr, q) => { q = q.toLowerCase(); const sc = n => { n = n.toLowerCase(); return n.startsWith(q) ? 0 : n.includes(q) ? 1 : 9; }; return arr.map(x => [sc(x.name), x]).filter(p => p[0] < 9).sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name)).map(p => p[1]); };
   const sp = v.indexOf(" "); let pre = "", list = [];
   if (sp < 0) list = v ? rk(VSH_CMDS.map(name => ({ name, kind: "command" })), v) : [];
@@ -2131,41 +2271,44 @@ async function vshEdit(root, os, id) {
 .vsh button{padding:5px 12px;border:1px solid var(--bd);background:rgba(128,128,128,.2);color:inherit;cursor:default}.vsh button:hover{border-color:var(--ac)}
 .vsh .vo{display:flex;gap:16px;padding:6px 10px;flex-wrap:wrap;border-bottom:1px solid var(--bd)}.vsh .vo label{display:flex;gap:6px;align-items:center}
 .vsh .vm{padding:5px 10px;font-size:12px;color:var(--mute)}.vsh .vm.err{color:#ff6b6b}
-.vsh .vh,.vsh .vr{display:grid;grid-template-columns:minmax(80px,1fr) minmax(120px,2fr) 100px 28px;gap:6px;padding:4px 10px}
+.vsh .vh,.vsh .vr{display:grid;grid-template-columns:22px minmax(80px,1fr) minmax(120px,2fr) 100px 28px;gap:6px;padding:4px 10px}
 .vsh .vh{color:var(--mute);font-size:11px;border-bottom:1px solid var(--bd)}
 .vsh .vl{flex:1;overflow:auto;padding-bottom:8px}
 .vsh input,.vsh select{min-width:0;width:100%;padding:5px 6px;border:1px solid var(--bd);background:rgba(128,128,128,.15);color:inherit;font:inherit;outline:0;user-select:text}
 .vsh input:focus,.vsh select:focus{border-color:var(--ac)}.vsh select option{color:#000}.vsh input[type=checkbox]{width:auto}.vsh .vx{margin-top:4px}
-.vsh .vc{position:relative;background:rgba(128,128,128,.15)}.vsh .vi{position:relative;background:transparent;font-family:Consolas,monospace}
+.vsh .vcm{position:relative;background:rgba(128,128,128,.15)}.vsh .vi{position:relative;background:transparent;font-family:Consolas,monospace}
 .vsh .gh{position:absolute;left:0;top:0;padding:6px 7px;font:13px Consolas,monospace;pointer-events:none;white-space:pre;overflow:hidden;max-width:100%}.vsh .gh span{visibility:hidden}.vsh .gh i{font-style:normal;opacity:.45}
 .vsh .vs div{padding:2px 8px;cursor:pointer;opacity:.85}.vsh .vs div:hover,.vsh .vs div.b{background:rgba(128,128,128,.25)}.vsh .vs small{opacity:.55;margin-left:8px}
-.vsh .vr.bad .vc{outline:1px solid #e81123}
+.vsh .vr.bad .vcm{outline:1px solid #e81123}
+.vsh .vr.warn .vcm{outline:1px solid #f59e0b}.vsh .vm.warn{color:#f59e0b}
+.vsh .vk{color:var(--mute);font-size:11px;padding-top:7px;text-align:center}
 </style><div class="vsh"><div class="vt"><button data-a="save">Save</button><button data-a="run">Execute</button><button data-a="add">+ New line</button></div>
-<div class="vo"><label><input type="checkbox" data-o="output">Save the output to a text file</label><label><input type="checkbox" data-o="skip">Don't ask to save when closing</label><label><input type="checkbox" data-o="startup">Run when VUS-OS starts</label></div>
-<div class="vm"></div><div class="vh"><span>Name</span><span>Command</span><span>Wait after</span><span></span></div><div class="vl"></div></div>`;
+<div class="vo"><label title="Stops the whole script if the same command runs more than 20 times in 3 seconds"><input type="checkbox" data-o="antiRepeat">Anti-repeat</label><label><input type="checkbox" data-o="output">Save the output to a text file</label><label><input type="checkbox" data-o="skip">Don't ask to save when closing</label><label><input type="checkbox" data-o="startup">Run when VUS-OS starts</label></div>
+<div class="vm"></div><div class="vh"><span>#</span><span>Name</span><span>Command</span><span>Wait after</span><span></span></div><div class="vl"></div></div>`;
   const q = s => root.querySelector(s), list = q(".vl"), msg = q(".vm");
-  q("[data-o=output]").checked = d.output; q("[data-o=skip]").checked = d.skip; q("[data-o=startup]").checked = d.startup;
+  q("[data-o=antiRepeat]").checked = d.antiRepeat; q("[data-o=output]").checked = d.output; q("[data-o=skip]").checked = d.skip; q("[data-o=startup]").checked = d.startup;
   const selfBad = cmd => { const m = (cmd || "").trim().match(/^(execute|open)\s+(.+)$/i); if (!m) return false; const t = shFind(m[2].trim(), (meta() || {}).parent || null); return !!t && t.id === id; };
   const title = () => os.setTitle((dirty ? "*" : "") + (meta() || { name: "Shortcut" }).name + " - Shortcut");
-  const check = () => { // a line that opens this same file is blocked
-    const bad = d.lines.findIndex(l => selfBad(l.cmd));
-    list.querySelectorAll(".vr").forEach((r, n) => r.classList.toggle("bad", !!d.lines[n] && selfBad(d.lines[n].cmd)));
-    msg.className = "vm" + (bad >= 0 ? " err" : ""); msg.textContent = bad >= 0 ? `Line ${bad + 1} opens this shortcut itself. Change it before saving.` : "Execute runs what you see here, even if it isn't saved yet.";
+  const check = () => { // a line that opens this same file is blocked; a broken (cmd N) link is only a warning, because that line is skipped when it runs
+    const bad = d.lines.findIndex(l => selfBad(l.cmd)), warns = d.lines.map((l, n) => vshRefProblem(l.cmd, n, d.lines)), w = warns.findIndex(Boolean);
+    list.querySelectorAll(".vr").forEach((r, n) => { r.classList.toggle("bad", !!d.lines[n] && selfBad(d.lines[n].cmd)); r.classList.toggle("warn", !!warns[n]); });
+    msg.className = "vm" + (bad >= 0 ? " err" : w >= 0 ? " warn" : "");
+    msg.textContent = bad >= 0 ? `Line ${bad + 1} opens this shortcut itself. Change it before saving.` : w >= 0 ? `Line ${w + 1}: ${warns[w]}. It will be skipped when the shortcut runs.` : "Execute runs what you see here, even if it isn't saved yet. Use (prev), (cmd 1) or (cmd Name) to plug in the output of an earlier line.";
     return bad < 0;
   };
   const touch = () => { dirty = true; title(); check(); };
   const draw = () => {
-    list.innerHTML = d.lines.map((l, i) => { const cu = !PRE.includes(+l.delay); return `<div class="vr" data-i="${i}"><input class="vn" placeholder="Name (just for you)" value="${esc(l.name || "")}"><div class="vc"><div class="gh"></div><input class="vi" placeholder="Command" spellcheck="false" autocomplete="off" autocapitalize="off" value="${esc(l.cmd || "")}"><div class="vs"></div></div><div><select class="vd">${PRE.map(p => `<option value="${p}" ${!cu && +l.delay === p ? "selected" : ""}>${p ? p + " s" : "Instant"}</option>`).join("")}<option value="c" ${cu ? "selected" : ""}>Custom...</option></select><input class="vx" type="number" min="0" max="60" step="0.1" value="${+l.delay || 0}" style="${cu ? "" : "display:none"}"></div><button data-a="del" title="Delete line">✕</button></div>`; }).join("");
+    list.innerHTML = d.lines.map((l, i) => { const cu = !PRE.includes(+l.delay); return `<div class="vr" data-i="${i}"><span class="vk">${i + 1}</span><input class="vn" placeholder="Name (just for you)" value="${esc(l.name || "")}"><div class="vcm"><div class="gh"></div><input class="vi" placeholder="Command" spellcheck="false" autocomplete="off" autocapitalize="off" value="${esc(l.cmd || "")}"><div class="vs"></div></div><div><select class="vd">${PRE.map(p => `<option value="${p}" ${!cu && +l.delay === p ? "selected" : ""}>${p ? p + " s" : "Instant"}</option>`).join("")}<option value="c" ${cu ? "selected" : ""}>Custom...</option></select><input class="vx" type="number" min="0" max="60" step="0.1" value="${+l.delay || 0}" style="${cu ? "" : "display:none"}"></div><button data-a="del" title="Delete line">✕</button></div>`; }).join("");
     check();
   };
   const hint = (r, t) => {
     const v = t.value;
-    cands = vshSuggest(v, (meta() || {}).parent || null);
+    cands = vshSuggest(v, (meta() || {}).parent || null, { lines: d.lines, i: +r.dataset.i });
     const b = cands[0], ghost = b && v && b.full.toLowerCase().startsWith(v.toLowerCase()) ? b.full.slice(v.length) : "";
     r.querySelector(".gh").innerHTML = `<span>${esc(v)}</span><i>${esc(ghost)}</i>`;
     r.querySelector(".vs").innerHTML = cands.map((c, i) => `<div data-s="${i}" class="${i ? "" : "b"}">${esc(c.name)}<small>${c.kind}</small></div>`).join("");
   };
-  const accept = (t, i) => { const r = t.closest(".vr"), c = cands[i]; if (!c) return; t.value = c.full + (t.value.includes(" ") ? "" : " "); d.lines[+r.dataset.i].cmd = t.value; hint(r, t); touch(); t.focus(); };
+  const accept = (t, i) => { const r = t.closest(".vr"), c = cands[i]; if (!c) return; t.value = c.full + (c.link || t.value.includes(" ") ? "" : " "); d.lines[+r.dataset.i].cmd = t.value; hint(r, t); touch(); t.focus(); };
   list.oninput = e => {
     const r = e.target.closest(".vr"); if (!r) return; const l = d.lines[+r.dataset.i], t = e.target;
     if (t.classList.contains("vn")) l.name = t.value;
@@ -2226,7 +2369,7 @@ async function softRestart() { // closes everything and boots again without relo
   b.innerHTML = `<div class="win-logo"><i></i><i></i><i></i><i></i></div><div class="spin"></div><div id="bootTitle">${esc(getSettings().site)}</div>`;
   document.body.appendChild(b);
   await new Promise(r => setTimeout(r, 1500));
-  applyTheme(); renderPins(); autoUpdate(true); checkOsUpdate(); lockNow(); runStartup();
+  applyTheme(); renderPins(); autoUpdate(); checkOsUpdate(); lockNow(); runStartup();
   b.classList.add("hide"); setTimeout(() => b.remove(), 550);
 }
 
@@ -2327,7 +2470,7 @@ Promise.all([loadCatalog(), minBoot]).then(([ok]) => {
     if (ok) save("seeded", true);
   }
   renderIcons(); renderPins();
-  const resumed = !!sessionStorage.getItem("vos_restore"); restoreWins(); autoUpdate(); checkOsUpdate(); if (!resumed) runStartup(); // background; skipped when auto update is off
+  const resumed = !!sessionStorage.getItem("vos_restore"); restoreWins(); autoUpdate(false, resumed); remindUpdates(); checkOsUpdate(); if (!resumed) runStartup(); // background; skipped when auto update is off
   if (sessionStorage.getItem("vos_ok")) sessionStorage.removeItem("vos_ok"); else lockNow();
   $("#boot").classList.add("hide");
   setTimeout(() => $("#boot").remove(), 550);
