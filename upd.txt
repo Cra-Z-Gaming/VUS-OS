@@ -1,0 +1,34 @@
+10.18.2026 6:00 PM
+- What's new now reads this file (upd.txt) from GitHub, so you can see the full update history.
+- Passwords are now always stored salted and hashed. Older saved passwords upgrade the next time you unlock.
+- Removed the "Hash passwords" setting, since it is always on now.
+
+10.18.2026 5:00 PM
+- Desktop: Sort by (name, type, date, size), arrows on shortcut icons, full names on hover.
+- Settings: Copy diagnostic info and Reset settings.
+
+10.18.2026 4:00 PM
+- File Explorer: tabs, a preview pane, and image thumbnails.
+
+10.18.2026 3:00 PM
+- Backups now include favorites, recent items and window positions.
+- Added the What's new window and the update notice.
+
+10.18.2026 2:00 PM
+- Windows remember their size and position.
+- Drag taskbar pins to reorder them. Start shows recent apps.
+- New: Do not disturb and a low battery warning.
+
+10.18.2026 1:00 PM
+- File Explorer: Favorites, Recent files, sortable columns, and click-again-to-rename.
+- Close all windows now asks you to type yes, then confirm.
+
+10.18.2026 12:30 PM
+- Fixed hiding desktop icons resetting icon positions.
+- Fixed apps missing from the desktop when boot hit the 4 second limit.
+- Editor shortcuts (Ctrl+S, Ctrl+O) can now be switched off.
+
+10.18.2026 12:00 PM
+- Boot screen shows what it is loading and finishes within 4 seconds.
+- Keyboard shortcuts can be switched off in Settings. Alt+Backspace deletes.
+- Middle-click a taskbar item to close it. Hide desktop icons.
