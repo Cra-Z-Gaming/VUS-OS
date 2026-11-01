@@ -1,3 +1,8 @@
+11.1.2026 12.55 PM
+- better export, saves app/game data (works for most apps)
+
+- added a few keyboard commands
+
 10.18.2026 6:00 PM
 - What's new now reads this file (upd.txt) from GitHub, so you can see the full update history.
 - Passwords are now always stored salted and hashed. Older saved passwords upgrade the next time you unlock.
