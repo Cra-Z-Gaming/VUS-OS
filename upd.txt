@@ -1,3 +1,6 @@
+11.2.2026 6.30 AM
+-widgets and editor to move them
+
 11.1.2026 12.55 PM
 - better export, saves app/game data (works for most apps)
 
