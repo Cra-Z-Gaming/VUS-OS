@@ -50,14 +50,14 @@ input,select,button{font-family:var(--font)}
 .lock{position:fixed;inset:0;z-index:990;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(20,20,20,.55);backdrop-filter:blur(8px);color:#fff}
 .lock.full{background:rgba(10,10,10,.92);backdrop-filter:blur(40px)}
 .lk-time{font-size:clamp(44px,13vw,72px);font-weight:200;white-space:nowrap;font-variant-numeric:tabular-nums}.lk-date{font-size:20px;margin-bottom:24px}.lk-t{font-size:16px}.lk-w,.lk-p{display:flex;flex-direction:column;align-items:center;gap:14px}.lk-an{display:block;max-width:60vw;height:auto;margin-bottom:6px}.lk-hint{font-size:13px;opacity:.6;margin-top:6px}.lk-bat{font-size:16px;opacity:.85}.lk-w{max-width:92vw;max-height:calc(100vh - 80px);overflow-y:auto;scrollbar-width:none}.lk-w::-webkit-scrollbar{display:none}.lock.full .lk-w + .lk-p{margin-top:10px}.lkw{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}.lkw .lk-date{margin-bottom:0}.lk-greet{font-size:28px;font-weight:300}.lk-sm{font-size:15px;opacity:.85}.lk-big{font-size:26px;font-weight:300}.lk-wc{display:flex;flex-direction:column;gap:4px;min-width:230px}.lk-wc div{display:flex;justify-content:space-between;gap:18px;font-size:16px}.lk-wc span{opacity:.75}.lk-ch{font-size:15px;margin-bottom:4px}.lk-cg{display:grid;grid-template-columns:repeat(7,28px);gap:2px;font-size:13px;text-align:center}.lk-cg b{opacity:.55;font-weight:400}.lk-cg span{line-height:28px;border-radius:50%}.lk-cg .on{background:var(--ac);color:#fff}.lk-pr{display:flex;flex-direction:column;gap:8px;min-width:230px;font-size:14px}.lk-pr div{display:flex;justify-content:space-between;gap:12px}.lk-bar{width:100%;height:6px;background:rgba(255,255,255,.18);border-radius:3px;overflow:hidden}.lk-bar i{display:block;height:100%;background:var(--ac2,#4cc2ff)}.lk-note{white-space:pre-wrap;max-width:320px;font-size:16px}.lk-f{position:absolute;inset:0;pointer-events:none;overflow:hidden}.lkf{position:absolute;width:max-content;max-width:90vw}.lk-hint{position:absolute;left:0;right:0;bottom:calc(28px + env(safe-area-inset-bottom,0px));text-align:center;margin:0}
-.lk-edit{position:fixed;inset:0;z-index:985;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(10,10,10,.92);backdrop-filter:blur(40px);color:#fff;user-select:none;-webkit-user-select:none}
-.lk-edit{padding:130px 0 70px;box-sizing:border-box}.lk-edit .lk-w{max-height:calc(100vh - 210px)}.lk-edit .lkw{pointer-events:auto;cursor:grab;touch-action:none}.lk-edit .lkw:active{cursor:grabbing}.lk-edit .lkw.sel{outline:2px dashed var(--ac2,#4cc2ff);outline-offset:8px;border-radius:6px}
+.lk-edit{position:fixed;inset:0;z-index:985;background:#05070b;color:#fff;user-select:none;-webkit-user-select:none;overflow:hidden}.lke-screen{position:absolute;overflow:hidden;transform-origin:0 0;background:radial-gradient(ellipse at 50% 35%,#1b2538,#0a0d14 72%);outline:1px solid rgba(255,255,255,.3)}.lke-screen .lk-ph{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:260px;height:200px;padding:0;display:flex;align-items:center;justify-content:center}
+.lk-edit .lkw{pointer-events:auto;cursor:grab;touch-action:none}.lk-edit .lkw:active{cursor:grabbing}.lk-edit .lkw.sel{outline:2px dashed var(--ac2,#4cc2ff);outline-offset:8px;border-radius:6px}
 .lk-ph{border:2px dashed rgba(255,255,255,.35);border-radius:10px;padding:34px 48px;opacity:.7;font-size:14px;pointer-events:none}
 .lke-top{position:fixed;top:0;left:0;right:0;z-index:3;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;background:rgba(0,0,0,.6)}.lke-top b{margin-right:auto}.lke-msg{flex-basis:100%;font-size:13px;opacity:.8}
 .lke-top button,.lke-sel button,.lke-add button,.lke-top select{background:rgba(255,255,255,.16);color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;font:inherit;font-size:14px}.lke-top option{color:#000}.lke-top button[data-a=done]{background:var(--ac,#2b7cff)}
 .lke-sel{position:fixed;left:0;right:0;bottom:0;z-index:3;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,.6);font-size:14px}.lke-sel span{opacity:.7}
-.lke-add{position:fixed;inset:0;z-index:4;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(0,0,0,.7);padding:70px 16px;overflow:auto}.lke-add button{min-width:240px}
-.lke-g{position:fixed;background:rgba(76,194,255,.7);pointer-events:none;display:none;z-index:2}.lke-gv{left:50%;top:0;bottom:0;width:1px}.lke-gh{top:50%;left:0;right:0;height:1px}
+.lke-add{position:fixed;inset:0;z-index:4;display:none;align-items:center;justify-content:center;background:#05070b;padding:16px 12px;overflow:auto}.lke-add>div{width:min(440px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:8px}.lke-add button{width:100%;text-align:left;display:flex;flex-direction:column;gap:2px}.lke-add small{opacity:.65;font-size:12px}
+.lke-g{position:absolute;background:rgba(76,194,255,.7);pointer-events:none;display:none;z-index:2}.lke-gv{left:50%;top:0;bottom:0;width:1px}.lke-gh{top:50%;left:0;right:0;height:1px}
 .lk-dots{display:flex;gap:14px}.lk-dots i{width:14px;height:14px;border:2px solid #fff;border-radius:50%}.lk-dots i.on{background:#fff}
 .lk-msg{height:18px;font-size:13px;color:#ff8a8a}
 .lk-pad{display:grid;grid-template-columns:repeat(3,64px);gap:8px}.lk-pad button{height:52px;font-size:20px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:2px;cursor:pointer}.lk-pad button:hover{background:rgba(255,255,255,.22)}
@@ -339,7 +339,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.1.2026 7:07 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "10.18.2026 6:51 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -1889,7 +1889,7 @@ const lkMoon = d => { const syn = 29.530588853, age = (((d.getTime() - Date.UTC(
 let lkWxBusy = false;
 async function lkWeather(nd, o, d) { // reads the saved location, refreshes from Open-Meteo at most every 30 minutes, and keeps the last reading when offline
   const loc = LS("lockWxLoc", null), box = nd.querySelector(".lk-wx");
-  if (!loc) { box.textContent = "Weather: set your location in Settings"; return; }
+  if (!loc) { box.className = "lk-sm lk-wx"; box.textContent = "Weather: set location in Settings"; return; }
   let c = LS("lockWx", null);
   if ((!c || d - c.t > 30 * 60000) && !lkWxBusy) {
     lkWxBusy = true;
@@ -1897,8 +1897,8 @@ async function lkWeather(nd, o, d) { // reads the saved location, refreshes from
     lkWxBusy = false;
   }
   c = c || LS("lockWx", null);
-  if (!c) { box.textContent = "Weather unavailable"; return; }
-  const f = o.unit === "f", tmp = Math.round(f ? c.c * 9 / 5 + 32 : c.c);
+  if (!c) { box.className = "lk-sm lk-wx"; box.textContent = "Weather unavailable"; return; }
+  const f = o.unit === "f", tmp = Math.round(f ? c.c * 9 / 5 + 32 : c.c); box.className = "lk-big lk-wx";
   box.textContent = `${tmp}°${f ? "F" : "C"} · ${LK_WX[c.code] || "Weather"}`;
 }
 const LOCK_WIDGETS = [
@@ -1957,33 +1957,69 @@ function lockWidgetUi() { // the Settings list: every widget with its switch, op
     return `<label style="display:block">${esc(l)}<input type="${t}" ${att(w.id, k)} value="${esc(v || "")}" placeholder="${esc(x || "")}" style="${fld};margin-top:4px"></label>`;
   }).join("")}</div>` : ""}</div>`; }).join("");
 }
+// Widgets without a saved spot get an automatic one: clock on top, columns at the sides, small info along the bottom (one spread-out column on narrow screens).
+const LK_ZONE = { greeting: "L", worldclock: "L", countdown: "L", progress: "L", note: "L", fact: "L", analog: "R", calendar: "R", weather: "R", moon: "R", digital: "H", date: "H" }; // anything else goes to the bottom row
+const LK_H = { greeting: 40, analog: 180, digital: 80, date: 28, worldclock: 110, calendar: 250, countdown: 70, progress: 90, weather: 36, moon: 22, battery: 22, network: 22, device: 22, storage: 50, uptime: 22, lockedfor: 22, recent: 22, notifications: 22, note: 70, fact: 60 }; // rough heights in px
+const LK_W = { greeting: 340, analog: 170, digital: 300, date: 260, worldclock: 240, calendar: 220, countdown: 240, progress: 240, weather: 280, moon: 240, battery: 190, network: 220, device: 240, storage: 250, uptime: 180, lockedfor: 180, recent: 320, notifications: 180, note: 320, fact: 320 }; // rough widths in px
+function lkAuto(ids, W, H, layout) { // -> { id: { x, y, s? } } as percent of the screen (centre points)
+  const pad = 40, gap = 26, gx = 24, out = {}, low = layout === "two" ? 64 : 36; // low = room kept free at the bottom (the "click to unlock" hint)
+  let k = 1; const hh = id => (LK_H[id] || 24) * k, ww = id => (LK_W[id] || 230) * k, put = (id, cx, cy) => { out[id] = { x: +(cx / W * 100).toFixed(2), y: +(cy / H * 100).toFixed(2), ...(k < 1 ? { s: +k.toFixed(2) } : {}) }; };
+  if (W < 1000) { // narrow: one column spread over the free height, around the password box when it is on screen. Too many widgets shrink to fit.
+    const bands = layout === "clock" ? [[pad, H / 2 - 140], [H / 2 + 140, H - low - 10]] : [[pad, H - low - 10]];
+    const room = bands.reduce((t, [a, z]) => t + z - a, 0), need = ids.reduce((t, id) => t + (LK_H[id] || 24) + 18, 0); k = Math.max(.45, Math.min(1, .92 * room / Math.max(need, 1)));
+    const order = [...ids.filter(i => LK_ZONE[i] === "H"), ...ids.filter(i => LK_ZONE[i] !== "H")], groups = bands.map(() => []); let bi = 0, used = 0;
+    for (const id of order) { while (bi < bands.length - 1 && used + hh(id) + 14 > bands[bi][1] - bands[bi][0]) { bi++; used = 0; } groups[bi].push(id); used += hh(id) + 14; }
+    groups.forEach((g, i) => { const [a, z] = bands[i], sp = Math.max(8, (z - a - g.reduce((t, id) => t + hh(id), 0)) / (g.length + 1)); let y = a + sp; for (const id of g) { put(id, W / 2, y + hh(id) / 2); y += hh(id) + sp; } });
+    return out;
+  }
+  const xL = Math.max(170, W * .17), xR = W - xL, colMax = H - low - 100 - pad, cols = { L: pad, R: pad }, bottom = []; let y = pad;
+  for (const id of ids.filter(i => LK_ZONE[i] === "H")) { put(id, W / 2, y + hh(id) / 2); y += hh(id) + 6; }
+  for (const id of ids) {
+    const z = LK_ZONE[id]; if (z === "H") continue; if (z !== "L" && z !== "R") { bottom.push(id); continue; }
+    let c = z; if (cols[c] + hh(id) > colMax) c = c === "L" ? "R" : "L"; if (cols[c] + hh(id) > colMax) { bottom.push(id); continue; }
+    put(id, c === "L" ? xL : xR, cols[c] + hh(id) / 2); cols[c] += hh(id) + gap;
+  }
+  const rows = [[]]; let rw = 0; // the bottom rows are packed by each widget's width, centred
+  for (const id of bottom) { const row = rows[rows.length - 1]; if (row.length && rw + gx + ww(id) > W - 60) { rows.push([]); rw = 0; } rows[rows.length - 1].push(id); rw += (rows[rows.length - 1].length > 1 ? gx : 0) + ww(id); }
+  let yb = H - low; for (const row of rows) { const rh = Math.max(...row.map(hh)); let x = (W - row.reduce((t, id) => t + ww(id), 0) - gx * (row.length - 1)) / 2; for (const id of row) { put(id, x + ww(id) / 2, yb - rh / 2); x += ww(id) + gx; } yb -= rh + 14; }
+  return out;
+}
+function lkPlace(on, list, layout, W = innerWidth, H = innerHeight) { // { id: { x, y, s } }: a saved spot wins, everything else gets an automatic one
+  const auto = lkAuto(list.filter(w => !lkPos(on[w.id])).map(w => w.id), W, H, layout), r = {};
+  for (const w of list) r[w.id] = lkPos(on[w.id]) ? on[w.id] : { ...auto[w.id], s: on[w.id].s || auto[w.id].s };
+  return r;
+}
+const LK_DESC = { greeting: "Good morning or evening, with your name", analog: "Round clock face, optional seconds hand", digital: "Big digital time, optional seconds", date: "Weekday and date", worldclock: "Times in other cities", calendar: "This month, today highlighted", countdown: "Days until a date you pick", progress: "How far through today and the year", weather: "Temperature and conditions", moon: "Current moon phase", battery: "Battery level and charging", network: "Online status and speed", device: "CPU cores, memory, screen size", storage: "How much OS storage is used", uptime: "How long the OS has been open", lockedfor: "How long the screen has been locked", recent: "Your last few apps", notifications: "How many notifications are waiting", note: "A sticky note you write", fact: "A new fun fact every day" };
 let lkRedraw = null; // set by the Settings page so it can refresh after the editor closes
 const lkPos = o => typeof o.x === "number" && typeof o.y === "number"; // a widget with x/y (percent of the screen, centre point) is placed freely, the others stack in the middle
 const lkCss = o => lkPos(o) ? `left:${o.x}%;top:${o.y}%;transform:translate(-50%,-50%) scale(${o.s || 1})` : (o.s && o.s !== 1 ? `zoom:${o.s}` : "");
 const lkStyle = o => { const c = lkCss(o); return c ? `style="${c}"` : ""; };
-function lockEditor() { // drag-and-drop layout for the lock screen widgets. Nothing is saved until Done.
+function lockEditor() { // drag-and-drop layout for the lock screen widgets, on a scaled-down copy of the real screen. Nothing is saved until Done.
   if (document.querySelector(".lk-edit")) return;
   const S = getSettings(), m = JSON.parse(JSON.stringify(lockWidgetsGet(S))), born = Date.now(); let lay = S.lockLayout || "pw", sel = null, drag = null, nodes = [];
   const el = document.createElement("div"); el.className = "lk-edit";
-  el.innerHTML = `<div class="lke-top"><b>Customize lock screen</b><select class="lke-lay">${[["pw", "Password only"], ["clock", "Clock above password"], ["two", "Widgets first, then password"]].map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select><button data-a="add">Add widget</button><button data-a="reset">Reset layout</button><button data-a="cancel">Cancel</button><button data-a="done">Done</button><div class="lke-msg"></div></div><div class="lk-f"></div><div class="lk-w"></div><div class="lk-ph">Password box</div><div class="lke-g lke-gv"></div><div class="lke-g lke-gh"></div><div class="lke-sel"></div><div class="lke-add"></div>`;
-  const F = el.querySelector(".lk-f"), W = el.querySelector(".lk-w"), ph = el.querySelector(".lk-ph"), selBar = el.querySelector(".lke-sel"), addP = el.querySelector(".lke-add"), gv = el.querySelector(".lke-gv"), gh = el.querySelector(".lke-gh"), layEl = el.querySelector(".lke-lay");
+  el.innerHTML = `<div class="lke-top"><b>Customize lock screen</b><select class="lke-lay">${[["pw", "Password only"], ["clock", "Clock above password"], ["two", "Widgets first, then password"]].map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select><button data-a="add">Add widget</button><button data-a="reset">Reset layout</button><button data-a="cancel">Cancel</button><button data-a="done">Done</button><div class="lke-msg"></div></div><div class="lke-screen"><div class="lk-f"></div><div class="lk-ph">Password box</div><div class="lke-g lke-gv"></div><div class="lke-g lke-gh"></div></div><div class="lke-sel"></div><div class="lke-add"></div>`;
+  const top = el.querySelector(".lke-top"), scr = el.querySelector(".lke-screen"), F = el.querySelector(".lk-f"), ph = el.querySelector(".lk-ph"), selBar = el.querySelector(".lke-sel"), addP = el.querySelector(".lke-add"), gv = el.querySelector(".lke-gv"), gh = el.querySelector(".lke-gh"), layEl = el.querySelector(".lke-lay");
   layEl.value = lay;
+  const list = () => LOCK_WIDGETS.filter(w => m[w.id]), css = id => lkCss(lkPlace(m, list(), lay)[id]);
+  const fit = () => { const W = innerWidth, H = innerHeight, aw = W - 24, ah = H - top.offsetHeight - selBar.offsetHeight - 24, k = Math.min(aw / W, ah / H); scr.style.cssText = `width:${W}px;height:${H}px;left:${(W - W * k) / 2}px;top:${top.offsetHeight + 12 + (ah - H * k) / 2}px;transform:scale(${k})`; }; // the preview is the whole screen, shrunk to fit between the bars
   const mark = () => el.querySelectorAll(".lkw").forEach(n => n.classList.toggle("sel", n.dataset.wid === sel));
   const renderSel = () => { const w = sel && m[sel] && LOCK_WIDGETS.find(x => x.id === sel); selBar.innerHTML = w ? `<b>${esc(w.name)}</b><button data-a="sm">Smaller</button><button data-a="lg">Larger</button><button data-a="rm">Remove</button>` : "<span>Drag a widget to move it. Tap one to resize or remove it.</span>"; };
   const tick = () => { const n = new Date(); for (const [w, nd, o] of nodes) { try { if (w.upd) w.upd(nd, o, S, n, born); } catch { /* a broken widget never blocks the editor */ } } };
   const render = () => {
-    const list = LOCK_WIDGETS.filter(w => m[w.id]), one = w => `<div class="lkw${lkPos(m[w.id]) ? " lkf" : ""}" data-wid="${w.id}" ${lkStyle(m[w.id])}>${w.html(m[w.id], S)}</div>`;
-    F.innerHTML = list.filter(w => lkPos(m[w.id])).map(one).join(""); W.innerHTML = list.filter(w => !lkPos(m[w.id])).map(one).join("");
-    W.style.display = W.children.length ? "" : "none"; ph.style.display = lay === "two" ? "none" : "";
+    const l = list(), pl = lkPlace(m, l, lay);
+    F.innerHTML = l.map(w => `<div class="lkw lkf lke" data-wid="${w.id}" style="${lkCss(pl[w.id])}">${w.html(m[w.id], S)}</div>`).join("");
+    ph.style.display = lay === "two" ? "none" : "";
     el.querySelector(".lke-msg").textContent = lay === "pw" ? "The layout is Password only, so widgets won't show on the lock screen. Pick another layout above to use them." : "Changes are saved when you press Done.";
-    nodes = list.map(w => [w, el.querySelector(`[data-wid="${w.id}"]`), m[w.id]]); el.querySelectorAll("[data-wid]").forEach(n => n.classList.add("lke")); mark(); renderSel(); tick();
+    nodes = l.map(w => [w, el.querySelector(`[data-wid="${w.id}"]`), m[w.id]]); mark(); renderSel(); fit(); tick();
   };
-  const tm = setInterval(tick, 1000);
-  const close = () => { clearInterval(tm); document.removeEventListener("keydown", kd, true); el.remove(); if (lkRedraw) lkRedraw(); };
+  const tm = setInterval(tick, 1000), onResize = () => render();
+  window.addEventListener("resize", onResize);
+  const close = () => { clearInterval(tm); window.removeEventListener("resize", onResize); document.removeEventListener("keydown", kd, true); el.remove(); if (lkRedraw) lkRedraw(); };
   const kd = e => { if (e.key === "Escape") { e.stopPropagation(); if (addP.style.display === "flex") addP.style.display = "none"; else close(); } };
   document.addEventListener("keydown", kd, true);
   layEl.onchange = () => { lay = layEl.value; render(); };
-  el.addEventListener("pointerdown", e => { // grab a widget: it only leaves the centre stack once it actually moves
+  el.addEventListener("pointerdown", e => {
     const n = e.target.closest(".lkw"); if (!n) return;
     sel = n.dataset.wid; mark(); renderSel(); const r = n.getBoundingClientRect();
     drag = { n, id: sel, sx: e.clientX, sy: e.clientY, cx: r.left + r.width / 2, cy: r.top + r.height / 2, moved: false, pid: e.pointerId };
@@ -1991,9 +2027,9 @@ function lockEditor() { // drag-and-drop layout for the lock screen widgets. Not
   });
   el.addEventListener("pointermove", e => {
     if (!drag || e.pointerId !== drag.pid) return;
-    const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
-    if (!drag.moved) { if (Math.hypot(dx, dy) < 5) return; drag.moved = true; if (!drag.n.classList.contains("lkf")) { drag.n.classList.add("lkf"); F.appendChild(drag.n); W.style.display = W.children.length ? "" : "none"; } }
-    let x = Math.min(98, Math.max(2, (drag.cx + dx) / innerWidth * 100)), y = Math.min(98, Math.max(2, (drag.cy + dy) / innerHeight * 100));
+    const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy; if (!drag.moved) { if (Math.hypot(dx, dy) < 5) return; drag.moved = true; }
+    const r = scr.getBoundingClientRect();
+    let x = Math.min(98, Math.max(2, (drag.cx + dx - r.left) / r.width * 100)), y = Math.min(98, Math.max(2, (drag.cy + dy - r.top) / r.height * 100));
     const sx = Math.abs(x - 50) < 1.5, sy = Math.abs(y - 50) < 1.5; if (sx) x = 50; if (sy) y = 50; gv.style.display = sx ? "block" : "none"; gh.style.display = sy ? "block" : "none";
     const o = m[drag.id]; o.x = +x.toFixed(2); o.y = +y.toFixed(2); drag.n.style.cssText = lkCss(o);
   });
@@ -2005,11 +2041,11 @@ function lockEditor() { // drag-and-drop layout for the lock screen widgets. Not
     const a = b.dataset.a, o = sel && m[sel];
     if (a === "cancel") return close();
     if (a === "done") { save("settings", { ...getSettings(), lockW: m, lockLayout: lay }); return close(); }
-    if (a === "add") { const rest = LOCK_WIDGETS.filter(w => !m[w.id]); addP.innerHTML = `<b>Add a widget</b>${rest.map(w => `<button data-a="pick" data-id="${w.id}">${esc(w.name)}</button>`).join("") || "<span>All widgets are already on.</span>"}<button data-a="shut">Close</button>`; addP.style.display = "flex"; return; }
+    if (a === "add") { const rest = LOCK_WIDGETS.filter(w => !m[w.id]); addP.innerHTML = `<div><div style="position:sticky;top:0;background:#05070b;display:flex;justify-content:space-between;align-items:center;padding:2px 0 8px"><b>Add a widget</b><button data-a="shut" style="width:auto">Close</button></div>${rest.map(w => `<button data-a="pick" data-id="${w.id}"><b>${esc(w.name)}</b><small>${esc(LK_DESC[w.id] || "")}</small></button>`).join("") || "<span>All widgets are already on.</span>"}</div>`; addP.style.display = "flex"; return; }
     if (a === "shut") { addP.style.display = "none"; return; }
     if (a === "pick") { m[b.dataset.id] = {}; sel = b.dataset.id; addP.style.display = "none"; return render(); }
     if (a === "reset") { for (const k in m) { delete m[k].x; delete m[k].y; delete m[k].s; } return render(); }
-    if (o && (a === "sm" || a === "lg")) { o.s = Math.min(2.5, Math.max(.5, +((o.s || 1) + (a === "lg" ? .1 : -.1)).toFixed(2))); const n = el.querySelector(`[data-wid="${sel}"]`); if (n) n.style.cssText = lkCss(o); return; }
+    if (o && (a === "sm" || a === "lg")) { o.s = Math.min(2.5, Math.max(.5, +((o.s || 1) + (a === "lg" ? .1 : -.1)).toFixed(2))); const n = el.querySelector(`[data-wid="${sel}"]`); if (n) n.style.cssText = css(sel); return; }
     if (o && a === "rm") { delete m[sel]; sel = null; render(); }
   });
   document.body.appendChild(el); render();
@@ -2019,10 +2055,10 @@ function askPw(title, o = {}) { // resolves with the typed password, or null if 
     const check = o.check || (o.newPw ? null : checkPw), S = getSettings();
     const layout = o.full ? S.lockLayout : "pw", two = layout === "two"; // pw = only the password box, clock = widgets above it, two = a widget screen first, any interaction opens the password box
     const on = layout === "pw" ? {} : lockWidgetsGet(S), list = LOCK_WIDGETS.filter(w => on[w.id]);
-    const wh = w => `<div class="lkw lkw-${w.id}${lkPos(on[w.id]) ? " lkf" : ""}" data-wid="${w.id}" ${lkStyle(on[w.id])}>${w.html(on[w.id], S)}</div>`;
-    const widgets = list.filter(w => !lkPos(on[w.id])).map(wh).join(""), freeW = list.filter(w => lkPos(on[w.id])).map(wh).join("");
+    const place = () => lkPlace(on, list, layout), pl = place();
+    const freeW = list.map(w => `<div class="lkw lkf lkw-${w.id}" data-wid="${w.id}" style="${lkCss(pl[w.id])}">${w.html(on[w.id], S)}</div>`).join("");
     const el = document.createElement("div"); el.className = "lock" + (o.full ? " full" : "");
-    el.innerHTML = `${o.full && freeW ? `<div class="lk-f">${freeW}</div>` : ""}${o.full && widgets ? `<div class="lk-w">${widgets}</div>` : ""}${o.full && two ? '<div class="lk-hint">Click or press any key to unlock</div>' : ""}<div class="lk-p"><div class="lk-t">${esc(title)}</div><input class="lk-in" type="password" autocomplete="off" autocapitalize="off"><div class="lk-msg"></div><button class="lk-ok">OK</button><div class="lk-foot">${o.full ? '<a data-g="1">Enter as Guest</a>' : ""}${o.cancel ? '<a data-c="1">Cancel</a>' : ""}</div></div>`;
+    el.innerHTML = `${o.full && freeW ? `<div class="lk-f">${freeW}</div>` : ""}${o.full && two ? '<div class="lk-hint">Click or press any key to unlock</div>' : ""}<div class="lk-p"><div class="lk-t">${esc(title)}</div><input class="lk-in" type="password" autocomplete="off" autocapitalize="off"><div class="lk-msg"></div><button class="lk-ok">OK</button><div class="lk-foot">${o.full ? '<a data-g="1">Enter as Guest</a>' : ""}${o.cancel ? '<a data-c="1">Cancel</a>' : ""}</div></div>`;
     const inp = el.querySelector(".lk-in"), msg = el.querySelector(".lk-msg"), wEls = [".lk-f", ".lk-w", ".lk-hint"].map(c => el.querySelector(c)).filter(Boolean), pEl = el.querySelector(".lk-p");
     let busy = false, stage = two ? "w" : "p", last = Date.now(); const born = last, nodes = list.map(w => [w, el.querySelector(`[data-wid="${w.id}"]`), on[w.id]]);
     const setStage = st => { // two-screen mode: "w" = widgets only, "p" = password box
@@ -2034,7 +2070,9 @@ function askPw(title, o = {}) { // resolves with the typed password, or null if 
       if (!o.full) return; const n = new Date();
       for (const [w, nd, wo] of nodes) { try { if (w.upd) w.upd(nd, wo, S, n, born); } catch { /* one broken widget never blocks the lock screen */ } }
     };
-    const done = r => { document.removeEventListener("keydown", kd, true); document.removeEventListener("visibilitychange", clock); clearInterval(tm); el.remove(); res(r); };
+    const relayout = () => { const q = place(); for (const [w, nd, wo] of nodes) if (!lkPos(wo)) nd.style.cssText = lkCss(q[w.id]); }; // a rotated phone or resized window re-spreads the automatic spots
+    window.addEventListener("resize", relayout);
+    const done = r => { window.removeEventListener("resize", relayout); document.removeEventListener("keydown", kd, true); document.removeEventListener("visibilitychange", clock); clearInterval(tm); el.remove(); res(r); };
     const submit = async () => {
       if (busy || !inp.value) return; busy = true;
       const r = check ? await check(inp.value) : { ok: true };
