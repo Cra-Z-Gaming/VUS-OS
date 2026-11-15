@@ -188,7 +188,7 @@ input,select,button{font-family:var(--font)}
 .fxs div{display:flex;gap:8px;align-items:center;padding:8px 14px;font-size:13px;cursor:default;border-left:3px solid transparent}
 .fxs div:hover{background:rgba(255,255,255,.08)}.fxs div.on{background:rgba(255,255,255,.1);border-left-color:var(--ac)}
 .fxs b{margin-left:auto;font-weight:400;font-size:11px;color:var(--mute)}
-.fxn{display:flex;gap:6px;padding:6px 6px 0;align-items:center;background:rgba(128,128,128,.14)}
+.fxn{display:flex;gap:6px;padding:6px;align-items:center;background:rgba(128,128,128,.14)}
 .fxn .nb{width:30px;height:28px;border:1px solid var(--bd);background:rgba(128,128,128,.18);color:inherit;font-size:14px;cursor:default;border-radius:0}.fxn .nb:hover{background:rgba(128,128,128,.32)}
 .fxad{flex:1;min-width:0;display:flex;align-items:center;gap:1px;height:28px;padding:0 4px;border:1px solid var(--bd);background:rgba(128,128,128,.1);font-size:12px;overflow:hidden;white-space:nowrap}
 .fxad .seg{padding:3px 6px;cursor:default}.fxad .seg:hover{background:rgba(128,128,128,.28)}.fxad i{opacity:.5;font-style:normal;font-size:11px}
@@ -198,9 +198,10 @@ input,select,button{font-family:var(--font)}
 [data-theme=light] .fxn,[data-theme=light] .fxw .fxt{background:#f0f0f0}
 .fxe{grid-column:1/-1;color:var(--dim);font-size:13px;padding:20px}
 .fxa{margin-left:auto;display:flex;gap:6px}
-.fxtabs{display:flex;gap:2px;padding:4px 6px 0;background:rgba(128,128,128,.14);overflow-x:auto;scrollbar-width:none}
-.fxtabs div{display:flex;gap:8px;align-items:center;padding:5px 10px;max-width:170px;font-size:12px;border:1px solid var(--bd);border-bottom:0;white-space:nowrap;cursor:default;flex-shrink:0}
-.fxtabs div:hover{background:rgba(128,128,128,.22)}.fxtabs div.on{background:var(--el)}.fxtabs b{font-weight:400;opacity:.6}.fxtabs b:hover{opacity:1}
+.fxn .nbw{width:auto;padding:0 10px;font-size:12px}.fxn .nb:disabled{opacity:.35;pointer-events:none}
+.fxr{padding:6px;gap:6px;background:rgba(128,128,128,.14)}.fxr:empty{display:none}[data-theme=light] .fxr{background:#f0f0f0}
+.vi{display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 2px;border:1px solid transparent;cursor:default;text-align:center}
+.vi:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.15)}.vi.on{background:color-mix(in srgb,var(--ac) 40%,transparent);border-color:var(--ac)}.vi .lbl{color:inherit;text-shadow:none}
 .fxv{display:none;width:240px;flex-shrink:0;border-left:1px solid var(--bd);padding:12px;overflow:auto;font-size:12px;background:var(--el)}.fxv p{margin:4px 0}
 #pins{display:flex;flex-shrink:0}
 .pin{touch-action:none;width:48px;display:flex;align-items:center;justify-content:center;cursor:default;border-bottom:2px solid transparent;flex-shrink:0}
@@ -344,7 +345,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "10.18.2026 6:51 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.15.2026 6:40 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -375,6 +376,7 @@ const ln = d => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="
 const PG = x => `<path d="M5 2h9l5 5v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" fill="#fff" stroke="#bdbdbd"/><path d="M14 2l5 5h-4a1 1 0 0 1-1-1z" fill="#d0d0d0"/>${x}`;
 const SVG = {
   folder: '<path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v1H2z" fill="#e0a800"/><path d="M2 9h20v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#ffd34e"/>',
+  drive: '<path d="M5 4h14l3 9v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-6z" fill="#8e949b"/><path d="M5 4h14l3 9H2z" fill="#c9ced4"/><rect x="2" y="13" width="20" height="7" rx="1" fill="#6f757c"/><circle cx="18" cy="16.5" r="1.3" fill="#3fbf5f"/>',
   text: PG('<path d="M7 12h10M7 15h10M7 18h6" stroke="#6b8cc9" stroke-width="1.4"/>'),
   html: PG('<path d="M9.5 11.5L6.5 15l3 3.5M14.5 11.5l3 3.5-3 3.5" fill="none" stroke="#e8710a" stroke-width="1.6"/>'),
   image: PG('<rect x="6" y="11" width="12" height="8" fill="#4cc2ff"/><path d="M6 19l4-5 3 3 2-2 3 4z" fill="#107c10"/><circle cx="15" cy="13.5" r="1.2" fill="#fff"/>'),
@@ -890,14 +892,14 @@ const isFav = (kind, id) => favs().some(x => x.kind === kind && x.id === id);
 function toggleFav(kind, id) { save("favs", isFav(kind, id) ? favs().filter(x => !(x.kind === kind && x.id === id)) : [...favs(), { kind, id }]); renderIcons(); }
 const favItems = () => [favs().filter(x => x.kind === "folder").map(x => folders().find(f => f.id === x.id)).filter(Boolean), favs().filter(x => x.kind === "file").map(x => fmeta().find(f => f.id === x.id)).filter(Boolean)];
 const folders = () => LS("folders", []);
-const sameDir = (x, d) => (x.parent || null) === d;
+const sameDir = (x, d) => (x.parent || null) === d && !(d === null && x.home); // Downloads and Documents (x.home) are not on the Desktop
 const usage = () => fmeta().reduce((n, f) => n + (f.size || 0), 0) + getBin().files.reduce((n, f) => n + (f.size || 0), 0) + Object.values(metaAll()).reduce((n, m) => n + (m.size || 0), 0);
 const limitBytes = () => (getSettings().limitMB || 512) * 1048576;
 const fmt = b => b < 1024 ? b + " B" : b < 1048576 ? (b / 1024).toFixed(1) + " KB" : b < 1073741824 ? (b / 1048576).toFixed(1) + " MB" : (b / 1073741824).toFixed(2) + " GB";
 function pathOf(id) {
-  const p = []; let f = folders().find(x => x.id === id);
-  while (f) { p.unshift(f.name); const par = f.parent; f = folders().find(x => x.id === par); }
-  return ["Desktop", ...p].join(" › ");
+  const p = []; let f = folders().find(x => x.id === id), top = null;
+  while (f) { p.unshift(f.name); top = f; const par = f.parent; f = folders().find(x => x.id === par); }
+  return [...(top && top.home ? [] : ["Desktop"]), ...p].join(" › ");
 }
 const descendants = id => { const out = []; const walk = d => folders().filter(f => sameDir(f, d)).forEach(f => { out.push(f.id); walk(f.id); }); walk(id); return out; };
 
@@ -958,6 +960,7 @@ function applyRename(kind, id, name) {
 function inlineRename(el, kind, id) {
   const it = (kind === "folder" ? folders() : fmeta()).find(x => x.id === id);
   if (!el || !it) return;
+  if (kind === "folder" && it.home) { winAlert("Downloads and Documents are system folders and can't be renamed."); return; }
   const inp = document.createElement("input");
   inp.className = "rn"; inp.value = it.name;
   el.querySelector(".lbl").replaceWith(inp); inp.focus();
@@ -984,6 +987,7 @@ async function deleteFile(id, hard) { // hard = skip the Recycle Bin
   save("files", fmeta().filter(x => x.id !== id)); renderIcons();
 }
 async function deleteFolder(id) {
+  if ((folders().find(f => f.id === id) || {}).home) return winAlert("Downloads and Documents are system folders and can't be deleted.");
   const ids = [id, ...descendants(id)];
   const t = Date.now();
   binAdd(fmeta().filter(f => ids.includes(f.parent)).map(f => ({ ...f, del: t })), folders().filter(f => ids.includes(f.id)).map(f => ({ ...f, del: t, top: f.id === id })));
@@ -991,6 +995,7 @@ async function deleteFolder(id) {
   save("folders", folders().filter(f => !ids.includes(f.id))); renderIcons();
 }
 function moveTo(kind, id, parent) {
+  if (kind === "folder" && (folders().find(f => f.id === id) || {}).home) return winAlert("Downloads and Documents are system folders and can't be moved.");
   if (kind === "folder" && (parent === id || descendants(id).includes(parent))) return winAlert("Can't move a folder into itself.");
   const key = kind === "folder" ? "folders" : "files", list = kind === "folder" ? folders() : fmeta();
   save(key, list.map(x => x.id === id ? { ...x, parent, name: uniqueName(x.name, id, parent, list) } : x)); renderIcons();
@@ -1178,7 +1183,7 @@ async function thumbOf(f) { // a small picture of an image file, cached so big i
   if (url) { thumbCache.set(k, url); if (thumbCache.size > 300) { const o = thumbCache.keys().next().value; URL.revokeObjectURL(thumbCache.get(o)); thumbCache.delete(o); } }
   return url;
 }
-function explorer(root, os, dir0) {
+function explorerOld(root, os, dir0) { // old version with tabs, replaced by explorer() below (safe to delete)
   const tabs = [{ loc: "dir", dir: dir0 }]; let cur = tabs[0], ti = 0; // each tab remembers its own folder
   root.innerHTML = `<div class="fxw"><div class="fxtabs"></div><div class="fxn"><button class="nb" data-n="up" title="Up">↑</button><div class="fxad"></div><input class="fxq" placeholder="Search this folder" autocomplete="off"></div><div class="tabs fxt"><button data-a="new">New ▾</button><button data-a="upl">Upload ▾</button><button data-a="expz" title="Export selected items (or everything shown) as a .zip">Export zip</button><span class="fxa"></span><button data-a="prev" title="Show or hide the preview pane"></button><button data-a="view" title="Change view"></button></div><div class="fxb"><div class="fxs"></div><div class="fx"></div><div class="fxbin" style="flex:1;min-width:0;display:none"></div><div class="fxv"></div></div></div>`;
   const grid = root.querySelector(".fx"), side = root.querySelector(".fxs"), act = root.querySelector(".fxa"), tabsEl = root.querySelector(".fxtabs"), pv = root.querySelector(".fxv");
@@ -1292,6 +1297,214 @@ function explorer(root, os, dir0) {
   root.oncontextmenu = e => { if (e.target.closest(".icon")) return; e.preventDefault(); ctx(e, newMenu(here(), grid)); };
   grid.ondragover = e => e.preventDefault();
   grid.ondrop = e => { e.preventDefault(); e.stopPropagation(); addFiles(e.dataTransfer.files, here()); };
+  grid.addEventListener("click", e => { const h = e.target.closest("[data-sort]"); if (!h) return; const k = h.dataset.sort, c = LS("fxsort", { k: "name", dir: 1 }); save("fxsort", c.k === k ? { k, dir: -c.dir } : { k, dir: 1 }); draw(); });
+  marquee(grid);
+  draw();
+}
+// ----- the made-up PC around the Explorer: C:\Users\<name>\Desktop / Downloads / Documents, and a read-only C:\System -----
+const HOME_FOLDERS = ["Downloads", "Documents"]; // real folders (they travel with export/import and backups) that are not shown on the Desktop
+const userName = () => GUEST ? "Guest" : "Owner";
+function ensureHome() { // makes Downloads and Documents the first time they are needed
+  const have = folders(), miss = HOME_FOLDERS.filter(n => !have.some(f => f.home && f.name === n));
+  if (miss.length) save("folders", [...have, ...miss.map(n => ({ id: newId(), name: n, parent: null, saved: true, home: true }))]);
+}
+let sysTree = null; // the OS's own files, listed from the repo once per page load
+async function loadSys() {
+  if (sysTree) return sysTree;
+  try {
+    const r = await fetch("https://api.github.com/repos/Cra-Z-Gaming/VUS-OS/git/trees/main?recursive=1");
+    if (!r.ok) throw new Error(r.status);
+    sysTree = (await r.json()).tree.filter(x => x.type === "blob" && !x.path.split("/").some(s => s[0] === ".")).map(x => ({ path: x.path, size: x.size || 0 }));
+  } catch (e) { // offline or rate-limited: show the files we know about
+    sysTree = ["index.html", "upd.txt", "apps/notes.js", "apps/gallery.js", "apps/Terminal/terminal.js", "languages/list.json", "languages/python.js", "languages/javascript.js"].map(p => ({ path: p, size: 0 }));
+  }
+  return sysTree;
+}
+const sysReadOnly = () => winAlert("System files are read-only. To change them you will use the VM (not built yet).");
+function sysFileApp(path) { // opens a system file as plain text, no saving
+  const name = path.split("/").pop();
+  return { builtin: 1, name, icon: "svg:text", color: "blue", open: async (root, os) => {
+    os.setTitle(name + " (read-only)");
+    if (/\.(png|jpe?g|gif|webp|ico|zip|exe)$/i.test(name)) { root.innerHTML = '<div class="load">This kind of file can\'t be shown here.</div>'; return; }
+    root.innerHTML = '<div class="load">Loading...</div>';
+    try {
+      const r = await fetch(OS_REPO + path.split("/").map(encodeURIComponent).join("/"), { cache: "no-cache" });
+      if (!r.ok) throw new Error(r.status);
+      const t = await r.text();
+      root.innerHTML = '<div style="height:100%;display:flex;flex-direction:column"><div style="padding:6px 10px;font-size:12px;background:rgba(128,128,128,.14);border-bottom:1px solid var(--bd)">System file · read-only. To change system files you will use the VM (not built yet).</div><pre style="flex:1;margin:0;padding:10px;overflow:auto;font:12px var(--mono);white-space:pre;user-select:text"></pre></div>';
+      root.querySelector("pre").textContent = t;
+    } catch (e) { root.innerHTML = '<div class="load err">Couldn\'t load this file from the repo.</div>'; }
+  } };
+}
+
+function explorer(root, os, dir0) {
+  ensureHome();
+  // where this window is: loc = dir (a real folder, null = Desktop) | temp | saved | bin | recent | fav | pc | c | users | home | sys (sp = path inside C:\System)
+  let cur = { loc: "dir", dir: dir0 || null, sp: "" };
+  const hist = [], fwd = []; // Back and Forward
+  root.innerHTML = `<div class="fxw"><div class="fxn"><button class="nb" data-n="back" title="Back">←</button><button class="nb" data-n="fwd" title="Forward">→</button><button class="nb" data-n="up" title="Up">↑</button><div class="fxad"></div><input class="fxq" placeholder="Search this folder" autocomplete="off"></div><div class="tabs fxt"><button data-a="file" title="New, Upload and Export">File ▾</button><span class="fxa"></span><button data-a="prev" title="Show or hide the preview pane"></button><button data-a="view" title="Change view"></button></div><div class="fxb"><div class="fxs"></div><div class="fx"></div><div class="fxbin" style="flex:1;min-width:0;display:none"></div><div class="fxv"></div></div></div>`;
+  const grid = root.querySelector(".fx"), side = root.querySelector(".fxs"), act = root.querySelector(".fxa"), pv = root.querySelector(".fxv"), qEl = root.querySelector(".fxq"), adEl = root.querySelector(".fxad"), tools = root.querySelector(".fxt");
+  const backB = root.querySelector("[data-n=back]"), fwdB = root.querySelector("[data-n=fwd]"), upB = root.querySelector("[data-n=up]");
+  let q = ""; const exp = new Set(); // q = search text, exp = expanded folders in the sidebar
+  const isVirt = () => ["pc", "c", "users", "home", "sys"].includes(cur.loc); // the made-up parts of the PC: tiles only, nothing can be added
+  const show = c => { cur = c; q = ""; qEl.value = ""; draw(); };
+  const go = (loc, dir = null, sp = "") => { if (loc !== cur.loc || dir !== cur.dir || sp !== cur.sp) { hist.push(cur); fwd.length = 0; } show({ loc, dir, sp }); };
+  const upTarget = () => { // what the Up button does (null = nowhere to go)
+    const L = cur.loc;
+    if (L === "pc") return null;
+    if (L === "c") return ["pc"];
+    if (L === "users") return ["c"];
+    if (L === "home") return ["users"];
+    if (L === "sys") return cur.sp ? ["sys", null, cur.sp.split("/").slice(0, -1).join("/")] : ["c"];
+    if (L !== "dir") return ["dir", null];
+    if (!cur.dir) return ["home"];
+    const d = folders().find(f => f.id === cur.dir);
+    return d && d.parent ? ["dir", d.parent] : d && d.home ? ["home"] : ["dir", null];
+  };
+  // preview pane: shows the selected file (picture, text, audio or video) without opening it
+  let pvUrl = null, pvTok = 0, pvT = 0;
+  const pvShow = () => { pv.style.display = LS("fxpreview", false) && cur.loc !== "bin" && !isVirt() ? "block" : "none"; root.querySelector("[data-a=prev]").textContent = LS("fxpreview", false) ? "▣ Hide preview" : "▢ Preview"; };
+  const pvUpdate = async () => {
+    if (pv.style.display === "none") return;
+    const tok = ++pvTok, sel = selIcons().filter(i => grid.contains(i));
+    if (pvUrl) { URL.revokeObjectURL(pvUrl); pvUrl = null; }
+    if (!sel.length) { pv.innerHTML = '<p style="color:var(--mute)">Select a file to see a preview.</p>'; return; }
+    if (sel.length > 1) { pv.innerHTML = `<p>${sel.length} items selected</p>`; return; }
+    const i = sel[0], id = i.dataset.id;
+    if (i.dataset.kind === "folder") { const n = fmeta().filter(x => x.parent === id).length + folders().filter(x => x.parent === id).length; pv.innerHTML = `<b style="word-break:break-all">${esc(i.dataset.name)}</b><p style="color:var(--mute)">Folder · ${n} item${n === 1 ? "" : "s"}</p>`; return; }
+    const f = fmeta().find(x => x.id === id); if (!f) { pv.innerHTML = ""; return; }
+    const k = kindOf(f.name);
+    pv.innerHTML = `<b style="word-break:break-all">${esc(f.name)}</b><p style="color:var(--mute);margin-bottom:10px">${KIND_NAME[k] || "File"} · ${fmt(f.size || 0)}<br>${when(f.mod)}</p>`;
+    if (k === "binary" || k === "pdf") return;
+    const b = await dbGet(id, "files"); if (tok !== pvTok || !b) return;
+    if (k === "image" || k === "audio" || k === "video") pvUrl = URL.createObjectURL(new Blob([b], { type: mimeOf(f.name) }));
+    if (k === "image") pv.insertAdjacentHTML("beforeend", `<img src="${pvUrl}" style="max-width:100%;border:1px solid var(--bd)">`);
+    else if (k === "audio") pv.insertAdjacentHTML("beforeend", `<audio controls src="${pvUrl}" style="width:100%"></audio>`);
+    else if (k === "video") pv.insertAdjacentHTML("beforeend", `<video controls src="${pvUrl}" style="width:100%"></video>`);
+    else { const t = await b.slice(0, 3000).text(); if (tok !== pvTok || t.includes("\0")) return; pv.insertAdjacentHTML("beforeend", `<pre style="white-space:pre-wrap;word-break:break-all;font:11px var(--mono);user-select:text">${esc(t)}${(f.size || 0) > 3000 ? "\n..." : ""}</pre>`); }
+  };
+  const pvSched = () => { clearTimeout(pvT); pvT = setTimeout(pvUpdate, 120); };
+  new MutationObserver(pvSched).observe(grid, { subtree: true, attributes: true, attributeFilter: ["class"] }); // runs when the selection changes
+  // thumbnails: images in Icons view load their picture when they scroll into sight
+  const io = new IntersectionObserver(es => es.forEach(en => {
+    if (!en.isIntersecting) return; io.unobserve(en.target); const el = en.target, f = fmeta().find(x => x.id === el.dataset.id); if (!f) return;
+    thumbQ = thumbQ.then(() => thumbOf(f)).then(u => { const g = u && el.isConnected && el.querySelector(".gl"); if (g) g.innerHTML = `<img src="${u}" draggable="false" style="width:100%;height:100%;object-fit:cover">`; }).catch(() => {});
+  }), { root: grid });
+  const unsaved = x => x.saved === false;
+  const tree = () => {
+    for (let d = cur.loc === "dir" ? cur.dir : null; d;) { const f = folders().find(x => x.id === d); if (!f) break; if (f.parent) exp.add(f.parent); d = f.parent; } // keep the path to the open folder visible
+    const node = (f, depth) => { const kids = folders().filter(x => sameDir(x, f.id)); return `<div class="tn ${cur.loc === "dir" && cur.dir === f.id ? "on" : ""}" data-nav="${f.id}" data-drop="${f.id}" style="padding-left:${10 + depth * 14}px"><span class="tg" ${kids.length ? `data-tg="${f.id}"` : ""}>${kids.length ? (exp.has(f.id) ? "▾" : "▸") : ""}</span>${svgI("folder", 16)}<span class="tl">${esc(f.name)}</span></div>${exp.has(f.id) ? kids.map(k => node(k, depth + 1)).join("") : ""}`; };
+    const vrow = (loc, label, icon, pad) => `<div class="tn ${cur.loc === loc ? "on" : ""}" data-vloc="${loc}" style="padding-left:${pad}px"><span class="tg"></span>${svgI(icon, 16)}<span class="tl">${label}</span></div>`;
+    const nTemp = folders().filter(unsaved).length + fmeta().filter(unsaved).length;
+    return `<div class="tn ${cur.loc === "dir" && !cur.dir ? "on" : ""}" data-nav="" data-drop="" style="padding-left:10px"><span class="tg"></span>${svgI("desktop", 16)}<span class="tl">Desktop</span></div>${folders().filter(x => sameDir(x, null)).map(f => node(f, 1)).join("")}${folders().filter(x => x.home).map(f => node(f, 0)).join("")}<div class="tsep"></div>`
+      + [["fav", svgI("star", 16), "Favorites", ""], ["recent", svgI("temp", 16), "Recent", ""], ["temp", svgI("temp", 16), "Temporary", nTemp || ""], ["saved", svgI("saved", 16), "Saved", ""], ["bin", svgI(binCount() ? "binfull" : "bin", 16), "Recycle Bin", binCount() || ""]].map(([k, i, l, n]) => `<div class="tn ${k === cur.loc ? "on" : ""}" data-loc="${k}" style="padding-left:10px"><span class="tg"></span>${i}<span class="tl">${l}</span><b>${n}</b></div>`).join("")
+      + `<div class="tsep"></div>` + vrow("pc", "This PC", "drive", 10) + vrow("c", "Local Disk (C:)", "drive", 24) + vrow("sys", "System (read-only)", "folder", 38);
+  };
+  const trail = () => { // the parts of the address bar: [label, loc, dir, sp]
+    const L = cur.loc, base = [["C:", "c"]], u = [...base, ["Users", "users"], [userName(), "home"]];
+    if (L === "pc") return [["This PC", "pc"]];
+    if (L === "c") return base;
+    if (L === "users") return u.slice(0, 2);
+    if (L === "home") return u;
+    if (L === "sys") { const t = [...base, ["System", "sys"]]; let p = ""; cur.sp.split("/").filter(Boolean).forEach(s => { p += (p ? "/" : "") + s; t.push([s, "sys", null, p]); }); return t; }
+    if (L !== "dir") return [[{ temp: "Temporary", bin: "Recycle Bin", recent: "Recent", fav: "Favorites" }[L] || "Saved", L]];
+    const chain = []; for (let d = cur.dir; d;) { const f = folders().find(x => x.id === d); if (!f) break; chain.unshift(f); d = f.parent; }
+    return [...u, ...(chain.length && chain[0].home ? [] : [["Desktop", "dir", null]]), ...chain.map(f => [f.name, "dir", f.id])];
+  };
+  const crumb = () => trail().map(([l, g, gd, gs]) => `<span class="seg" data-g="${g}" data-gd="${gd || ""}" data-gs="${esc(gs || "")}">${esc(l)}</span>`).join("<i>\\</i>");
+  const search = () => { // looks inside this folder and every folder under it
+    const ql = q.toLowerCase(), ids = cur.dir ? [cur.dir, ...descendants(cur.dir)] : null, inside = x => !ids || ids.includes(x.parent);
+    return [folders().filter(x => inside(x) && x.id !== cur.dir && x.name.toLowerCase().includes(ql)), fmeta().filter(x => inside(x) && x.name.toLowerCase().includes(ql))];
+  };
+  const tile = (label, icon, open, menu) => { // a folder or file of the made-up PC (not a real stored item)
+    const el = document.createElement("div"); el.className = "vi"; el.title = label; el.dataset.name = label;
+    el.innerHTML = glyph({ icon }) + `<div class="lbl">${esc(label)}</div>`;
+    el.onclick = () => { grid.querySelectorAll(".vi.on").forEach(x => x.classList.remove("on")); clearSel(); el.classList.add("on"); };
+    el.ondblclick = open;
+    if (menu) el.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, menu); };
+    grid.appendChild(el);
+  };
+  const drawVirt = () => {
+    const L = cur.loc;
+    if (L === "pc") tile("Local Disk (C:)", "svg:drive", () => go("c"));
+    else if (L === "c") { tile("Users", "svg:folder", () => go("users")); tile("System", "svg:folder", () => go("sys")); }
+    else if (L === "users") tile(userName(), "svg:folder", () => go("home"));
+    else if (L === "home") { tile("Desktop", "svg:desktop", () => go("dir", null)); folders().filter(f => f.home).forEach(f => tile(f.name, "svg:folder", () => go("dir", f.id))); }
+    else { // sys: the OS's own files, view only
+      const pre = cur.sp ? cur.sp + "/" : "", dirs = new Set(), files = [];
+      sysTree.forEach(x => { if (!x.path.startsWith(pre)) return; const rest = x.path.slice(pre.length), i = rest.indexOf("/"); if (i < 0) files.push(x); else dirs.add(rest.slice(0, i)); });
+      [...dirs].sort().forEach(n => tile(n, "svg:folder", () => go("sys", null, pre + n), [["Open", () => go("sys", null, pre + n)], ["Rename", sysReadOnly], ["Delete", sysReadOnly]]));
+      files.sort((a, b) => a.path.localeCompare(b.path)).forEach(x => { const n = x.path.split("/").pop(), open = () => openApp(sysFileApp(x.path)); tile(n, (KIND_ICON[kindOf(n)] || [])[0] || "svg:text", open, [["Open", open], ["Rename", sysReadOnly], ["Delete", sysReadOnly]]); });
+      if (!dirs.size && !files.length) grid.insertAdjacentHTML("beforeend", '<p class="fxe">No files here.</p>');
+    }
+  };
+  const draw = () => {
+    if (!root.isConnected) return refreshers.delete(draw); // window was closed
+    if (cur.loc === "dir" && cur.dir && !folders().find(f => f.id === cur.dir)) cur.dir = null; // that folder is gone
+    const virt = isVirt(), d = cur.loc === "dir" && cur.dir && folders().find(f => f.id === cur.dir);
+    pvShow();
+    side.innerHTML = tree();
+    const inBin = cur.loc === "bin", binBox = root.querySelector(".fxbin"); // Recycle Bin shows right inside the window
+    tools.style.display = grid.style.display = inBin ? "none" : "";
+    qEl.style.display = inBin || virt ? "none" : "";
+    binBox.style.display = inBin ? "block" : "none";
+    if (inBin && !binBox.firstChild) BIN.open(binBox, os);
+    adEl.innerHTML = crumb();
+    backB.disabled = !hist.length; fwdB.disabled = !fwd.length; upB.disabled = !upTarget();
+    act.innerHTML = virt || ["dir", "bin", "recent", "fav"].includes(cur.loc) ? "" : `<button data-a="all">Select all</button>${cur.loc === "temp" ? '<button data-a="save">Save selected</button>' : ""}<button data-a="del">Delete selected</button>`;
+    os.setTitle({ recent: "Recent", fav: "Favorites", temp: "Temporary", saved: "Saved", bin: "Recycle Bin", pc: "This PC", c: "Local Disk (C:)", users: "Users", home: userName(), sys: cur.sp ? cur.sp.split("/").pop() : "System" }[cur.loc] || (d ? d.name : "File Explorer"));
+    const pref = LS("fxview", "icons") === "list", list = pref && !virt; grid.classList.toggle("list", list);
+    root.querySelector("[data-a=view]").textContent = pref ? "▦ Icons" : "☰ Details";
+    grid.innerHTML = ""; io.disconnect(); grid._dir = cur.loc === "dir" ? cur.dir : undefined; // where a drop here goes (null = Desktop)
+    if (virt) {
+      if (cur.loc === "sys" && !sysTree) { grid.innerHTML = '<p class="fxe">Loading system files...</p>'; loadSys().then(() => { if (cur.loc === "sys") draw(); }); return; }
+      drawVirt(); return;
+    }
+    const f = cur.loc === "temp" ? [folders().filter(unsaved), fmeta().filter(unsaved)]
+      : cur.loc === "saved" ? [folders().filter(x => !unsaved(x)), fmeta().filter(x => !unsaved(x))]
+      : cur.loc === "recent" ? [[], recentFiles()] : cur.loc === "fav" ? favItems() : q ? search() : [folders().filter(x => sameDir(x, cur.dir)), fmeta().filter(x => sameDir(x, cur.dir))];
+    fillItems(grid, f[0], f[1], id => go("dir", id), list);
+    if (!list) grid.querySelectorAll('.icon[data-kind="file"]').forEach(el => { const fm = fmeta().find(x => x.id === el.dataset.id); if (fm && kindOf(fm.name) === "image" && (fm.size || 0) < 15e6) io.observe(el); });
+    pvSched();
+    if (!grid.querySelector(".icon")) grid.insertAdjacentHTML("beforeend", `<p class="fxe">${q ? "No matches." : cur.loc === "temp" ? "Nothing temporary. New and uploaded items wait here until you save them." : cur.loc === "saved" ? "Nothing saved yet." : cur.loc === "recent" ? "No recent files yet. Files you open show up here." : cur.loc === "fav" ? "No favorites yet. Right-click a file or folder and choose Add to Favorites." : "This folder is empty. Right-click to create something, or drop files here."}</p>`);
+  };
+  refreshers.add(draw);
+  const here = () => cur.loc === "dir" ? cur.dir : null;
+  const menuAt = (btn, items) => { const r = btn.getBoundingClientRect(); ctx({ clientX: r.left, clientY: r.bottom }, items); };
+  side.onclick = e => {
+    const tg = e.target.closest("[data-tg]"); if (tg) { exp.has(tg.dataset.tg) ? exp.delete(tg.dataset.tg) : exp.add(tg.dataset.tg); return draw(); }
+    const nv = e.target.closest("[data-nav]"); if (nv) return go("dir", nv.dataset.nav || null);
+    const vl = e.target.closest("[data-vloc]"); if (vl) return go(vl.dataset.vloc);
+    const k = e.target.closest("[data-loc]"); if (k) go(k.dataset.loc, null);
+  };
+  root.querySelector(".fxn").onclick = e => {
+    const b = e.target.closest("[data-n]");
+    if (b) {
+      const n = b.dataset.n;
+      if (n === "back" && hist.length) { fwd.push(cur); show(hist.pop()); }
+      else if (n === "fwd" && fwd.length) { hist.push(cur); show(fwd.pop()); }
+      else if (n === "up") { const t = upTarget(); if (t) go(...t); }
+      return;
+    }
+    const sg = e.target.closest("[data-g]"); if (sg) go(sg.dataset.g, sg.dataset.gd || null, sg.dataset.gs || "");
+  };
+  qEl.oninput = e => { q = e.target.value.trim(); draw(); };
+  tools.onclick = e => {
+    const a = e.target.dataset.a, sel = selIcons().filter(i => grid.contains(i));
+    if (a === "file") {
+      e.stopPropagation();
+      if (isVirt()) return winAlert(cur.loc === "sys" ? "System files are read-only. To change them you will use the VM (not built yet)." : "You can't add files here. Open Desktop, Downloads or Documents first.");
+      menuAt(e.target, [["New folder", () => newFolder(here(), grid)], ["New text document", () => newFile("txt", here(), grid)], ["New shortcut (.vsh)", () => newVsh(here(), grid)], ["Upload files...", () => pickUpload(here(), false)], ["Upload folder...", () => pickUpload(here(), true)], ["Upload zip file...", () => pickUpload(here(), "zip")], ["Export as .zip", () => exportZip(sel.length ? sel : [...grid.querySelectorAll(".icon")])]]);
+    }
+    else if (a === "prev") { save("fxpreview", !LS("fxpreview", false)); pvShow(); pvUpdate(); }
+    else if (a === "view") { save("fxview", LS("fxview", "icons") === "list" ? "icons" : "list"); draw(); }
+    else if (a === "all") grid.querySelectorAll(".icon").forEach(i => i.classList.add("sel"));
+    else if (a === "save") { sel.forEach(i => markSaved(i.dataset.kind, i.dataset.id)); renderIcons(); }
+    else if (a === "del" && sel.length) deleteSel(sel);
+  };
+  root.oncontextmenu = e => { if (e.target.closest(".icon")) return; e.preventDefault(); ctx(e, isVirt() ? [["Refresh", draw]] : newMenu(here(), grid)); };
+  grid.ondragover = e => e.preventDefault();
+  grid.ondrop = e => { e.preventDefault(); e.stopPropagation(); if (!isVirt()) addFiles(e.dataTransfer.files, here()); };
   grid.addEventListener("click", e => { const h = e.target.closest("[data-sort]"); if (!h) return; const k = h.dataset.sort, c = LS("fxsort", { k: "name", dir: 1 }); save("fxsort", c.k === k ? { k, dir: -c.dir } : { k, dir: 1 }); draw(); });
   marquee(grid);
   draw();
