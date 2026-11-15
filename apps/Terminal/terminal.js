@@ -14,9 +14,9 @@ export default {
 .trm .sg{padding:0 10px 8px;display:flex;flex-direction:column}.trm .sg div{padding:2px 8px;color:#aaa;cursor:pointer}.trm .sg div.b{color:#fff;background:#262626}.trm .sg div:hover{background:#333}.trm .sg small{color:#777;margin-left:8px}
 .trm .cb{margin:6px 0;border:1px solid #333;background:#141414;white-space:normal}.trm .cbh{display:flex;gap:6px;align-items:center;padding:4px 8px;background:#1f1f1f;font-size:12px}
 .trm .cbh span{flex:1;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.trm .cb pre{margin:0;padding:8px;overflow:auto;white-space:pre;color:#d4d4d4}.trm .cb pre.sm{max-height:220px}
-</style><div class="trm"><div class="tb"><span>VUS Terminal</span><button data-a="out">Hide output</button><button data-a="clr">Clear</button></div><div class="to"></div><div class="tln"><span class="pr"></span><div class="tw"><div class="gh"></div><input class="tin" spellcheck="false" autocomplete="off" autocapitalize="off"></div></div><div class="sg"></div></div>`;
+</style><div class="trm"><div class="tb"><span>VUS Terminal</span><button data-a="stop" style="display:none">Stop</button><button data-a="out">Hide output</button><button data-a="clr">Clear</button></div><div class="to"></div><div class="tln"><span class="pr"></span><div class="tw"><div class="gh"></div><input class="tin" spellcheck="false" autocomplete="off" autocapitalize="off"></div></div><div class="sg"></div></div>`;
     const $ = s => root.querySelector(s), out = $(".to"), inp = $(".tin"), gh = $(".gh"), sg = $(".sg");
-    let cwd = null, last = "", hist = [], hi = 0, cands = [];
+    let cwd = null, last = "", hist = [], hi = 0, cands = [], aliases = {};
     let cur = null, lastText = "", busy = false; // cur = the current prompt line's group: its element and the output text it produced
     const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
     const folders = () => sys.folders(), files = () => sys.files();
@@ -95,6 +95,17 @@ export default {
       { n: ["wait"], d: "Pause for up to 60 seconds. Handy between | commands.", ex: "execute Notes | wait 2 | execute Gallery" },
       { n: ["history"], d: "Show the commands you typed in this window.", ex: "history" },
       { n: ["restart"], d: "Close everything and restart VUS-OS without reloading the page.", ex: "restart" },
+      { n: ["pwd"], d: "Show which folder you are in.", ex: "pwd" },
+      { n: ["touch"], d: "Make an empty file here. Does nothing if it already exists.", ex: "touch notes.txt" },
+      { n: ["tree"], d: "Show a folder and everything inside it as an indented list. Without a name it shows the current folder.", ex: "tree Projects" },
+      { n: ["grep"], d: "Search the text inside files for a word. Give a file name to search just that file, or leave it out to search every file here.", ex: "grep hello notes.txt" },
+      { n: ["date", "time"], d: "Show today's date and the time.", ex: "date" },
+      { n: ["whoami"], d: "Show who is signed in and which VUS-OS version this is.", ex: "whoami" },
+      { n: ["alias"], d: "Make your own short name for a command. Lasts until this Terminal window is closed. alias on its own lists them, alias -d name removes one. A shortcut can't contain |.", ex: "alias ll ls" },
+      { n: ["languages", "lang"], d: "List the languages you can install and which ones are installed.", ex: "languages" },
+      { n: ["install"], d: "Download and install a language. After the one-time download it works offline.", ex: "install python" },
+      { n: ["uninstall"], d: "Remove an installed language and its downloaded files.", ex: "uninstall python" },
+      { n: ["py", "python"], d: "Run a Python file from this folder, or one line with -c (needs: install python). The files in this folder can be read, written and imported. Ctrl+C or the Stop button ends a running program. Use ; instead of | inside code.", ex: "py hello.py" },
       { n: ["|"], d: "Run several commands in one line, one after another.", ex: "ls | cat notes.txt | copy" },
       { n: ["\\"], d: "In execute, search everywhere instead of only this folder.", ex: "execute \\Notes" }
     ];
@@ -111,8 +122,56 @@ export default {
       q.oninput = draw; draw(); q.focus();
     } };
 
+    // ---------- languages: install python, then py file.py (the language file comes from the OS repo's languages/ folder) ----------
+    const LANG_OK = !!sys.langs; // older VUS-OS versions don't have the language helpers yet
+    let langList = null, runH = null, statusEl = null; const mods = {};
+    const getList = async () => { if (langList) return langList; const r = await fetch(sys.langBase() + "list.json", { cache: "no-cache" }); if (!r.ok) throw new Error(r.status); return langList = await r.json(); };
+    if (LANG_OK) getList().catch(() => {});
+    const installedLangs = () => LANG_OK ? sys.langs() : {};
+    const loadLang = async id => {
+      if (mods[id]) return mods[id];
+      const code = await sys.langCode(id); if (!code) throw new Error(`${id} is no longer saved. Run: install ${id}`);
+      return mods[id] = (await import(URL.createObjectURL(new Blob([code], { type: "text/javascript" })))).default;
+    };
+    const setStatus = t => { if (!t) { if (statusEl) { statusEl.remove(); statusEl = null; } return; } if (!statusEl) statusEl = print("", "dim", false); statusEl.textContent = t; out.scrollTop = out.scrollHeight; };
+    const showStop = on => { $("[data-a=stop]").style.display = on ? "" : "none"; };
+    const stopRun = () => { if (!runH) return; const h = runH; runH = null; h.stop(); print("Stopped.", "err", false); };
+    os.guard(() => { stopRun(); return true; }); // closing the window ends a running program (guard must return true to allow closing)
+    const langFn = c => { const all = installedLangs(), id = Object.keys(all).find(k => (all[k].cmds || []).includes(c)); return id ? a => runLang(id, a) : undefined; };
+    const runLang = async (id, a) => {
+      if (runH) return print("A program is already running. Press Ctrl+C or Stop first.", "err");
+      const mod = await loadLang(id); let code, name;
+      if (/^-c(\s|$)/.test(a)) { code = a.replace(/^-c\s*/, "").replace(/^"([\s\S]*)"$/, "$1"); name = "<string>"; if (!code) return print('Usage: py -c "print(1 + 1)"', "err"); }
+      else {
+        const n = parseArgs(a)[0]; if (!n) return print("Usage: py <file>   or   py -c \"code\"", "err");
+        const f = find(n, here().n); if (!f) return print(`No file named "${n}" here.`, "err");
+        code = await sys.read(f.id); name = f.name;
+      }
+      const files = []; let total = 0;
+      for (const f of here().n) { // the folder's text files are given to the program (so it can read, write and import them)
+        if ((f.size || 0) > 1048576 || files.length >= 200 || total > 5242880) continue;
+        let t; try { t = await sys.read(f.id); } catch { continue; }
+        if (typeof t === "string" && !t.includes("\u0000")) { files.push({ name: f.name, text: t }); total += t.length; }
+      }
+      let lines = 0; const MAX = 3000;
+      const h = mod.run({ code, name, files,
+        print: t => { if (lines++ < MAX) print(t || " "); else if (lines === MAX + 1) { print(`Output limit (${MAX} lines) reached, stopping the program.`, "err"); stopRun(); } },
+        printErr: t => { if (lines++ < MAX) print(t || " ", "err"); },
+        status: setStatus });
+      runH = h; showStop(true);
+      const r = await h.done;
+      if (runH === h) runH = null; showStop(false); setStatus("");
+      if (r.stopped) return;
+      if (r.error) print(r.error, "err");
+      for (const c of r.changed || []) {
+        const ex = find(c.name, here().n);
+        if (ex) { await sys.overwrite(ex.id, c.text); print(`Updated ${c.name}`, "dim"); } else { await sys.write(c.name, c.text, cwd); print(`Created ${c.name}`, "dim"); }
+      }
+      if (r.skipped && r.skipped.length) print(`Not saved (not text files): ${r.skipped.join(", ")}`, "dim");
+    };
+
     const cmds = {
-      help: () => print("commands           open a window with every command and an example\nls                 list this folder\ncd <folder|..|/>   change folder\ncat <file>         show a file in a code bubble\nedit <file>        open a file in Notepad\nmkdir <name>       new folder\nrm <name>          move to the Recycle Bin\nexecute <name>     open an app, file or folder here (\\name searches everywhere)\nkill <name>        force-close an open program\nfetch <link>       show text from a link (raw GitHub works)\nsave <name>        save the last fetched text as a file here\ncopy / paste       copy the latest output / paste the clipboard into the input\nver                show the version and the latest one\nsys-upd            update VUS-OS in this tab\ncmd1 | cmd2        run several commands in one line\ncp / mv / rename   copy, move or rename a file or folder here\nfind <text>        search names in every folder\nrun <path>         run a .vsh shortcut and show its output\necho / wait / history / restart\ntheme dark|light   lock   sleep   notify <text>   clear   exit"),
+      help: () => print("commands           open a window with every command and an example\nls                 list this folder\ncd <folder|..|/>   change folder\ncat <file>         show a file in a code bubble\nedit <file>        open a file in Notepad\nmkdir <name>       new folder\nrm <name>          move to the Recycle Bin\nexecute <name>     open an app, file or folder here (\\name searches everywhere)\nkill <name>        force-close an open program\nfetch <link>       show text from a link (raw GitHub works)\nsave <name>        save the last fetched text as a file here\ncopy / paste       copy the latest output / paste the clipboard into the input\nver                show the version and the latest one\nsys-upd            update VUS-OS in this tab\ncmd1 | cmd2        run several commands in one line\ncp / mv / rename   copy, move or rename a file or folder here\nfind <text>        search names in every folder\nrun <path>         run a .vsh shortcut and show its output\necho / wait / history / restart\npwd / touch / tree      where you are, new empty file, folder outline\ngrep <text> [file] search inside files\ndate / whoami      date and time, who and which version\nalias <name> <cmd> your own short command\ninstall / languages  add a language like Python, then: py file.py\ntheme dark|light   lock   sleep   notify <text>   clear   exit"),
       commands: () => { sys.launch(listApp); },
       clear: () => { out.innerHTML = ""; if (cur) { cur.el = document.createElement("div"); out.appendChild(cur.el); } },
       ls: () => { const h = here(); if (!h.f.length && !h.n.length) return print("(empty)", "dim"); h.f.forEach(f => print(f.name + "/", "dir")); h.n.forEach(f => print(f.name)); },
@@ -191,10 +250,97 @@ export default {
         const o = await sys.run(f.id);
         if (typeof o !== "string") print("That shortcut is already running.", "err"); else if (o) print(o); else print("Done.", "dim", false);
       },
-      exit: () => os.close()
+      pwd: () => print(pathOf(cwd)),
+      touch: async a => {
+        const n = parseArgs(a)[0]; if (!n) return print('Usage: touch <name>   (use "quotes" for names with spaces)', "err");
+        if (find(n, here().n)) return print(`${n} already exists.`, "dim");
+        if (find(n, here().f)) return print(`There is already a folder named "${n}" here.`, "err");
+        await sys.write(n, "", cwd); print(`Created ${n}`);
+      },
+      tree: a => {
+        const n = parseArgs(a)[0]; let root = cwd;
+        if (n) { root = resolveDir(n); if (root === undefined) return print(`No folder "${n}".`, "err"); }
+        let lines = 0; const MAX = 300;
+        const walk = (id, pad) => {
+          const fo = folders().filter(x => (x.parent || null) === id).sort((x, y) => x.name.localeCompare(y.name));
+          const fi = files().filter(x => (x.parent || null) === id).sort((x, y) => x.name.localeCompare(y.name));
+          for (const f of fo) { if (lines++ >= MAX) return; print(pad + f.name + "/", "dir"); walk(f.id, pad + "  "); }
+          for (const f of fi) { if (lines++ >= MAX) return; print(pad + f.name); }
+        };
+        print(pathOf(root) + "/", "dir"); walk(root, "  ");
+        if (lines >= MAX) print(`...stopped after ${MAX} lines`, "dim");
+        else if (!lines) print("(empty)", "dim");
+      },
+      grep: async a => {
+        const [q, fn] = parseArgs(a); if (!q) return print('Usage: grep <text> [file]   (use "quotes" for text with spaces)', "err");
+        let pool2 = here().n;
+        if (fn) { const f = find(fn, here().n); if (!f) return print(`No file named "${fn}" here.`, "err"); pool2 = [f]; }
+        const needle = q.toLowerCase(); let hits = 0, skipped = 0; const MAX = 50;
+        for (const f of pool2) {
+          if ((f.size || 0) > 2 * 1024 * 1024) { skipped++; continue; } // big files are skipped so the tab stays quick
+          let t; try { t = await sys.read(f.id); } catch { continue; }
+          if (typeof t !== "string" || t.includes("\u0000")) { if (fn) print(`${f.name} is not a text file.`, "err"); continue; }
+          const ls = t.split(/\r?\n/);
+          for (let i = 0; i < ls.length; i++) {
+            if (!ls[i].toLowerCase().includes(needle)) continue;
+            if (hits++ >= MAX) break;
+            print(`${f.name}:${i + 1}: ${ls[i].trim().slice(0, 160)}`);
+          }
+          if (hits > MAX) break;
+        }
+        if (hits > MAX) print(`...showing the first ${MAX} matches`, "dim");
+        else if (!hits) print(`Nothing found for "${q}".`, "dim");
+        if (skipped) print(`Skipped ${skipped} file${skipped === 1 ? "" : "s"} over 2 MB.`, "dim");
+      },
+      date: () => { const d = new Date(); print(d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }) + "  " + d.toLocaleTimeString()); },
+      whoami: () => print((sessionStorage.getItem("vos_guest") === "1" ? "Guest (temporary, nothing is kept)" : "Owner") + " · VUS-OS " + sys.version()),
+      alias: a => {
+        if (!a) { const k = Object.keys(aliases); return k.length ? k.forEach(n => print(`${n} = ${aliases[n]}`)) : print("(no aliases yet. Try: alias ll ls)", "dim"); }
+        const p = a.split(/\s+/);
+        if (p[0] === "-d") { const n = (p[1] || "").toLowerCase(); if (!aliases[n]) return print(`No alias named "${p[1] || ""}".`, "err"); delete aliases[n]; return print(`Removed ${n}`); }
+        const n = p[0].toLowerCase(), v = a.slice(p[0].length).trim();
+        if (!v) return print(aliases[n] ? `${n} = ${aliases[n]}` : `No alias named "${p[0]}".`, aliases[n] ? "" : "err");
+        if (!/^[a-z][\w-]*$/.test(n)) return print("An alias name must start with a letter and use only letters, numbers, - or _.", "err");
+        if (cmds[n]) return print(`"${n}" is already a command, pick another name.`, "err");
+        if (v.includes("|")) return print("An alias can't contain |. Make one alias per command.", "err");
+        aliases[n] = v; print(`${n} = ${v}`);
+      },
+      exit: () => { stopRun(); os.close(); },
+      languages: async () => {
+        if (!LANG_OK) return print("This needs a newer VUS-OS. Run sys-upd first.", "err");
+        let list; try { list = await getList(); } catch { return print("Couldn't load the language list (offline?).", "err"); }
+        const have = installedLangs();
+        Object.keys(list).forEach(id => print(`${id}  ${list[id].name}  ${have[id] ? "(installed)" : "(" + (list[id].size || "not installed") + ")"}  ${list[id].desc || ""}`));
+        print("Install one with: install <name>", "dim", false);
+      },
+      install: async a => {
+        if (!LANG_OK) return print("This needs a newer VUS-OS. Run sys-upd first.", "err");
+        let list; try { list = await getList(); } catch { return print("Couldn't load the language list (offline?).", "err"); }
+        const id = (a || "").toLowerCase().trim(), e = list[id];
+        if (!e) return print((id ? `No language named "${a}". ` : "Usage: install <language>. ") + "Available: " + Object.keys(list).join(", "), "err");
+        print(`${e.name}${e.size ? " (" + e.size + ")" : ""}`, "dim", false);
+        let code; try { const r = await fetch(sys.langBase() + e.file, { cache: "no-cache" }); if (!r.ok) throw new Error(r.status); code = await r.text(); } catch (x) { return print("Couldn't download the language file (" + x.message + ").", "err"); }
+        let mod; try { mod = (await import(URL.createObjectURL(new Blob([code], { type: "text/javascript" })))).default; } catch (x) { return print("The language file is broken: " + x.message, "err"); }
+        try {
+          const res = await mod.install({ say: t => print(t), status: setStatus }); setStatus("");
+          if (!(await sys.langSave(id, code, { name: e.name, version: mod.version, cmds: e.cmds, date: Date.now() }))) return print("Couldn't save the language (browser storage may be full).", "err");
+          mods[id] = mod;
+          print(res === "current" ? `${e.name} is installed and up to date.` : `${e.name} installed.`); if (e.example) print("Try: " + e.example, "dim");
+        } catch (x) { setStatus(""); print("Install failed: " + x.message, "err"); }
+      },
+      uninstall: async a => {
+        const id = (a || "").toLowerCase().trim();
+        if (!LANG_OK || !installedLangs()[id]) return print(`"${a || ""}" isn't installed.`, "err");
+        stopRun(); try { await (await loadLang(id)).uninstall(); } catch { /* still remove it below */ }
+        await sys.langDrop(id); delete mods[id]; print(`Removed ${id}.`);
+      }
     };
-    cmds.open = cmds.execute; cmds.version = cmds.ver; cmds["system-update"] = cmds["sys-upd"];
-    const pool = { run: () => here().n.filter(x => /\.vsh$/i.test(x.name)).map(x => ({ name: x.name, kind: "shortcut" })), cd: () => here().f.map(x => ({ name: x.name, kind: "folder" })), cat: () => here().n.map(x => ({ name: x.name, kind: "file" })), edit: () => here().n.map(x => ({ name: x.name, kind: "file" })), rm: () => [...here().f.map(x => ({ name: x.name, kind: "folder" })), ...here().n.map(x => ({ name: x.name, kind: "file" }))], theme: () => ["dark", "light"].map(name => ({ name, kind: "" })), kill: () => sys.windows().map(w => ({ name: w.name, kind: "open" })) };
+    cmds.time = cmds.date; cmds.open = cmds.execute; cmds.version = cmds.ver; cmds["system-update"] = cmds["sys-upd"];
+    const pool = { run: () => here().n.filter(x => /\.vsh$/i.test(x.name)).map(x => ({ name: x.name, kind: "shortcut" })), cd: () => here().f.map(x => ({ name: x.name, kind: "folder" })), cat: () => here().n.map(x => ({ name: x.name, kind: "file" })), edit: () => here().n.map(x => ({ name: x.name, kind: "file" })), rm: () => [...here().f.map(x => ({ name: x.name, kind: "folder" })), ...here().n.map(x => ({ name: x.name, kind: "file" }))], tree: () => here().f.map(x => ({ name: x.name, kind: "folder" })), touch: () => [], theme: () => ["dark", "light"].map(name => ({ name, kind: "" })), kill: () => sys.windows().map(w => ({ name: w.name, kind: "open" })) };
+    pool.py = pool.python = () => here().n.filter(x => /\.py$/i.test(x.name)).map(x => ({ name: x.name, kind: "python" }));
+    pool.install = () => Object.keys(langList || {}).map(name => ({ name, kind: "language" }));
+    pool.uninstall = () => Object.keys(installedLangs()).map(name => ({ name, kind: "installed" }));
+    cmds.lang = cmds.languages;
     const segOf = v => v.slice(v.lastIndexOf("|") + 1).trim();
     const suggest = () => { // works on the part after the last |; ghost text for the best match (Tab accepts it); the others are clickable
       const v = inp.value, bar = v.lastIndexOf("|"), seg = v.slice(bar + 1), lead = seg.match(/^\s*/)[0], base = v.slice(0, bar + 1) + lead, s = seg.slice(lead.length), sp = s.indexOf(" ");
@@ -218,6 +364,7 @@ export default {
     sg.onclick = e => { const d = e.target.closest("[data-i]"); if (d) { inp.value = cands[+d.dataset.i].full; inp.focus(); suggest(); } };
     inp.oninput = suggest;
     inp.onkeydown = async e => {
+      if (e.ctrlKey && e.key.toLowerCase() === "c" && runH && !getSelection().toString()) { e.preventDefault(); stopRun(); return; } // Ctrl+C stops a running program
       if (e.key === "Tab") { e.preventDefault(); if (cands[0]) { inp.value = cands[0].full + (segOf(inp.value).includes(" ") ? "" : " "); suggest(); } }
       else if (e.key === "ArrowUp") { e.preventDefault(); if (hi > 0) inp.value = hist[--hi]; suggest(); }
       else if (e.key === "ArrowDown") { e.preventDefault(); hi = Math.min(hist.length, hi + 1); inp.value = hist[hi] || ""; suggest(); }
@@ -228,15 +375,20 @@ export default {
         const d = print("", "", false), pr = document.createElement("span"); pr.className = "pr"; pr.textContent = $(".tln .pr").textContent; d.append(pr, line);
         const segs = line.split("|").map(x => x.trim()).filter(Boolean);
         for (const sgm of segs) {
-          const c0 = sgm.split(/\s+/)[0], fn = cmds[c0.toLowerCase()];
-          if (!fn) { print(`'${c0}' is not a command. Type help.`, "err"); continue; }
-          try { await fn(sgm.slice(c0.length).trim()); } catch (err) { print("Error: " + err.message, "err"); }
+          let c0 = sgm.split(/\s+/)[0], body = sgm;
+          if (!cmds[c0.toLowerCase()] && aliases[c0.toLowerCase()]) { body = aliases[c0.toLowerCase()] + sgm.slice(c0.length); c0 = body.split(/\s+/)[0]; } // your own alias, swapped for the real command
+          const fn = cmds[c0.toLowerCase()] || langFn(c0.toLowerCase());
+          if (!fn) {
+            const lg = langList && Object.keys(langList).find(k => (langList[k].cmds || []).includes(c0.toLowerCase()));
+            print(lg ? `${langList[lg].name} isn't installed. Run: install ${lg}` : `'${c0}' is not a command. Type help.`, "err"); continue;
+          }
+          try { await fn(body.slice(c0.length).trim()); } catch (err) { print("Error: " + err.message, "err"); }
         }
         if (cur.text.length && !segs.every(x => /^(copy|paste)(\s|$)/i.test(x))) lastText = cur.text.join("\n"); // copy/paste lines don't replace what copy would copy
         busy = false; suggest();
       }
     };
-    $(".tb").onclick = e => { const a = e.target.dataset.a; if (a === "out") { const h = $(".trm").classList.toggle("noout"); e.target.textContent = h ? "Show output" : "Hide output"; } else if (a === "clr") out.innerHTML = ""; };
+    $(".tb").onclick = e => { const a = e.target.dataset.a; if (a === "out") { const h = $(".trm").classList.toggle("noout"); e.target.textContent = h ? "Show output" : "Hide output"; } else if (a === "clr") out.innerHTML = ""; else if (a === "stop") stopRun(); };
     $(".trm").onclick = e => { if (!e.target.closest("button,.cb,.sg") && !getSelection().toString()) inp.focus(); };
     print("VUS Terminal. Type help for commands, or commands for the full list.", "dim"); prompt(); inp.focus();
   }

@@ -1,0 +1,10 @@
+{
+  "python": {
+    "name": "Python",
+    "file": "python.js",
+    "cmds": ["py", "python"],
+    "size": "about 12 MB download",
+    "desc": "Python 3 (Pyodide)",
+    "example": "py -c \"print(2 + 2)\""
+  }
+}

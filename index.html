@@ -111,6 +111,11 @@ input,select,button{font-family:var(--font)}
 #toasts{position:fixed;right:12px;bottom:calc(var(--tb) + 12px);z-index:700;display:flex;flex-direction:column;gap:8px}
 .toast{width:320px;max-width:calc(100vw - 24px);padding:12px 14px;background:#2b2b2b;color:#fff;border-left:3px solid var(--ac);box-shadow:0 8px 24px rgba(0,0,0,.5);font-size:13px}.toast div{opacity:.8;margin-top:3px}
 [data-theme=light] .toast{background:#fff;color:#111}
+.xp{width:320px;max-width:calc(100vw - 24px);padding:12px 14px;background:#2b2b2b;color:#fff;border-left:3px solid var(--ac);box-shadow:0 8px 24px rgba(0,0,0,.5);font-size:13px}
+.xp .xh{display:flex;justify-content:space-between;align-items:center;gap:8px}.xp .xh button{padding:3px 10px;background:var(--hover);color:inherit;border:1px solid var(--bd);cursor:pointer;font:inherit}
+.xp .xr{margin-top:8px;font-size:12px}.xp .xr span{float:right;opacity:.75}.xp .xo{font-size:13px}
+.xp .xb{height:5px;background:rgba(128,128,128,.35);margin-top:3px}.xp .xb i{display:block;height:100%;width:0;background:var(--ac2)}
+[data-theme=light] .xp{background:#fff;color:#111}
 #showdesk{width:6px;border-left:1px solid #555;flex-shrink:0}
 #showdesk:hover{background:rgba(255,255,255,.2)}
 
@@ -644,7 +649,14 @@ function makeOS(app, win) {
       version: () => OS_VERSION, latest: () => latestOs(true), update: f => updateOS(f),
       windows: () => [...wins.values()].map(w => ({ id: w.id, name: w.app.name })), kill: id => closeWin(id, true),
       copy: (kind, id, dir) => kind === "folder" ? copyFolder(id, dir) : copyFile(id, dir), move: (kind, id, dir) => moveTo(kind, id, dir), rename: (kind, id, name) => applyRename(kind, id, name),
-      restart: () => softRestart(), run: id => runVsh(id)
+      restart: () => softRestart(), run: id => runVsh(id),
+      overwrite: (id, text) => { const f = fmeta().find(x => x.id === id); return f ? putFile(id, f.name, new Blob([text]), undefined, true) : false; }, // replaces a file's text, keeping its name and folder
+      // languages (Python etc.): the language file is kept in the same "code" store as app code, under the key lang|<id>; small info lives in localStorage
+      langBase: () => OS_REPO + "languages/",
+      langs: () => LS("langs", {}),
+      langCode: id => dbGet("lang|" + id, "code"),
+      langSave: async (id, code, info) => { if (!(await dbSet("lang|" + id, code, "code"))) return false; const m = LS("langs", {}); m[id] = info; save("langs", m); return true; },
+      langDrop: async id => { await dbDel("lang|" + id, "code"); const m = LS("langs", {}); delete m[id]; save("langs", m); }
     },
     close: force => closeWin(win.id, force),
     guard: fn => { win.beforeClose = fn; } // return false to block closing (e.g. unsaved changes)
@@ -990,7 +1002,7 @@ function moveMenu(e, kind, id) {
 async function clearCache(name) { await dbDel(name, "code"); const m = metaAll(); delete m[name]; save("meta", m); }
 function dlBlob(name, blob) {
   const u = URL.createObjectURL(blob), a = document.createElement("a");
-  a.href = u; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(u), 2000);
+  a.href = u; a.download = name; a.style.display = "none"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000); // 60 s, so a big file isn't cut off while the browser starts saving it
 }
 async function downloadFile(id) { const f = fmeta().find(x => x.id === id), b = await dbGet(id, "files"); if (b) dlBlob(f.name, b); }
 
@@ -1421,39 +1433,63 @@ async function notepad(root, os, id) {
 const crcT = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const crc32 = u8 => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = crcT[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
 const deflateRaw = async u8 => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());
-async function makeZip(entries) { // entries: [{name, data: Uint8Array | null (folder), date}]
-  const enc = new TextEncoder(), chunks = [], central = []; let off = 0;
+async function crcBlob(blob) { // CRC-32 of a Blob read in pieces, so a big file never has to sit in memory whole
+  let c = 0xFFFFFFFF, n = 0; const r = blob.stream().getReader();
+  for (;;) {
+    const { done, value } = await r.read(); if (done) break;
+    for (let i = 0; i < value.length; i++) c = crcT[(c ^ value[i]) & 255] ^ (c >>> 8);
+    if (++n % 64 === 0) await new Promise(res => setTimeout(res, 0)); // let the OS breathe
+  }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+async function makeZip(entries, opt = {}) { // entries: [{name, data: Uint8Array | blob: Blob | neither (folder), date, pack}]. Files go in one at a time and finished parts are handed to the browser as Blobs, so memory stays low even for big backups.
+  const enc = new TextEncoder(), central = []; let parts = [], mem = 0, off = 0, count = 0;
   const u16 = n => new Uint8Array([n & 255, (n >> 8) & 255]), u32 = n => new Uint8Array([n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255]);
   const cat = (...a) => { const o = new Uint8Array(a.reduce((t, x) => t + x.length, 0)); let p = 0; a.forEach(x => { o.set(x, p); p += x.length; }); return o; };
   for (const e of entries) {
-    const name = enc.encode(e.name), raw = e.data || new Uint8Array(0), crc = crc32(raw);
-    let comp = raw, method = 0;
-    if (raw.length > 64) { try { const d = await deflateRaw(raw); if (d.length < raw.length) { comp = d; method = 8; } } catch { /* store it */ } }
+    if (opt.check) opt.check(); // lets the progress panel's Cancel stop the export
+    const name = enc.encode(e.name), isDir = !e.data && !e.blob, src = e.data || e.blob || new Uint8Array(0);
+    const blob = src instanceof Blob ? src : null, size = blob ? blob.size : src.length;
+    let crc, body = src, method = 0, csize = size;
+    if (size <= 16 * 1024 * 1024) { // small: read it and try to compress it
+      const raw = blob ? new Uint8Array(await blob.arrayBuffer()) : src; crc = crc32(raw); body = raw;
+      if (raw.length > 64) { try { const d = await deflateRaw(raw); if (d.length < raw.length) { body = d; method = 8; csize = d.length; } } catch { /* store it */ } }
+    } else { // big: CRC in pieces and store as is (media is already compressed); only text-like data (pack) is compressed, as a stream
+      crc = blob ? await crcBlob(blob) : crc32(src);
+      if (e.pack) { try { const d = await new Response(new Blob([src]).stream().pipeThrough(new CompressionStream("deflate-raw"))).blob(); if (d.size < size) { body = d; method = 8; csize = d.size; } } catch { /* store it */ } }
+    }
+    if (size > 0xFFFFFFFF || off > 0xFFFFFFFF) throw new Error("This backup is bigger than 4 GB, which a .zip can't hold. Untick some files and export again.");
     const dt = new Date(e.date || Date.now()), yr = Math.max(1980, dt.getFullYear());
     const tm = (dt.getHours() << 11) | (dt.getMinutes() << 5) | (dt.getSeconds() >> 1), dd = ((yr - 1980) << 9) | ((dt.getMonth() + 1) << 5) | dt.getDate();
-    const head = cat(u32(0x04034b50), u16(20), u16(0x0800), u16(method), u16(tm), u16(dd), u32(crc), u32(comp.length), u32(raw.length), u16(name.length), u16(0), name);
-    chunks.push(head, comp);
-    central.push(cat(u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(method), u16(tm), u16(dd), u32(crc), u32(comp.length), u32(raw.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(e.data ? 0 : 0x10), u32(off), name));
-    off += head.length + comp.length;
+    const head = cat(u32(0x04034b50), u16(20), u16(0x0800), u16(method), u16(tm), u16(dd), u32(crc), u32(csize), u32(size), u16(name.length), u16(0), name);
+    parts.push(head, body); mem += head.length + (body instanceof Blob ? 0 : body.length);
+    central.push(cat(u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(method), u16(tm), u16(dd), u32(crc), u32(csize), u32(size), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(isDir ? 0x10 : 0), u32(off), name));
+    off += head.length + csize;
+    if (opt.onEntry) opt.onEntry(e, size); // progress
+    if (mem > 32 * 1024 * 1024) { parts = [new Blob(parts)]; mem = 0; } // hand finished data to the browser, which can keep it on disk
+    if (++count % 10 === 0 || size > 1024 * 1024) await new Promise(res => setTimeout(res, 0)); // pause so the OS stays responsive
   }
   const cd = cat(...central);
-  return new Blob([...chunks, cd, cat(u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length), u32(cd.length), u32(off), u16(0))], { type: "application/zip" });
+  parts.push(cd, cat(u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length), u32(cd.length), u32(off), u16(0)));
+  return new Blob(parts, { type: "application/zip" });
 }
-async function readZip(file) { // -> [{name, dir, data()}]
-  const buf = new Uint8Array(await file.arrayBuffer()), dv = new DataView(buf.buffer);
-  let e = buf.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+async function readZip(file) { // -> [{name, dir, blob(), data()}]. Only the file list is read up front; each file is read when asked for, so a big backup never sits in memory whole
+  const tail = new Uint8Array(await file.slice(Math.max(0, file.size - 65557)).arrayBuffer()), td = new DataView(tail.buffer);
+  let e = tail.length - 22; while (e >= 0 && td.getUint32(e, true) !== 0x06054b50) e--;
   if (e < 0) throw new Error("not a zip");
-  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const out = [];
+  const n = td.getUint16(e + 10, true), cdSize = td.getUint32(e + 12, true), cdOff = td.getUint32(e + 16, true);
+  const buf = new Uint8Array(await file.slice(cdOff, cdOff + cdSize).arrayBuffer()), dv = new DataView(buf.buffer); let p = 0; const out = [];
   for (let i = 0; i < n; i++) {
     if (dv.getUint32(p, true) !== 0x02014b50) throw new Error("bad zip");
     const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
     const name = new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nl));
-    out.push({ name, dir: name.endsWith("/"), data: async () => {
-      const start = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true), raw = buf.subarray(start, start + csize);
+    const blob = async () => { // this file's bytes as a Blob (a stored file is just a slice of the zip, nothing is copied into memory)
+      const h = new DataView(await file.slice(lo, lo + 30).arrayBuffer()), start = lo + 30 + h.getUint16(26, true) + h.getUint16(28, true), raw = file.slice(start, start + csize);
       if (method === 0) return raw;
-      if (method === 8) return new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+      if (method === 8) return new Response(raw.stream().pipeThrough(new DecompressionStream("deflate-raw"))).blob();
       throw new Error("unsupported compression");
-    } });
+    };
+    out.push({ name, dir: name.endsWith("/"), blob, data: async () => new Uint8Array(await (await blob()).arrayBuffer()) });
     p += 46 + nl + xl + cl;
   }
   return out;
@@ -1468,7 +1504,7 @@ async function exportZip(icons) { // icons: the selected (or all shown) explorer
     folders().filter(f => f.parent === fid).forEach(f => addFolder(f.id, prefix + f.name + "/"));
   };
   items.forEach(i => { if (i.dataset.kind === "folder") addFolder(i.dataset.id, folders().find(f => f.id === i.dataset.id).name + "/"); else { const f = fmeta().find(x => x.id === i.dataset.id); entries.push({ file: f, name: f.name }); } });
-  for (const e of entries) if (e.file) { const b = await dbGet(e.file.id, "files"); e.data = new Uint8Array(b ? await b.arrayBuffer() : 0); e.date = e.file.mod; }
+  for (const e of entries) if (e.file) { const b = await dbGet(e.file.id, "files"); if (b) e.blob = b; else e.data = new Uint8Array(0); e.date = e.file.mod; }
   dlBlob("vus-export.zip", await makeZip(entries));
 }
 async function importZip(file, parent = null) {
@@ -1478,7 +1514,7 @@ async function importZip(file, parent = null) {
       if (!parts.length || parts[0] === "__MACOSX" || parts[parts.length - 1] === ".DS_Store") continue;
       if (e.dir) { ensureFolders(parent, parts); continue; }
       const fname = parts.pop(), p = ensureFolders(parent, parts);
-      await putFile(newId(), uniqueName(fname, null, p), new File([await e.data()], fname, { type: mimeOf(fname) }), p);
+      await putFile(newId(), uniqueName(fname, null, p), new File([await e.blob()], fname, { type: mimeOf(fname) }), p);
     }
     renderIcons();
   } catch (err) { winAlert("Couldn't read that zip file: " + err.message); }
@@ -1640,7 +1676,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
     else if (d.act === "lknow") lockNow();
     else if (d.act === "lkedit") lockEditor();
     else if (d.act === "wxloc") navigator.geolocation.getCurrentPosition(p => { save("lockWxLoc", { lat: +p.coords.latitude.toFixed(2), lon: +p.coords.longitude.toFixed(2) }); save("lockWx", null); notify("Weather location saved", "The lock screen weather widget will use this location."); }, () => notify("Location not allowed", "Allow location for this site in Chrome to use the weather widget."));
-    else if (d.act === "bkexp") doExport();
+    else if (d.act === "bkexp") doExport().catch(err => { closeXP(); if (err && err.message === "Export cancelled") notify("Export cancelled", "No backup file was made."); else return winAlert("Export failed: " + ((err && err.message) || err)); }).finally(closeXP);
     else if (d.act === "diag") copyDiag();
     else if (d.act === "rstset") winConfirm("Reset all settings to their defaults? Your files and apps are not touched.", "Reset").then(ok => { if (ok) { save("settings", {}); applyTheme(); tick(); draw(); } });
     else if (d.act === "bkimp") pickBackup();
@@ -2201,18 +2237,69 @@ function siteDec(x) {
   const o = {}; for (const k in x) o[k.startsWith("$$") ? k.slice(1) : k] = siteDec(x[k]); return o;
 }
 const idbOpen = (name, ver, up) => new Promise((res, rej) => { const r = ver ? indexedDB.open(name, ver) : indexedDB.open(name); if (up) r.onupgradeneeded = () => up(r.result); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(new Error("blocked")); });
-async function dumpSiteDb(name) { // every store of one IndexedDB database: layout + all rows
-  const db = await idbOpen(name), out = { name, version: db.version, stores: [] };
+async function countSiteDb(name) { // how many rows a database holds, so its progress bar is exact
+  const db = await idbOpen(name);
+  try { let n = 0; for (const sn of [...db.objectStoreNames]) n += await new Promise((res, rej) => { const q = db.transaction(sn, "readonly").objectStore(sn).count(); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); return n; } finally { db.close(); }
+}
+async function dumpSiteDb(name, parts, opt = {}) { // streams one IndexedDB database into parts as lines of JSON (first line = layout, then one row per line), so a big save can't run the tab out of memory and import can read it back row by row
+  const db = await idbOpen(name), J = JSON.stringify; let n = 0;
+  const put = s => { parts.push(s); n += s.length; if (n > 4e6) { parts.splice(0, parts.length, new Blob(parts)); n = 0; } }; // fold the text into a Blob now and then so the strings can be freed
   try {
-    for (const sn of [...db.objectStoreNames]) {
-      const st = db.transaction(sn, "readonly").objectStore(sn);
-      const s = { name: sn, keyPath: st.keyPath, autoIncrement: st.autoIncrement, indexes: [...st.indexNames].map(n => { const i = st.index(n); return { name: n, keyPath: i.keyPath, unique: i.unique, multiEntry: i.multiEntry }; }), rows: [] };
-      const recs = await new Promise((res, rej) => { const l = [], q = st.openCursor(); q.onsuccess = () => { const c = q.result; if (c) { l.push([c.key, c.value]); c.continue(); } else res(l); }; q.onerror = () => rej(q.error); });
-      for (const [k, v] of recs) s.rows.push([await siteEnc(k), await siteEnc(v)]);
-      out.stores.push(s);
+    const names = [...db.objectStoreNames], meta = [];
+    if (names.length) { const tx = db.transaction(names, "readonly"); for (const sn of names) { const st = tx.objectStore(sn); meta.push({ name: sn, keyPath: st.keyPath, autoIncrement: st.autoIncrement, indexes: [...st.indexNames].map(x => { const i = st.index(x); return { name: x, keyPath: i.keyPath, unique: i.unique, multiEntry: i.multiEntry }; }) }); } }
+    put(J({ name, version: db.version, stores: meta }) + "\n");
+    for (let si = 0; si < names.length; si++) {
+      const sn = names[si];
+      const keys = await new Promise((res, rej) => { const l = [], q = db.transaction(sn, "readonly").objectStore(sn).openKeyCursor(); q.onsuccess = () => { const c = q.result; if (c) { l.push(c.key); c.continue(); } else res(l); }; q.onerror = () => rej(q.error); }); // keys only, the rows are read one by one below
+      for (let i = 0; i < keys.length; i++) {
+        const v = await new Promise((res, rej) => { const q = db.transaction(sn, "readonly").objectStore(sn).get(keys[i]); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+        put(J({ s: si, k: await siteEnc(keys[i]), v: await siteEnc(v) }) + "\n");
+        if (opt.onRow) opt.onRow(); if (opt.check) opt.check();
+        if (i % 20 === 19) await new Promise(r => setTimeout(r, 0)); // pause so the OS stays responsive
+      }
     }
   } finally { db.close(); }
-  return out;
+}
+async function* ndjsonLines(blob) { // a Blob's lines, read in pieces so a huge row never needs the whole file in memory
+  const r = blob.stream().pipeThrough(new TextDecoderStream()).getReader(); let buf = "";
+  for (;;) {
+    const { done, value } = await r.read(); if (done) break;
+    buf += value; let i;
+    while ((i = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (line) yield line; }
+  }
+  if (buf) yield buf;
+}
+async function restoreSiteDbStream(blob, replace) { // restores one database written as lines (layout first, then one row per line). ok:false = skipped, because a database with that name already exists with a different layout
+  const it = ndjsonLines(blob), first = await it.next(); let d;
+  try { d = JSON.parse(first.value); } catch { return { ok: false, name: "" }; }
+  const res = { ok: false, name: d && typeof d.name === "string" ? d.name : "" };
+  if (!d || typeof d.name !== "string" || /^vos/.test(d.name) || !Array.isArray(d.stores)) return res;
+  const have = ((await indexedDB.databases()) || []).some(x => x.name === d.name);
+  const db = have ? await idbOpen(d.name) : await idbOpen(d.name, Math.max(1, +d.version || 1), nd => d.stores.forEach(s => { const st = nd.createObjectStore(s.name, { keyPath: s.keyPath, autoIncrement: !!s.autoIncrement }); (s.indexes || []).forEach(i => st.createIndex(i.name, i.keyPath, { unique: !!i.unique, multiEntry: !!i.multiEntry })); }));
+  try {
+    if (have && d.stores.some(s => !db.objectStoreNames.contains(s.name))) return res; // never bump a game's database version
+    if (replace && d.stores.length) await new Promise(r => { const tx = db.transaction(d.stores.map(s => s.name), "readwrite"); d.stores.forEach(s => tx.objectStore(s.name).clear()); tx.oncomplete = tx.onerror = tx.onabort = () => r(); });
+    let batch = [], size = 0;
+    const flush = () => { // writes the rows collected so far in one transaction
+      if (!batch.length) return Promise.resolve();
+      const rows = batch; batch = []; size = 0;
+      return new Promise(r => {
+        const tx = db.transaction([...new Set(rows.map(x => d.stores[x.s].name))], "readwrite");
+        for (const x of rows) {
+          try { const st = tx.objectStore(d.stores[x.s].name), val = siteDec(x.v), q = st.keyPath != null ? (replace ? st.put(val) : st.add(val)) : (replace ? st.put(val, siteDec(x.k)) : st.add(val, siteDec(x.k))); q.onerror = e => { e.preventDefault(); e.stopPropagation(); }; } catch { /* a row the browser rejects is skipped */ }
+        }
+        tx.oncomplete = tx.onerror = tx.onabort = () => r();
+      });
+    };
+    for (let nx = await it.next(); !nx.done; nx = await it.next()) {
+      let x; try { x = JSON.parse(nx.value); } catch { continue; }
+      if (!x || !Number.isInteger(x.s) || !d.stores[x.s] || typeof d.stores[x.s].name !== "string") continue;
+      batch.push(x); size += nx.value.length;
+      if (batch.length >= 100 || size > 4e6) await flush();
+    }
+    await flush(); res.ok = true;
+  } finally { db.close(); }
+  return res;
 }
 async function restoreSiteDb(d, replace) { // false = skipped, because a database with that name already exists with a different layout
   if (!d || typeof d.name !== "string" || /^vos/.test(d.name) || !Array.isArray(d.stores)) return false;
@@ -2233,14 +2320,16 @@ async function restoreSiteDb(d, replace) { // false = skipped, because a databas
 }
 const SITE_SECRET = /pass|pwd|token|auth|login|session|secret|cred|jwt|cookie|apikey|api_key/i; // keys with names like these are treated as logins: they only export with the Passwords switch, encrypted
 async function scanSiteData() { // saves other pages on this site keep in the browser, grouped by key prefix
-  const groups = {}, secret = {}, dbs = [];
+  const groups = {}, secret = {}, dbs = [], appKeys = [];
   for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i); if (k === null || /^vos/.test(k)) continue; // VUS-OS's own data is exported by the options above
+    const k = localStorage.key(i); if (k === null) continue;
+    if (k.startsWith(NS + "_app_")) { appKeys.push(k); continue; } // data the VUS-OS apps keep (Notes and others)
+    if (/^vos/.test(k)) continue; // VUS-OS's own data is exported by the options above
     const g = (k.split(/[_:.\-\/ ]/)[0] || k).slice(0, 40), t = SITE_SECRET.test(k) ? secret : groups;
     (t[g] = t[g] || []).push(k);
   }
   try { if (indexedDB.databases) (await indexedDB.databases()).forEach(d => { if (d.name && !/^vos/.test(d.name)) dbs.push(d.name); }); } catch { /* older browsers can't list databases */ }
-  return { groups, secret, dbs };
+  return { groups, secret, dbs, appKeys };
 }
 function restoreSiteKeys(obj, replace) { // never writes VUS-OS's own keys, so a backup file can't change your settings or lock through this path
   let n = 0;
@@ -2250,6 +2339,13 @@ function restoreSiteKeys(obj, replace) { // never writes VUS-OS's own keys, so a
     try { localStorage.setItem(k, v); n++; } catch { /* storage full */ }
   }
   return n;
+}
+function restoreAppData(obj, replace) { // Notes and other VUS-OS apps' data: only keys that start with this OS's app prefix, string values only, so a backup can't touch settings or the lock
+  for (const [k, v] of Object.entries(obj || {})) {
+    if (!k.startsWith(NS + "_app_") || typeof v !== "string") continue;
+    if (!replace && localStorage.getItem(k) !== null) continue;
+    try { localStorage.setItem(k, v); } catch { /* storage full */ }
+  }
 }
 const SEC_ITER = 600000;
 async function secKey(pass, salt, iter) { const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]); return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: iter, hash: "SHA-256" }, k, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]); }
@@ -2263,11 +2359,11 @@ async function decryptSecure(meta, bytes, pass) { // throws when the passphrase 
   return new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64ToBytes(meta.iv) }, key, bytes));
 }
 async function exportPicker() { // resolves with the ticked options (apps, files, pos, startmenu, settings groups, site + groups[] + dbs[], passwords + pass) or null
-  const sc = GUEST ? { groups: {}, secret: {}, dbs: [] } : await scanSiteData(), nSec = Object.values(sc.secret).reduce((t, l) => t + l.length, 0);
+  const sc = GUEST ? { groups: {}, secret: {}, dbs: [], appKeys: [] } : await scanSiteData(), nSec = Object.values(sc.secret).reduce((t, l) => t + l.length, 0);
   return new Promise(res => {
     const o = document.createElement("div"); o.className = "dlg";
     const cb = (n, t, sub, off) => `<label style="display:flex;gap:8px;align-items:center;margin:6px 0 6px ${sub ? 26 : 0}px"><input type="checkbox" data-c="${n}" ${off ? "" : "checked"}>${t}</label>`;
-    const siteBox = Object.keys(sc.groups).length || sc.dbs.length ? cb("site", "Save most apps data") + '<p style="font-size:12px;opacity:.7;margin:0 0 6px 26px">Saves from games and other apps on this site (scores, progress, settings). Only pages hosted on this same site can be read.</p>' : "";
+    const siteBox = Object.keys(sc.groups).length || sc.dbs.length || sc.appKeys.length ? cb("site", "Save most apps data") + '<p style="font-size:12px;opacity:.7;margin:0 0 6px 26px">Saves from games and other apps on this site (scores, progress, settings), plus the data VUS-OS apps keep (like Notes). Only pages hosted on this same site can be read.</p>' : "";
     const inp = "width:100%;padding:6px 8px;background:rgba(128,128,128,.2);border:1px solid rgba(128,128,128,.6);color:inherit;outline:0";
     const pwBox = GUEST ? "" : `<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(128,128,128,.4)">${cb("passwords", "Passwords and logins", 0, 1)}<p style="font-size:12px;opacity:.75;margin:0 0 6px 26px">Off by default. Includes your VUS-OS lock passwords${nSec ? ` and ${nSec} saved login/token item${nSec === 1 ? "" : "s"} from other pages` : ""}. They are encrypted in the file, and you need the passphrase below to restore them.</p><div class="xpw" style="display:none;margin-left:26px"><input class="xp1" type="password" autocomplete="new-password" placeholder="Passphrase (8+ characters)" style="${inp};margin-bottom:6px"><input class="xp2" type="password" autocomplete="new-password" placeholder="Repeat passphrase" style="${inp}"><div class="xmsg" style="color:#f87171;font-size:12px;min-height:16px;margin-top:4px"></div></div></div>`;
     o.innerHTML = `<div class="dlgb" style="display:flex;flex-direction:column;max-height:90vh"><div style="padding:14px 16px 0"><p style="margin-bottom:8px"><b>Export</b><br>Choose what to save.${GUEST ? "" : " Passwords stay out unless you turn them on at the bottom."}</p></div><div style="overflow:auto;padding:0 16px;flex:1;min-height:0">${cb("apps", "Downloaded apps")}${cb("files", "Files and custom apps (text, HTML, music, video, anything you uploaded)")}${cb("pos", "Desktop positions (where icons sit)")}${cb("startmenu", "Start menu tiles and taskbar pins")}${cb("settings", "Settings")}${cb("appearance", "Appearance (theme, accent, background, icon size, name)", 1)}${cb("clock", "Clock (24-hour time)", 1)}${cb("windows", "Windows (snap, remembered positions, keyboard shortcut switches)", 1)}${cb("system", "Updates, storage and Recycle Bin", 1)}${siteBox}${pwBox}</div><div class="dlgf" style="margin:0;padding:12px 16px"><button data-ok="1">Export</button><button>Cancel</button></div></div>`;
@@ -2288,19 +2384,52 @@ async function exportPicker() { // resolves with the ticked options (apps, files
       }
       r.groups = r.site ? Object.keys(sc.groups) : []; // one switch saves every app's data (login-looking keys still wait for the Passwords switch)
       r.dbs = r.site ? sc.dbs : [];
+      r.appKeys = r.site ? sc.appKeys : [];
       r.siteScan = sc; o.remove(); res(r);
     };
     document.body.appendChild(o);
   });
 }
+let XP = null; // the export progress panel while an export runs
+const closeXP = () => { if (XP) { XP.el.remove(); XP = null; } };
+function makeExportPanel() { // progress panel in the corner (it sits in the toast stack, so it follows the taskbar position): overall bar and time left, one bar per task, and Cancel
+  const el = document.createElement("div"); el.className = "xp";
+  el.innerHTML = `<div class="xh"><b>Exporting backup</b><button>Cancel</button></div><div class="xr xo"><span>Starting...</span>Overall<div class="xb"><i></i></div></div><div class="xl"></div>`;
+  const P = { el, tasks: [], cancelled: false }, t0 = Date.now(), list = el.querySelector(".xl"), btn = el.querySelector("button"), ov = el.querySelector(".xo");
+  let best = 0, last = 0;
+  const mb = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : 1) + " MB" : Math.max(1, Math.round(n / 1e3)) + " KB";
+  P.check = () => { if (P.cancelled) throw new Error("Export cancelled"); };
+  btn.onclick = () => { P.cancelled = true; btn.disabled = true; btn.textContent = "Cancelling..."; };
+  P.add = (label, total, w = 1, unit = "") => { // unit: "b" bytes, "r" rows, "" just a bar. w = how much of the whole export this task is (for the overall bar)
+    const row = document.createElement("div"); row.className = "xr"; row.innerHTML = `<span></span>${esc(label)}<div class="xb"><i></i></div>`; list.appendChild(row);
+    const t = { total: Math.max(1, total), done: 0, w, unit, sp: row.querySelector("span"), bar: row.querySelector("i") };
+    P.tasks.push(t); P.draw(true); return t;
+  };
+  P.set = (t, done) => { t.done = Math.min(Math.max(done, 0), t.total); P.draw(); };
+  P.draw = force => {
+    const now = Date.now(); if (!force && now - last < 150) return; last = now;
+    let sw = 0, sd = 0;
+    for (const t of P.tasks) {
+      const f = t.done / t.total; sw += t.w; sd += t.w * f;
+      t.bar.style.width = (f * 100).toFixed(1) + "%";
+      t.sp.textContent = t.unit === "b" ? mb(t.done) + " / " + mb(t.total) : t.unit === "r" ? t.done + " / " + t.total + " rows" : f >= 1 ? "done" : "";
+    }
+    best = Math.max(best, sw ? sd / sw : 0); // never goes backwards when a task is added late
+    const spent = now - t0, left = best > 0.03 && spent > 3000 ? spent * (1 - best) / best / 1000 : null; // time left is guessed from how fast it has gone so far
+    ov.querySelector("span").textContent = Math.floor(best * 100) + "%" + (left === null ? " · estimating time..." : left < 3 ? " · almost done" : " · " + (left < 10 ? "a few seconds" : left < 60 ? "about " + Math.round(left / 5) * 5 + " seconds" : "about " + Math.round(left / 60) + " min") + " left");
+    ov.querySelector("i").style.width = (best * 100).toFixed(1) + "%";
+  };
+  $("#toasts").prepend(el); P.draw(true); return P;
+}
 async function doExport() {
   const c = await exportPicker(); if (!c) return;
   if (c.passwords && !(window.crypto && crypto.subtle)) return winAlert("Passwords can only be exported on a secure (https) page, because they have to be encrypted.");
+  const P = XP = makeExportPanel();
   const m = { app: "vus-os", v: 2, date: Date.now() }, entries = [], st = getSettings(), keep = {}, unread = [];
   if (c.apps) { m.apps = installed(); m.recentApps = LS("recentApps", []); }
   if (c.files) {
     m.files = fmeta(); m.folders = folders(); m.favs = favs(); m.recent = recentIds();
-    for (const f of m.files) { const b = await dbGet(f.id, "files"); if (b) entries.push({ name: "files/" + f.id, data: new Uint8Array(await b.arrayBuffer()), date: f.mod }); }
+    for (const f of m.files) { const b = await dbGet(f.id, "files"); if (b) entries.push({ name: "files/" + f.id, blob: b, date: f.mod }); } // Blob references only, the data is read one file at a time while zipping
   }
   if (c.pos) m.pos = LS("pos", {});
   if (c.windows) m.winGeo = LS("winGeo", {});
@@ -2308,25 +2437,36 @@ async function doExport() {
   for (const g in SETTING_GROUPS) if (c[g]) (g === "system" ? [...SETTING_GROUPS.system, ...Object.keys(st).filter(k => !known.includes(k))] : SETTING_GROUPS[g]).forEach(k => { if (k !== "bgFile" || c.files) keep[k] = st[k]; });
   if (c.appearance && !c.files && st.bgMode === "file" && st.bgFile) { // background picture only
     const f = fmeta().find(x => x.id === st.bgFile), b = f && await dbGet(f.id, "files");
-    if (b) { m.files = [{ ...f, parent: null }]; m.bgOnly = true; keep.bgFile = f.id; entries.push({ name: "files/" + f.id, data: new Uint8Array(await b.arrayBuffer()), date: f.mod }); }
+    if (b) { m.files = [{ ...f, parent: null }]; m.bgOnly = true; keep.bgFile = f.id; entries.push({ name: "files/" + f.id, blob: b, date: f.mod }); }
   }
+  const fe = entries.filter(e => e.name.startsWith("files/")), fsz = fe.reduce((t, e) => t + e.blob.size, 0), tkF = fe.length ? P.add("Files (" + fe.length + ")", fsz, Math.max(1, fsz / 1e6), "b") : null;
   if (c.startmenu) { m.startPins = startKeys(); m.pinned = pinnedKeys(); }
   const sc = c.siteScan || { groups: {}, secret: {} };
-  if (c.site && (c.groups.length || c.dbs.length)) { // saves from games and other pages on this site
-    const ls = {}, idb = [];
+  if (c.site && (c.groups.length || c.dbs.length || c.appKeys.length)) { // saves from games and other pages on this site
+    const ls = {}, idb = [], ap = {};
+    for (const k of c.appKeys) { const v = localStorage.getItem(k); if (v !== null) ap[k] = v; } // Notes and other VUS-OS apps' data
     for (const g of c.groups) for (const k of sc.groups[g] || []) { const v = localStorage.getItem(k); if (v !== null) ls[k] = v; }
-    for (const n of c.dbs) { try { idb.push(await dumpSiteDb(n)); } catch { unread.push(n); } }
-    if (Object.keys(ls).length || idb.length) { entries.push({ name: "sitedata.json", data: new TextEncoder().encode(JSON.stringify({ ls, idb })) }); m.site = { keys: Object.keys(ls).length, dbs: idb.length }; }
+    const dbT = [];
+    for (const n of c.dbs) { let cnt = 1; try { cnt = await countSiteDb(n); } catch { /* counted as it goes */ } dbT.push([n, P.add("Saved data: " + n, cnt, Math.max(0.2, cnt * 0.2), "r")]); }
+    for (const [n, tk] of dbT) { const p = []; try { await dumpSiteDb(n, p, { check: P.check, onRow: () => P.set(tk, tk.done + 1) }); idb.push(p); } catch (err) { if (err && err.message === "Export cancelled") throw err; unread.push(n); } P.set(tk, tk.total); } // a database that fails halfway is skipped whole and listed
+    if (Object.keys(ls).length || idb.length || Object.keys(ap).length) {
+      idb.forEach((p, i) => entries.push({ name: "sitedb/" + i + ".ndjson", blob: new Blob(p), pack: true })); // one file per database, one row per line, so import can restore it row by row
+      entries.push({ name: "sitedata.json", data: new TextEncoder().encode(JSON.stringify({ ls, app: ap })) }); m.site = { keys: Object.keys(ls).length, dbs: idb.length, app: Object.keys(ap).length };
+    }
   }
+  const tkP = P.add("Packing everything else", 1, 1, "b");
   if (c.passwords) { // lock passwords + login-looking keys from other pages, encrypted with the chosen passphrase
     const sec = { auth: localStorage.getItem(AUTH_KEY), ls: {} };
     for (const g in sc.secret) for (const k of sc.secret[g]) { const v = localStorage.getItem(k); if (v !== null) sec.ls[k] = v; }
-    if (sec.auth || Object.keys(sec.ls).length) { const e = await encryptSecure(JSON.stringify(sec), c.pass); m.secure = e.meta; entries.push({ name: "secure.bin", data: e.data }); }
+    if (sec.auth || Object.keys(sec.ls).length) { const tkS = P.add("Encrypting passwords", 1, 2); const e = await encryptSecure(JSON.stringify(sec), c.pass); P.set(tkS, 1); m.secure = e.meta; entries.push({ name: "secure.bin", data: e.data }); }
   }
   if (Object.keys(keep).length) m.settings = keep;
   if (!m.apps && !m.files && !m.pos && !m.settings && !m.winGeo && !m.startPins && !m.site && !m.secure) return winDialog("Nothing was selected.", [["OK", true]]);
   entries.unshift({ name: "manifest.json", data: new TextEncoder().encode(JSON.stringify(m)) });
-  dlBlob("vus-os-backup.zip", await makeZip(entries));
+  const rest = entries.reduce((t, e) => t + (e.name.startsWith("files/") ? 0 : e.blob ? e.blob.size : e.data ? e.data.length : 0), 0);
+  tkP.total = Math.max(1, rest); tkP.w = Math.max(1, rest / 1e6);
+  const zip = await makeZip(entries, { check: P.check, onEntry: (e, sz) => { if (e.name.startsWith("files/")) { if (tkF) P.set(tkF, tkF.done + sz); } else P.set(tkP, tkP.done + sz); } });
+  P.check(); dlBlob("vus-os-backup.zip", zip);
   notify("Backup saved", "vus-os-backup.zip was downloaded." + (unread.length ? " Could not read: " + unread.join(", ") + "." : ""));
 }
 function pickBackup() { const i = document.createElement("input"); i.type = "file"; i.accept = ".zip,application/zip"; i.onchange = () => i.files[0] && doImport(i.files[0]); i.click(); }
@@ -2334,7 +2474,7 @@ async function doImport(file) {
   let ents, m;
   try { ents = await readZip(file); m = JSON.parse(new TextDecoder().decode(await ents.find(e => e.name === "manifest.json").data())); if (m.app !== "vus-os") throw 0; }
   catch { return winDialog("That file is not a VUS-OS backup.", [["OK", true]]); }
-  const parts = [m.apps && `${m.apps.length} apps`, m.files && (m.bgOnly ? "background picture" : `${m.files.length} files`), m.folders && `${m.folders.length} folders`, m.pos && "desktop positions", m.favs && m.favs.length && `${m.favs.length} favorites`, m.winGeo && "window positions", m.startPins && "Start menu tiles", m.pinned && m.pinned.length && "taskbar pins", m.site && `${m.site.keys} saved items from other pages${m.site.dbs ? " and " + m.site.dbs + " database" + (m.site.dbs === 1 ? "" : "s") : ""}`, m.secure && "saved passwords (encrypted)", m.settings && "settings"].filter(Boolean);
+  const parts = [m.apps && `${m.apps.length} apps`, m.files && (m.bgOnly ? "background picture" : `${m.files.length} files`), m.folders && `${m.folders.length} folders`, m.pos && "desktop positions", m.favs && m.favs.length && `${m.favs.length} favorites`, m.winGeo && "window positions", m.startPins && "Start menu tiles", m.pinned && m.pinned.length && "taskbar pins", m.site && `${m.site.keys + (m.site.app || 0)} saved items from other pages and apps${m.site.dbs ? " and " + m.site.dbs + " database" + (m.site.dbs === 1 ? "" : "s") : ""}`, m.secure && "saved passwords (encrypted)", m.settings && "settings"].filter(Boolean);
   if (!parts.length) return winDialog("That backup is empty.", [["OK", true]]);
   const mode = await winDialog(`This backup has: ${parts.join(", ")}.\n\nMerge adds what is missing and skips duplicates (backup settings overwrite the same settings here).\nReplace overwrites those same parts with the backup.`, [["Merge", "m"], ["Replace", "r"], ["Cancel", false]]);
   if (!mode) return;
@@ -2371,7 +2511,7 @@ async function doImport(file) {
       const par = f.parent ? fmap[f.parent] ?? null : null;
       if (fl.some(x => x.id === f.id || (x.name === f.name && (x.parent || null) === par && x.size === f.size))) continue;
       const e = ents.find(z => z.name === "files/" + f.id); if (!e) continue;
-      await idbPut(db, f.id, new Blob([await e.data()])); fl.push({ ...f, parent: par });
+      await idbPut(db, f.id, await e.blob()); fl.push({ ...f, parent: par });
     }
     save("files", fl);
     if (m.favs) { const mp = x => x.kind === "folder" ? { ...x, id: fmap[x.id] || x.id } : x; save("favs", isRep ? m.favs.map(mp) : [...favs(), ...m.favs.map(mp).filter(x => !isFav(x.kind, x.id))]); }
@@ -2391,8 +2531,9 @@ async function doImport(file) {
     if (e) {
       try {
         const sd = JSON.parse(new TextDecoder().decode(await e.data())), skipped = [];
-        restoreSiteKeys(sd.ls, isRep);
-        for (const d of sd.idb || []) { try { if (!await restoreSiteDb(d, isRep)) skipped.push(d.name); } catch { skipped.push(d.name); } }
+        restoreSiteKeys(sd.ls, isRep); restoreAppData(sd.app, isRep);
+        for (const d of sd.idb || []) { try { if (!await restoreSiteDb(d, isRep)) skipped.push(d.name); } catch { skipped.push(d.name); } } // backups made before this version keep the databases inside sitedata.json
+        for (const en of ents.filter(z => /^sitedb\/\d+\.ndjson$/.test(z.name))) { let nm = en.name; try { const r = await restoreSiteDbStream(await en.blob(), isRep); nm = r.name || nm; if (!r.ok) skipped.push(nm); } catch { skipped.push(nm); } }
         if (skipped.length) notes.push("Skipped databases that already exist with a different layout: " + skipped.join(", ") + ".");
       } catch { notes.push("The saves from other pages could not be read."); }
     }
@@ -2404,6 +2545,7 @@ async function doImport(file) {
   else if (m.secure) notes.push("Passwords were skipped in Guest mode.");
   renderIcons(); renderPins(); if ($("#start").classList.contains("open")) drawStart(); applyTheme(); tick();
   notify("Import finished", parts.join(", ") + (notes.length ? ". " + notes.join(" ") : ""));
+  if (await winDialog("Import finished. Restart VUS-OS now so everything takes effect (lock screen, windows, update settings)?\n\nThis keeps the page open.", [["Restart now", "y"], ["Later", false]]) === "y") softRestart();
 }
 
 // ===================== RECYCLE BIN =====================
@@ -2646,8 +2788,8 @@ async function newVsh(parent = null, box = null) {
   if (await putFile(id, uniqueName("New Shortcut.vsh", null, parent), new Blob([blank], { type: "application/json" }), parent)) inlineRename(findIcon(box, "file", id), "file", id);
 }
 
-// --- the commands a shortcut can run: the same as Terminal, minus the typing-only ones (cd, clear, exit, help, commands, history, paste) ---
-const VSH_CMDS = ["execute", "open", "ls", "cat", "edit", "mkdir", "rm", "cp", "mv", "rename", "find", "kill", "run", "fetch", "save", "copy", "ver", "version", "sys-upd", "system-update", "restart", "theme", "lock", "sleep", "notify", "wait", "echo"];
+// --- the commands a shortcut can run: the same as Terminal, minus the typing-only ones (cd, clear, exit, help, commands, history, paste, alias) ---
+const VSH_CMDS = ["execute", "open", "ls", "cat", "edit", "mkdir", "rm", "cp", "mv", "rename", "find", "kill", "run", "fetch", "save", "copy", "ver", "version", "sys-upd", "system-update", "restart", "theme", "lock", "sleep", "notify", "wait", "echo", "pwd", "touch", "tree", "grep", "date", "time", "whoami"];
 const sysApps = () => [EXPLORER, SETTINGS, STORE, UPDATES, TASKMGR, BIN, ...catalog.filter(a => installed().includes(key(a)))];
 // Same rule as Terminal: only the shortcut's own folder is searched (apps count as the Desktop). A leading \ searches everywhere.
 const shTargets = (par, glob) => {
@@ -2745,6 +2887,48 @@ async function runCmd(line, ctx) { // returns the command's output as text. ctx 
     case "notify": notify("Shortcut", a || "Hello"); return "Notified";
     case "wait": { const s = Math.min(60, Math.max(0, parseFloat(a) || 0)); await new Promise(r => setTimeout(r, s * 1000)); return `Waited ${s} s`; }
     case "echo": return a;
+    case "pwd": return pth(par);
+    case "touch": {
+      const n = shArgs(a)[0]; if (!n) return 'Usage: touch <name>   (use "quotes" for names with spaces)';
+      if (inHere(n)) return `${n} already exists.`; if (dirHere(n)) return `There is already a folder named "${n}" here.`;
+      await putFile(newId(), uniqueName(n, null, par), new Blob([""]), par, true); return `Created ${n}`;
+    }
+    case "tree": {
+      const n = shArgs(a)[0]; let root = par;
+      if (n) { root = shDir(n, par); if (root === undefined) return `No folder "${n}".`; }
+      const rows = [pth(root) + "/"]; let cnt = 0; const MAX = 300;
+      const walk = (id, pad) => {
+        const fo = folders().filter(x => sameDir(x, id)).sort((x, y) => x.name.localeCompare(y.name)), fi = fmeta().filter(x => sameDir(x, id)).sort((x, y) => x.name.localeCompare(y.name));
+        for (const f of fo) { if (cnt++ >= MAX) return; rows.push(pad + f.name + "/"); walk(f.id, pad + "  "); }
+        for (const f of fi) { if (cnt++ >= MAX) return; rows.push(pad + f.name); }
+      };
+      walk(root, "  ");
+      if (cnt >= MAX) rows.push(`...stopped after ${MAX} lines`); else if (!cnt) rows.push("(empty)");
+      return rows.join("\n");
+    }
+    case "grep": {
+      const [q, fn] = shArgs(a); if (!q) return 'Usage: grep <text> [file]   (use "quotes" for text with spaces)';
+      let pool = fmeta().filter(x => sameDir(x, par));
+      if (fn) { const f = inHere(fn); if (!f) return `No file named "${fn}" here.`; pool = [f]; }
+      const needle = q.toLowerCase(), rows = []; let hits = 0, skipped = 0; const MAX = 50;
+      for (const f of pool) {
+        if ((f.size || 0) > 2 * 1024 * 1024) { skipped++; continue; }
+        let t; try { const b = await dbGet(f.id, "files"); t = b ? await b.text() : ""; } catch { continue; }
+        if (t.includes("\u0000")) { if (fn) rows.push(`${f.name} is not a text file.`); continue; }
+        const ls = t.split(/\r?\n/);
+        for (let i = 0; i < ls.length; i++) {
+          if (!ls[i].toLowerCase().includes(needle)) continue;
+          if (hits++ >= MAX) break;
+          rows.push(`${f.name}:${i + 1}: ${ls[i].trim().slice(0, 160)}`);
+        }
+        if (hits > MAX) break;
+      }
+      if (hits > MAX) rows.push(`...showing the first ${MAX} matches`); else if (!hits) rows.push(`Nothing found for "${q}".`);
+      if (skipped) rows.push(`Skipped ${skipped} file${skipped === 1 ? "" : "s"} over 2 MB.`);
+      return rows.join("\n");
+    }
+    case "date": case "time": { const d = new Date(); return d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }) + "  " + d.toLocaleTimeString(); }
+    case "whoami": return (GUEST ? "Guest (temporary, nothing is kept)" : "Owner") + " \u00b7 VUS-OS " + OS_VERSION;
     default: return `'${c}' is not a command.`;
   }
 }
