@@ -105,7 +105,8 @@ export default {
       { n: ["languages", "lang"], d: "List the languages you can install and which ones are installed.", ex: "languages" },
       { n: ["install"], d: "Download and install a language. After the one-time download it works offline.", ex: "install python" },
       { n: ["uninstall"], d: "Remove an installed language and its downloaded files.", ex: "uninstall python" },
-      { n: ["py", "python"], d: "Run a Python file from this folder, or one line with -c (needs: install python). The files in this folder can be read, written and imported. Ctrl+C or the Stop button ends a running program. Use ; instead of | inside code.", ex: "py hello.py" },
+      { n: ["py", "python"], d: "Run a Python file from this folder, or one line with -c (needs: install python). Extra words after the file name reach the program as sys.argv. input() and sys.stdin work. The files in this folder can be read, written and imported. py -V shows the version. Ctrl+C or the Stop button ends a running program. Use ; instead of | inside code.", ex: "py hello.py Sam" },
+      { n: ["js", "javascript"], d: "Run a JavaScript file from this folder, or one line with -c (needs: install javascript). Use await input(\"question\") to ask for a line, and fs.read(name) / fs.write(name, text) for this folder's files. Ctrl+C or the Stop button ends a running program. Use ; instead of | inside code.", ex: "js hello.js" },
       { n: ["|"], d: "Run several commands in one line, one after another.", ex: "ls | cat notes.txt | copy" },
       { n: ["\\"], d: "In execute, search everywhere instead of only this folder.", ex: "execute \\Notes" }
     ];
@@ -124,7 +125,7 @@ export default {
 
     // ---------- languages: install python, then py file.py (the language file comes from the OS repo's languages/ folder) ----------
     const LANG_OK = !!sys.langs; // older VUS-OS versions don't have the language helpers yet
-    let langList = null, runH = null, statusEl = null; const mods = {};
+    let langList = null, runH = null, statusEl = null, inputWait = null; const mods = {};
     const getList = async () => { if (langList) return langList; const r = await fetch(sys.langBase() + "list.json", { cache: "no-cache" }); if (!r.ok) throw new Error(r.status); return langList = await r.json(); };
     if (LANG_OK) getList().catch(() => {});
     const installedLangs = () => LANG_OK ? sys.langs() : {};
@@ -135,43 +136,52 @@ export default {
     };
     const setStatus = t => { if (!t) { if (statusEl) { statusEl.remove(); statusEl = null; } return; } if (!statusEl) statusEl = print("", "dim", false); statusEl.textContent = t; out.scrollTop = out.scrollHeight; };
     const showStop = on => { $("[data-a=stop]").style.display = on ? "" : "none"; };
-    const stopRun = () => { if (!runH) return; const h = runH; runH = null; h.stop(); print("Stopped.", "err", false); };
+    const stopRun = () => { inputWait = null; if (!runH) return; const h = runH; runH = null; h.stop(); print("Stopped.", "err", false); };
     os.guard(() => { stopRun(); return true; }); // closing the window ends a running program (guard must return true to allow closing)
     const langFn = c => { const all = installedLangs(), id = Object.keys(all).find(k => (all[k].cmds || []).includes(c)); return id ? a => runLang(id, a) : undefined; };
     const runLang = async (id, a) => {
       if (runH) return print("A program is already running. Press Ctrl+C or Stop first.", "err");
-      const mod = await loadLang(id); let code, name;
-      if (/^-c(\s|$)/.test(a)) { code = a.replace(/^-c\s*/, "").replace(/^"([\s\S]*)"$/, "$1"); name = "<string>"; if (!code) return print('Usage: py -c "print(1 + 1)"', "err"); }
+      const mod = await loadLang(id); let code, name, args = [];
+      if (/^(-V|--version)$/.test(a.trim())) return print(`${mod.name} (${mod.runtime})`);
+      if (/^-[ce](\s|$)/.test(a)) { code = a.replace(/^-[ce]\s*/, "").replace(/^"([\s\S]*)"$/, "$1"); name = "<string>"; if (!code) return print('Usage: py -c "print(1 + 1)"', "err"); }
       else {
         const n = parseArgs(a)[0]; if (!n) return print("Usage: py <file>   or   py -c \"code\"", "err");
         const f = find(n, here().n); if (!f) return print(`No file named "${n}" here.`, "err");
-        code = await sys.read(f.id); name = f.name;
+        code = await sys.read(f.id); name = f.name; args = parseArgs(a).slice(1); // anything after the file name goes to the program (py file.py a b)
       }
       const files = []; let total = 0;
-      for (const f of here().n) { // the folder's text files are given to the program (so it can read, write and import them)
-        if ((f.size || 0) > 1048576 || files.length >= 200 || total > 5242880) continue;
-        let t; try { t = await sys.read(f.id); } catch { continue; }
-        if (typeof t === "string" && !t.includes("\u0000")) { files.push({ name: f.name, text: t }); total += t.length; }
-      }
+      const gather = async (p, pre, depth) => { // the folder's text files, and those in its sub-folders (as "sub/a.txt"), are given to the program
+        for (const f of sys.files().filter(x => (x.parent || null) === p)) {
+          if (/[\/\\]/.test(f.name) || (f.size || 0) > 1048576 || files.length >= 200 || total > 5242880) continue;
+          let t; try { t = await sys.read(f.id); } catch { continue; }
+          if (typeof t === "string" && !t.includes("\u0000")) { files.push({ name: pre + f.name, text: t }); total += t.length; }
+        }
+        if (depth < 5) for (const d of sys.folders().filter(x => (x.parent || null) === p)) if (!/[\/\\]/.test(d.name)) await gather(d.id, pre + d.name + "/", depth + 1);
+      };
+      await gather(cwd, "", 0);
       let lines = 0; const MAX = 3000;
-      const h = mod.run({ code, name, files,
+      const h = mod.run({ code, name, files, args,
         print: t => { if (lines++ < MAX) print(t || " "); else if (lines === MAX + 1) { print(`Output limit (${MAX} lines) reached, stopping the program.`, "err"); stopRun(); } },
         printErr: t => { if (lines++ < MAX) print(t || " ", "err"); },
-        status: setStatus });
+        status: setStatus,
+        input: p => new Promise(res => { const d = print(String(p || "") || "input> ", ""); inputWait = t => { d.textContent += t; res(t); }; }) }); // the next line typed goes to the program, not to a command
       runH = h; showStop(true);
       const r = await h.done;
-      if (runH === h) runH = null; showStop(false); setStatus("");
+      if (runH === h) runH = null; showStop(false); setStatus(""); inputWait = null;
       if (r.stopped) return;
       if (r.error) print(r.error, "err");
       for (const c of r.changed || []) {
-        const ex = find(c.name, here().n);
-        if (ex) { await sys.overwrite(ex.id, c.text); print(`Updated ${c.name}`, "dim"); } else { await sys.write(c.name, c.text, cwd); print(`Created ${c.name}`, "dim"); }
+        const parts = c.name.split("/"), fname = parts.pop(); let parent = cwd, made = true; // a program that creates "sub/a.txt" gets the sub-folder made here
+        for (const d of parts) { const same = x => (x.parent || null) === parent && x.name.toLowerCase() === d.toLowerCase(); let fo = sys.folders().find(same); if (!fo) { sys.mkdir(d, parent); fo = sys.folders().find(same); } if (!fo) { made = false; break; } parent = fo.id; }
+        if (!made) { print(`Could not save ${c.name}`, "err"); continue; }
+        const ex = sys.files().find(x => (x.parent || null) === parent && x.name.toLowerCase() === fname.toLowerCase());
+        if (ex) { await sys.overwrite(ex.id, c.text); print(`Updated ${c.name}`, "dim"); } else { await sys.write(fname, c.text, parent); print(`Created ${c.name}`, "dim"); }
       }
       if (r.skipped && r.skipped.length) print(`Not saved (not text files): ${r.skipped.join(", ")}`, "dim");
     };
 
     const cmds = {
-      help: () => print("commands           open a window with every command and an example\nls                 list this folder\ncd <folder|..|/>   change folder\ncat <file>         show a file in a code bubble\nedit <file>        open a file in Notepad\nmkdir <name>       new folder\nrm <name>          move to the Recycle Bin\nexecute <name>     open an app, file or folder here (\\name searches everywhere)\nkill <name>        force-close an open program\nfetch <link>       show text from a link (raw GitHub works)\nsave <name>        save the last fetched text as a file here\ncopy / paste       copy the latest output / paste the clipboard into the input\nver                show the version and the latest one\nsys-upd            update VUS-OS in this tab\ncmd1 | cmd2        run several commands in one line\ncp / mv / rename   copy, move or rename a file or folder here\nfind <text>        search names in every folder\nrun <path>         run a .vsh shortcut and show its output\necho / wait / history / restart\npwd / touch / tree      where you are, new empty file, folder outline\ngrep <text> [file] search inside files\ndate / whoami      date and time, who and which version\nalias <name> <cmd> your own short command\ninstall / languages  add a language like Python, then: py file.py\ntheme dark|light   lock   sleep   notify <text>   clear   exit"),
+      help: () => print("commands           open a window with every command and an example\nls                 list this folder\ncd <folder|..|/>   change folder\ncat <file>         show a file in a code bubble\nedit <file>        open a file in Notepad\nmkdir <name>       new folder\nrm <name>          move to the Recycle Bin\nexecute <name>     open an app, file or folder here (\\name searches everywhere)\nkill <name>        force-close an open program\nfetch <link>       show text from a link (raw GitHub works)\nsave <name>        save the last fetched text as a file here\ncopy / paste       copy the latest output / paste the clipboard into the input\nver                show the version and the latest one\nsys-upd            update VUS-OS in this tab\ncmd1 | cmd2        run several commands in one line\ncp / mv / rename   copy, move or rename a file or folder here\nfind <text>        search names in every folder\nrun <path>         run a .vsh shortcut and show its output\necho / wait / history / restart\npwd / touch / tree      where you are, new empty file, folder outline\ngrep <text> [file] search inside files\ndate / whoami      date and time, who and which version\nalias <name> <cmd> your own short command\npy <file> / js <file>  run a Python or JavaScript file (after install)\ninstall / languages  add a language like Python or JavaScript\ntheme dark|light   lock   sleep   notify <text>   clear   exit"),
       commands: () => { sys.launch(listApp); },
       clear: () => { out.innerHTML = ""; if (cur) { cur.el = document.createElement("div"); out.appendChild(cur.el); } },
       ls: () => { const h = here(); if (!h.f.length && !h.n.length) return print("(empty)", "dim"); h.f.forEach(f => print(f.name + "/", "dir")); h.n.forEach(f => print(f.name)); },
@@ -338,11 +348,13 @@ export default {
     cmds.time = cmds.date; cmds.open = cmds.execute; cmds.version = cmds.ver; cmds["system-update"] = cmds["sys-upd"];
     const pool = { run: () => here().n.filter(x => /\.vsh$/i.test(x.name)).map(x => ({ name: x.name, kind: "shortcut" })), cd: () => here().f.map(x => ({ name: x.name, kind: "folder" })), cat: () => here().n.map(x => ({ name: x.name, kind: "file" })), edit: () => here().n.map(x => ({ name: x.name, kind: "file" })), rm: () => [...here().f.map(x => ({ name: x.name, kind: "folder" })), ...here().n.map(x => ({ name: x.name, kind: "file" }))], tree: () => here().f.map(x => ({ name: x.name, kind: "folder" })), touch: () => [], theme: () => ["dark", "light"].map(name => ({ name, kind: "" })), kill: () => sys.windows().map(w => ({ name: w.name, kind: "open" })) };
     pool.py = pool.python = () => here().n.filter(x => /\.py$/i.test(x.name)).map(x => ({ name: x.name, kind: "python" }));
+    pool.js = pool.javascript = () => here().n.filter(x => /\.js$/i.test(x.name)).map(x => ({ name: x.name, kind: "javascript" }));
     pool.install = () => Object.keys(langList || {}).map(name => ({ name, kind: "language" }));
     pool.uninstall = () => Object.keys(installedLangs()).map(name => ({ name, kind: "installed" }));
     cmds.lang = cmds.languages;
     const segOf = v => v.slice(v.lastIndexOf("|") + 1).trim();
     const suggest = () => { // works on the part after the last |; ghost text for the best match (Tab accepts it); the others are clickable
+      if (inputWait) { gh.innerHTML = ""; sg.innerHTML = ""; cands = []; return; } // no command suggestions while a program is asking for input
       const v = inp.value, bar = v.lastIndexOf("|"), seg = v.slice(bar + 1), lead = seg.match(/^\s*/)[0], base = v.slice(0, bar + 1) + lead, s = seg.slice(lead.length), sp = s.indexOf(" ");
       let list = [], typed = s, pre = base;
       if (sp < 0) list = s ? rank(CMDNAMES.map(name => ({ name, kind: "command" })), s) : [];
@@ -369,6 +381,7 @@ export default {
       else if (e.key === "ArrowUp") { e.preventDefault(); if (hi > 0) inp.value = hist[--hi]; suggest(); }
       else if (e.key === "ArrowDown") { e.preventDefault(); hi = Math.min(hist.length, hi + 1); inp.value = hist[hi] || ""; suggest(); }
       else if (e.key === "Enter") {
+        if (inputWait) { const t = inp.value; inp.value = ""; suggest(); const w = inputWait; inputWait = null; w(t); return; } // a program is waiting for a line
         const line = inp.value.trim(); if (busy) return; inp.value = ""; suggest(); if (!line) return;
         hist.push(line); hi = hist.length; busy = true;
         const g = document.createElement("div"); out.appendChild(g); cur = { el: g, text: [] }; // everything this line prints is grouped, so copy can take it all

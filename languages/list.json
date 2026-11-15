@@ -4,7 +4,15 @@
     "file": "python.js",
     "cmds": ["py", "python"],
     "size": "about 12 MB download",
-    "desc": "Python 3 (Pyodide)",
+    "desc": "Python 3 (Pyodide), input() works in recent Chrome/Edge",
     "example": "py -c \"print(2 + 2)\""
+  },
+  "javascript": {
+    "name": "JavaScript",
+    "file": "javascript.js",
+    "cmds": ["js", "javascript"],
+    "size": "no download",
+    "desc": "JavaScript with await input(), fs.read/fs.write",
+    "example": "js -c \"console.log(2 + 2)\""
   }
 }

@@ -12,16 +12,18 @@ How to use this file: it lists only what is NOT done yet. When a task is finishe
 
 ## Where things stand
 - Languages system is written: `languages/python.js` (Pyodide in a Web Worker, runtime cached in Cache Storage so it works offline), `languages/list.json`, Terminal commands `install`, `uninstall`, `languages`, `py`/`python` (file or `-c`), Stop button and Ctrl+C, and `sys.overwrite` + `sys.lang*` in index.html.
-- Python programs get the current folder's text files; changed or new text files are saved back. `sys.exit()` and `exit()` end the program cleanly.
-- Verified here: syntax of all three files. NOT verified: running in a real browser, and the Pyodide tests after the `sys.exit` fix.
+- Python programs get the current folder's text files, including those in sub-folders (named like `data/a.txt`, up to 5 levels deep); changed or new text files are saved back, and sub-folders are created when a program makes `sub/a.txt`. `sys.exit()` and `exit()` end the program cleanly. `py file.py a b` sets `sys.argv`; `py -V` shows the version; `sys.stdin` reads typed lines.
+- `input()` works in Python (pauses via Pyodide JSPI, needs recent Chrome/Edge; other browsers get EOF) and in JavaScript (`await input("q")`). The Terminal sends the next typed line to the running program (`inputWait` in terminal.js) and hides command suggestions meanwhile.
+- `languages/javascript.js` is written: runs `.js` files with `js file.js` or `js -c "code"` (also `-e`) in a Web Worker, no download. Programs get `console.*`, `await input()`, `fs.list/exists/read/write`, top-level await, timers. `fmt` keeps short objects on one line.
+- Verified here: syntax of all files; the JavaScript runner's Node tests (including sub-folder paths); and the Python `execute()` against real Pyodide 0.26.4 in Node (20 tests: hello, argv, files, sub-folders, stale files cleared, error trace, syntax error, `sys.exit(0/2)`, `exit()`, own module import and reload, binary skipped, `input()`/stdin EOF, fresh globals, stdlib). NOT verified: running in a real browser, and `input()` with a typed line (needs JSPI, Node test only covers EOF).
 
 ## To do
-1. Re-run the Python tests against real Pyodide (needs network + `npm i pyodide`): hello, read/write files, error trace, syntax error, `sys.exit(0)`, `sys.exit(2)`, `exit()`, import own module, edited module reloads, stale files cleared, binary file skipped, `input()` gives EOF, stdlib, fresh globals each run.
-2. Test in the browser: `install python` (progress shows, test run works), `py -c "print(1+1)"`, a file that writes a file, Stop button and Ctrl+C on `while True: pass`, offline run after install, `uninstall python`.
-3. Check that Settings > Delete all / factory reset and export/import handle the new `langs` localStorage key and `lang|<id>` entries in the "code" store (not checked yet).
-4. Release: bump `OS_VERSION`, add `upd.txt` entry, push `index.html`, `apps/Terminal/terminal.js`, `languages/python.js`, `languages/list.json`.
+1. Test in the browser (Chrome/Edge): `install python` (progress shows, test run works), `py -c "print(1+1)"`, a file that writes a file and one inside a sub-folder, `py file.py a b`, `input()` with a typed line, Stop button and Ctrl+C on `while True: pass`, offline run after install, `uninstall python`. Same for JavaScript: `install javascript`, `js -c "console.log(2+2)"`, a file using `await input("Name? ")`, `fs.write` saving a file, Stop on `while(true){}`.
+2. Check that Settings > Delete all / factory reset and export/import handle the new `langs` localStorage key and `lang|<id>` entries in the "code" store (not checked yet).
+3. Release: bump `OS_VERSION`, add `upd.txt` entry, push `index.html`, `apps/Terminal/terminal.js`, `languages/python.js`, `languages/javascript.js`, `languages/list.json`.
 
 ## Known limits (by design for now)
-- `input()` is not supported (sees empty input).
+- Python `input()` needs a browser that can pause WebAssembly (recent Chrome/Edge); elsewhere it ends with EOF.
+- A JavaScript program stuck in a tight loop can only be ended with Stop / Ctrl+C (the worker is terminated).
 - A `|` inside code splits the Terminal line; use `;` instead.
-- Output stops at 3000 lines; files over 1 MB and non-text files are not given to programs.
+- Output stops at 3000 lines; files over 1 MB and non-text files are not given to programs. Programs can't delete files or folders (only create/change text files); empty folders a program makes are not saved.

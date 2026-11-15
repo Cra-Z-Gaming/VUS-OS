@@ -20,13 +20,21 @@ function cleanTrace(msg, name) { // hides Pyodide's own internal lines from an e
   return out.join("\n").replace(/File "<exec>"/g, 'File "' + (name || "<string>") + '"').trim();
 }
 
-async function execute(py, m, post) { // m = { code, name, files: [{name, text}] }. Returns { ok, changed, skipped }
+async function execute(py, m, post, ask) { // m = { code, name, files: [{name, text}] }. ask(prompt) = waits for a line typed in the Terminal. Returns { ok, changed, skipped }
   const FS = py.FS, dir = "/home/pyodide", before = {};
-  for (const n of FS.readdir(dir)) { if (n === "." || n === "..") continue; try { FS.unlink(dir + "/" + n); } catch (e) { /* folders stay */ } }
-  for (const f of m.files || []) { if (!f.name || /[\/\\]/.test(f.name)) continue; before[f.name] = f.text; FS.writeFile(dir + "/" + f.name, f.text); }
+  const okPath = p => typeof p === "string" && p && !/\\/.test(p) && p[0] !== "/" && p.split("/").every(s => s && s !== "." && s !== ".."); // names like "data/a.txt" are folders inside the current folder
+  const wipe = d => { for (const n of FS.readdir(d)) { if (n === "." || n === "..") continue; const p = d + "/" + n; try { if (FS.isDir(FS.stat(p).mode)) { wipe(p); FS.rmdir(p); } else FS.unlink(p); } catch (e) { /* leave what can't be removed */ } } };
+  wipe(dir);
+  for (const f of m.files || []) { if (!okPath(f.name)) continue; let d = dir; for (const s of f.name.split("/").slice(0, -1)) { d += "/" + s; try { FS.mkdir(d); } catch (e) { /* already there */ } } before[f.name] = f.text; FS.writeFile(dir + "/" + f.name, f.text); }
   FS.chdir(dir);
   // the folder's own .py files can be imported, and edited ones are loaded again instead of an old copy
   py.runPython("import sys, builtins\nclass _VUSExit(BaseException): pass\ndef _vus_exit(code=None): raise _VUSExit(code)\nsys.exit = builtins.exit = builtins.quit = _vus_exit\nif '/home/pyodide' not in sys.path: sys.path.insert(0, '/home/pyodide')\nfor _k in [k for k, v in list(sys.modules.items()) if str(getattr(v, '__file__', '') or '').startswith('/home/pyodide')]: del sys.modules[_k]");
+  py.globals.set("_vus_argv", JSON.stringify([m.name && m.name !== "<string>" ? m.name : "-c"].concat(m.args || []))); // py file.py a b  ->  sys.argv == ["file.py", "a", "b"]
+  py.runPython("import sys, json\nsys.argv = json.loads(_vus_argv)\ndel _vus_argv");
+  if (ask && py._module && py._module.jspiSupported) { // input() pauses Python until the Terminal sends a line (needs a browser that can pause WebAssembly, e.g. recent Chrome/Edge)
+    py.globals.set("_vus_ask", ask);
+    py.runPython("import builtins\ntry:\n    from pyodide.ffi import run_sync\nexcept ImportError:\n    run_sync = None\nif run_sync:\n    def _vus_input(prompt=''):\n        try:\n            r = run_sync(_vus_ask(str(prompt)))\n        except RuntimeError:\n            raise EOFError('input() is not available in this browser')\n        if r is None:\n            raise EOFError('EOF when reading a line')\n        return r\n    builtins.input = _vus_input\nclass _VUSStdin:\n    def readline(self, size=-1):\n        try:\n            return input() + '\\n'\n        except EOFError:\n            return ''\n    def read(self, size=-1):\n        out = []\n        while True:\n            l = self.readline()\n            if not l: break\n            out.append(l)\n        return ''.join(out)\n    def __iter__(self): return self\n    def __next__(self):\n        l = self.readline()\n        if not l: raise StopIteration\n        return l\n    def isatty(self): return False\n    def fileno(self): return 0\nif run_sync:\n    sys.stdin = _VUSStdin()");
+  }
   try { await py.loadPackagesFromImports(m.code, { messageCallback: s => post("status", s), errorCallback: s => post("err", s) }); } catch (e) { /* if a package can't load, the import error shows when the code runs */ }
   post("status", "");
   let ok = true;
@@ -41,19 +49,24 @@ async function execute(py, m, post) { // m = { code, name, files: [{name, text}]
   }
   finally { g.destroy(); }
   const changed = [], skipped = [];
-  for (const n of FS.readdir(dir)) {
-    if (n === "." || n === "..") continue;
-    const p = dir + "/" + n; let st; try { st = FS.stat(p); } catch (e) { continue; }
-    if (!FS.isFile(st.mode)) continue;
-    let text; try { text = new TextDecoder("utf-8", { fatal: true }).decode(FS.readFile(p)); } catch (e) { if (before[n] === undefined) skipped.push(n); continue; }
-    if (before[n] === undefined || before[n] !== text) changed.push({ name: n, text });
-  }
+  const scan = (d, pre) => { // every text file under the folder, including inside sub-folders (names like "data/a.txt")
+    for (const n of FS.readdir(d)) {
+      if (n === "." || n === ".." || n === "__pycache__") continue;
+      const p = d + "/" + n, rel = pre + n; let st; try { st = FS.stat(p); } catch (e) { continue; }
+      if (FS.isDir(st.mode)) { scan(p, rel + "/"); continue; }
+      if (!FS.isFile(st.mode)) continue;
+      let text; try { text = new TextDecoder("utf-8", { fatal: true }).decode(FS.readFile(p)); } catch (e) { if (before[rel] === undefined) skipped.push(rel); continue; }
+      if (before[rel] === undefined || before[rel] !== text) changed.push({ name: rel, text });
+    }
+  };
+  scan(dir, "");
   return { ok, changed, skipped };
 }
 
 function workerMain() { // the whole Python world lives in this worker, so a stuck program can be stopped by ending the worker
-  let py = null, base = "", cacheName = "";
+  let py = null, base = "", cacheName = "", pend = null;
   const post = (type, text) => postMessage({ type, text });
+  const ask = p => new Promise(r => { pend = r; post("input", p); });
   const origFetch = self.fetch.bind(self), origImport = self.importScripts.bind(self), urlMap = {};
   self.fetch = async (input, init) => { // files from the saved runtime come from Cache Storage (so Python works offline); new ones are saved as they download
     const url = typeof input === "string" ? input : input.url;
@@ -78,14 +91,15 @@ function workerMain() { // the whole Python world lives in this worker, so a stu
     py = await self.loadPyodide({ indexURL: base });
     py.setStdout({ batched: s => post("out", s) });
     py.setStderr({ batched: s => post("err", s) });
-    py.setStdin({ stdin: () => undefined }); // input() isn't supported yet, it just sees an empty input
+    py.setStdin({ stdin: () => undefined }); // fallback when the browser can't pause Python: input() then ends with EOF
   }
   self.onmessage = async e => {
     const m = e.data;
+    if (m.type === "stdin") { if (pend) { const r = pend; pend = null; r(m.text); } return; } // a line typed for input()
     try {
       base = m.base; cacheName = m.cache;
       await boot();
-      const r = await execute(py, m, post);
+      const r = await execute(py, m, post, ask);
       postMessage({ type: "done", ok: r.ok, changed: r.changed, skipped: r.skipped });
     } catch (err) {
       postMessage({ type: "done", ok: false, changed: [], skipped: [], error: String((err && err.message) || err) });
@@ -114,10 +128,11 @@ function run(o) { // o = { code, name, files, print, printErr, status }. Returns
     if (m.type === "out") o.print(m.text);
     else if (m.type === "err") o.printErr(m.text);
     else if (m.type === "status") o.status(m.text);
+    else if (m.type === "input") Promise.resolve(o.input ? o.input(m.text) : null).then(t => w.postMessage({ type: "stdin", text: t }), () => w.postMessage({ type: "stdin", text: null }));
     else if (m.type === "done") { idleTimer = setTimeout(killWorker, 60000); finish(m); } // the worker stays ready for a minute so the next run starts fast
   };
   w.onerror = ev => { killWorker(); finish({ ok: false, changed: [], skipped: [], error: "Python stopped unexpectedly" + (ev && ev.message ? ": " + ev.message : "") + "." }); };
-  w.postMessage({ code: o.code, name: o.name || "<string>", files: o.files || [], base: BASE, cache: CACHE });
+  w.postMessage({ code: o.code, name: o.name || "<string>", files: o.files || [], args: o.args || [], base: BASE, cache: CACHE });
   return { done, stop() { killWorker(); finish({ ok: false, stopped: true, changed: [], skipped: [] }); } };
 }
 
