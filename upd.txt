@@ -1,3 +1,9 @@
+11.16.2026 3:50 PM
+- Websites in a folder: click an html file and it now finds everything in its folder and sub-folders. Links that start with / (like href="/styles.css") now point at the website's own folder, which was why the css was missed before.
+- Websites also get the files their own JavaScript loads: fetch("data.json"), XMLHttpRequest, new Image().src, new Audio("a.mp3"), img.src = ..., innerHTML with images, import "./x.js" modules, fonts, Web Workers, srcset and css background images set from scripts.
+- Links between pages of the same folder work (about.html, pages/deep.html#part), and links to files (pdf, images, downloads) open from the folder too.
+- New icons and type names for css (Stylesheet), js (JavaScript file) and json (JSON file), so you can tell them apart from plain text files.
+
 11.16.2026 7:39 AM
 - Virtual Machine: new Export OS and Import OS buttons. Export saves your VM edits (the system files you changed) as one .json file. Import OS reads such a file, checks it, shows what is in it and asks before it replaces your VM edits. Only text files are accepted, and an imported OS only ever runs inside the VM sandbox.
 - Virtual Machine: your edits are now kept up to 2 MB in total (a single file up to 1.5 MB), so they can't fill the space the real OS needs.

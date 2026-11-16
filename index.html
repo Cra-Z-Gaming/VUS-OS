@@ -349,7 +349,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.16.2026 7:39 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.16.2026 3:50 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -881,6 +881,16 @@ const extOf = n => (n.includes(".") ? n.split(".").pop() : "").toLowerCase();
 const kindOf = n => (EXT[extOf(n)] || ["text"])[0]; // unknown extensions open in Notepad
 const mimeOf = n => (EXT[extOf(n)] || [0, "application/octet-stream"])[1];
 const KIND_ICON = { text: ["svg:text", "blue"], html: ["svg:html", "orange"], image: ["svg:image", "cyan"], audio: ["svg:audio", "rose"], video: ["svg:video", "violet"], pdf: ["svg:pdf", "red"], binary: ["svg:binary", "black"] };
+// website files get their own icon and type name, so it is clear they are the parts of a page (css, js, json); everything else uses its kind's icon
+Object.assign(SVG, {
+  css: PG('<rect x="5.5" y="11" width="13" height="7.5" rx="1" fill="#1572b6"/><text x="12" y="16.6" font-size="5" font-weight="700" text-anchor="middle" fill="#fff" font-family="Arial">CSS</text>'),
+  js: PG('<rect x="5.5" y="11" width="13" height="7.5" rx="1" fill="#f7df1e"/><text x="12" y="16.6" font-size="5.5" font-weight="700" text-anchor="middle" fill="#222" font-family="Arial">JS</text>'),
+  json: PG('<rect x="5.5" y="11" width="13" height="7.5" rx="1" fill="#3a8a4a"/><text x="12" y="16.8" font-size="6" font-weight="700" text-anchor="middle" fill="#fff" font-family="Arial">{ }</text>')
+});
+const EXT_ICON = { css: ["svg:css", "blue"], js: ["svg:js", "orange"], mjs: ["svg:js", "orange"], json: ["svg:json", "cyan"] };
+const EXT_NAME = { css: "Stylesheet", js: "JavaScript file", mjs: "JavaScript module", json: "JSON file" };
+const fileIcon = n => EXT_ICON[extOf(n)] || KIND_ICON[kindOf(n)] || KIND_ICON.text;
+const fileKindName = n => EXT_NAME[extOf(n)] || KIND_NAME[kindOf(n)] || "File";
 const fmeta = () => LS("files", []);
 const newId = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 
@@ -1239,7 +1249,7 @@ function fillItems(box, fl, fi, openFolder, list) {
     ...(f.saved === false ? [["Save", () => { markSaved("file", f.id); renderIcons(); }]] : []),
     [isFav("file", f.id) ? "Remove from Favorites" : "Add to Favorites", () => toggleFav("file", f.id)], ["Rename", e => inlineRename(iconOf(e), "file", f.id)], ["Move to...", e => moveMenu(e, "file", f.id)],
     ["Delete", () => deleteFile(f.id)],
-    ["Details", () => openApp(detailsApp("file", f.id, null, f.name))]], { kind: "file", id: f.id, exec: kindOf(f.name) === "vsh", del: () => deleteFile(f.id), cols: list ? [short(f.mod), KIND_NAME[kindOf(f.name)] + (extOf(f.name) ? " (." + extOf(f.name) + ")" : ""), fmt(f.size || 0)] : null })));
+    ["Details", () => openApp(detailsApp("file", f.id, null, f.name))]], { kind: "file", id: f.id, exec: kindOf(f.name) === "vsh", del: () => deleteFile(f.id), cols: list ? [short(f.mod), fileKindName(f.name) + (extOf(f.name) ? " (." + extOf(f.name) + ")" : ""), fmt(f.size || 0)] : null })));
 }
 const fillDir = (box, dir, openFolder) => fillItems(box, folders().filter(f => sameDir(f, dir)), fmeta().filter(f => sameDir(f, dir)), openFolder);
 function folderApp(id) {
@@ -1446,7 +1456,7 @@ function explorer(root, os, dir0) {
     if (i.dataset.kind === "folder") { const n = fmeta().filter(x => x.parent === id).length + folders().filter(x => x.parent === id).length; pv.innerHTML = `<b style="word-break:break-all">${esc(i.dataset.name)}</b><p style="color:var(--mute)">Folder · ${n} item${n === 1 ? "" : "s"}</p>`; return; }
     const f = fmeta().find(x => x.id === id); if (!f) { pv.innerHTML = ""; return; }
     const k = kindOf(f.name);
-    pv.innerHTML = `<b style="word-break:break-all">${esc(f.name)}</b><p style="color:var(--mute);margin-bottom:10px">${KIND_NAME[k] || "File"} · ${fmt(f.size || 0)}<br>${when(f.mod)}</p>`;
+    pv.innerHTML = `<b style="word-break:break-all">${esc(f.name)}</b><p style="color:var(--mute);margin-bottom:10px">${fileKindName(f.name)} · ${fmt(f.size || 0)}<br>${when(f.mod)}</p>`;
     if (k === "binary" || k === "pdf") return;
     const b = await dbGet(id, "files"); if (tok !== pvTok || !b) return;
     if (k === "image" || k === "audio" || k === "video") pvUrl = URL.createObjectURL(new Blob([b], { type: mimeOf(f.name) }));
@@ -1587,7 +1597,7 @@ function explorer(root, os, dir0) {
       files.sort((a, b) => a.path.localeCompare(b.path)).forEach(x => {
         const n = x.path.split("/").pop(), open = () => openApp(sysFileApp(x.path)), menu = [["Open", open], ["Rename", vm ? () => vmRenameFile(x.path) : sysReadOnly], ["Delete", vm ? () => vmDeleteFile(x.path) : sysReadOnly]];
         if (vm && x.edited && !x.added) menu.push(["Revert to default", () => vmRevertFile(x.path)]);
-        tile(n, (KIND_ICON[kindOf(n)] || [])[0] || "svg:text", open, menu, vm && x.edited);
+        tile(n, fileIcon(n)[0], open, menu, vm && x.edited);
       });
       if (!dirs.size && !files.length) grid.insertAdjacentHTML("beforeend", '<p class="fxe">No files here.</p>');
     }
@@ -1826,7 +1836,7 @@ function runInTerminal(f) { // right-click > Run in Terminal for .py and .js fil
   openApp(t); window.dispatchEvent(new Event("vus-term-run")); // if a Terminal is already open it picks the job up now, otherwise a new one does when it starts
 }
 function fileApp(f) {
-  const k = kindOf(f.name), [icon, color] = KIND_ICON[k];
+  const k = kindOf(f.name), [icon, color] = fileIcon(f.name);
   return { builtin: 1, name: f.name, icon, color, size: f.size, fid: f.id, ...(k === "vsh" ? { exec: () => runVsh(f.id) } : {}), open: (root, os) => k === "text" ? notepad(root, os, f.id) : viewer(root, os, f) };
 }
 function editApp(f) { // "Edit": open any text-based file (html, svg) in Notepad
@@ -1837,10 +1847,10 @@ function editApp(f) { // "Edit": open any text-based file (html, svg) in Notepad
 const blobText = async b => b && b.text ? b.text() : new TextDecoder().decode(b);
 const LOCAL_REF = r => !!r && !/^\s*(?:[a-z][a-z0-9+.\-]*:|\/\/|#)/i.test(r); // not http:, data:, blob:, //host or #anchor
 const siteIndex = dir => fmeta().find(x => sameDir(x, dir) && /^index\.html?$/i.test(x.name)) || null; // the main page of a folder
-function resolveSibling(baseDir, ref) { // "img/a.png", "../b.css", "/c.js" -> the file's meta, or null when it isn't there
+function resolveSibling(baseDir, ref, rootDir) { // "img/a.png", "../b.css", "/c.js" -> the file's meta, or null when it isn't there. A leading / means the website's own folder (rootDir), like the top of a web server
   let r = String(ref).trim().split(/[?#]/)[0]; if (!r) return null;
   try { r = decodeURIComponent(r); } catch { /* keep as typed */ }
-  let dir = r.startsWith("/") ? null : baseDir;
+  let dir = r.startsWith("/") ? (rootDir || null) : baseDir;
   const parts = r.split("/").filter(s => s !== "" && s !== ".");
   for (let i = 0; i < parts.length; i++) {
     const p = parts[i], low = p.toLowerCase();
@@ -1858,9 +1868,11 @@ async function bundleUrl(meta, ctx) { // a blob: URL for one file; css and html 
     const b = await dbGet(meta.id, "files");
     if (b) {
       const x = extOf(meta.name), dir = meta.parent || null;
-      const blob = x === "css" ? new Blob([await cssBundle(await blobText(b), dir, ctx)], { type: "text/css;charset=utf-8" })
+      const small = (b.size || 0) < 3e6; // very big css / js files are passed on as they are
+      const blob = x === "css" && small ? new Blob([await cssBundle(await blobText(b), dir, ctx)], { type: "text/css;charset=utf-8" })
+        : (x === "js" || x === "mjs") && small ? new Blob([await jsBundle(await blobText(b), dir, ctx)], { type: "text/javascript;charset=utf-8" })
         : x === "html" || x === "htm" ? new Blob([await htmlBundle(await blobText(b), dir, ctx)], { type: "text/html;charset=utf-8" })
-        : new Blob([b], { type: mimeOf(meta.name) });
+        : new Blob([b], { type: siteMime(meta.name) });
       url = URL.createObjectURL(blob); ctx.urls.push(url);
     }
   } finally { ctx.busy.delete(meta.id); }
@@ -1869,28 +1881,123 @@ async function bundleUrl(meta, ctx) { // a blob: URL for one file; css and html 
 async function cssBundle(css, dir, ctx) { // url(...) and @import "..." inside css
   let out = "", last = 0;
   for (const m of css.matchAll(/url\(\s*(['"]?)([^'")]+?)\1\s*\)|@import\s+(['"])([^'"]+)\3/gi)) {
-    const ref = m[2] !== undefined ? m[2] : m[4], meta = LOCAL_REF(ref) ? resolveSibling(dir, ref) : null, u = meta ? await bundleUrl(meta, ctx) : null;
+    const ref = m[2] !== undefined ? m[2] : m[4], meta = LOCAL_REF(ref) ? resolveSibling(dir, ref, ctx.root) : null, u = meta ? await bundleUrl(meta, ctx) : null;
     out += css.slice(last, m.index) + (u ? (m[2] !== undefined ? `url("${u}")` : `@import "${u}"`) : m[0]); last = m.index + m[0].length;
   }
   return out + css.slice(last);
 }
-async function htmlBundle(text, dir, ctx) {
+const SITE_MIME = { woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf", wasm: "application/wasm", webmanifest: "application/manifest+json", map: "application/json" };
+const siteMime = n => EXT[extOf(n)] ? mimeOf(n) : SITE_MIME[extOf(n)] || "application/octet-stream"; // fonts and wasm have no entry in EXT
+const JS_REF = /(\bimport\s*(?:[\w$*{}\s,]{1,400}?\s*from\s*)?|\bexport\s*(?:\*|\{[^}]*\})\s*(?:as\s+[\w$]+\s*)?from\s*|\bimport\s*\(\s*)(["'])([^"'\n]+)\2/g;
+async function jsBundle(js, dir, ctx) { // import "./x.js", export ... from "./x.js" and import("./x.js") with a plain text path: point them at the neighbour's blob: URL (modules load relative to their own blob: URL, so they can't find neighbours)
+  if (!/\b(?:import|export)\b/.test(js)) return js;
+  let out = "", last = 0;
+  for (const m of js.matchAll(JS_REF)) {
+    const ref = m[3], meta = LOCAL_REF(ref) ? resolveSibling(dir, ref, ctx.root) : null, u = meta ? await bundleUrl(meta, ctx) : null;
+    if (!u) continue;
+    const at = m.index + m[1].length; // where the opening quote is
+    out += js.slice(last, at) + m[2] + u + m[2]; last = at + 1 + ref.length + 1;
+  }
+  return out + js.slice(last);
+}
+async function htmlBundle(text, dir, ctx, shim) {
   const doc = new DOMParser().parseFromString(text, "text/html");
-  const fix = async (el, attr) => { const v = el.getAttribute(attr); if (!LOCAL_REF(v)) return; const m = resolveSibling(dir, v), u = m ? await bundleUrl(m, ctx) : null; if (u) el.setAttribute(attr, u); };
+  const link = async v => { if (!LOCAL_REF(v)) return null; const m = resolveSibling(dir, v, ctx.root), u = m ? await bundleUrl(m, ctx) : null; return u ? u + ((String(v).match(/#.*$/) || [""])[0]) : null; }; // keeps a #part (svg sprites)
+  const fix = async (el, attr) => { const u = await link(el.getAttribute(attr)); if (u) el.setAttribute(attr, u); };
   for (const e of doc.querySelectorAll("script[src],img[src],source[src],audio[src],video[src],track[src],iframe[src],embed[src],input[src]")) await fix(e, "src");
   for (const e of doc.querySelectorAll("link[href]")) await fix(e, "href");
   for (const e of doc.querySelectorAll("[poster]")) await fix(e, "poster");
+  for (const e of doc.querySelectorAll("object[data]")) await fix(e, "data");
+  for (const e of doc.querySelectorAll("use[href],image[href]")) await fix(e, "href");
+  for (const e of doc.querySelectorAll("[srcset]")) { // "a.png 1x, b.png 2x"
+    const out = [];
+    for (const p of e.getAttribute("srcset").split(",")) { const t = p.trim(); if (!t) continue; const i = t.search(/\s/), u0 = i < 0 ? t : t.slice(0, i); out.push(((await link(u0)) || u0) + (i < 0 ? "" : t.slice(i))); }
+    e.setAttribute("srcset", out.join(", "));
+  }
   for (const e of doc.querySelectorAll("style")) e.textContent = await cssBundle(e.textContent, dir, ctx);
   for (const e of doc.querySelectorAll("[style]")) e.setAttribute("style", await cssBundle(e.getAttribute("style"), dir, ctx));
+  for (const e of doc.querySelectorAll("script:not([src])")) { const t = (e.getAttribute("type") || "").toLowerCase(); if (t && !/^(module|text\/javascript|application\/javascript)$/.test(t)) continue; e.textContent = await jsBundle(e.textContent, dir, ctx); } // inline scripts and modules
+  if (shim) { const s = doc.createElement("script"); s.textContent = "(" + siteShim.toString() + ")(" + JSON.stringify(shim).replace(/</g, "\\u003c") + ");"; const h = doc.head || doc.documentElement; h.insertBefore(s, h.firstChild); } // the helper that makes the page's own code (fetch, new Image, links...) find its neighbours
   return (/^\s*<!doctype/i.test(text) ? "<!DOCTYPE html>\n" : "") + doc.documentElement.outerHTML;
 }
-async function siteUrl(f, b0) { // the URL the player should show for an html file: the page with its neighbours wired in, or null when it points at no local files
-  const ctx = { map: new Map(), busy: new Set(), urls: [] };
+const SITE_MAX = 300; // most files wired into one page (nearest folders first)
+function siteList(root) { // every file under the website's folder, with its path from that folder in lower case ("img/a.png"); html pages are kept apart because they open through links
+  const files = [], pages = {}, q = [{ id: root || null, path: "" }]; let n = 0;
+  while (q.length && n < SITE_MAX) {
+    const { id, path } = q.shift();
+    for (const m of fmeta().filter(x => sameDir(x, id))) {
+      if (n >= SITE_MAX) break; n++;
+      const key = (path + m.name).toLowerCase();
+      if (/^(html?|xhtml)$/.test(extOf(m.name))) pages[key] = m.id; else files.push({ m, key });
+    }
+    for (const fo of folders().filter(x => sameDir(x, id))) q.push({ id: fo.id, path: path + fo.name + "/" });
+  }
+  return { files, pages };
+}
+function relDir(dir, root) { // path of a folder from the website's folder: "" or "pages/" (null if it isn't inside it)
+  const parts = []; let d = dir || null;
+  while (d !== (root || null)) { const f = folders().find(x => x.id === d); if (!f || parts.length > 30) return null; parts.unshift(f.name); d = f.parent || null; }
+  return parts.length ? parts.join("/") + "/" : "";
+}
+function siteShim(cfg) { // this function runs INSIDE the shown page (it is turned into text and put in front of the page): it lets the page's own code reach the files next to it
+  var M = cfg.map, P = cfg.pages, D = cfg.dir, TOP = cfg.top;
+  var local = function (r) { return !!r && !/^\s*(?:[a-z][a-z0-9+.\-]*:|\/\/|#)/i.test(r); };
+  var look = function (ref) {
+    var r = String(ref).trim(), h = (r.match(/#.*$/) || [""])[0]; r = r.replace(/[?#].*$/, "");
+    try { r = decodeURIComponent(r); } catch (e) { }
+    var parts = (r.charAt(0) === "/" ? [] : D.split("/")).concat(r.split("/")), out = [];
+    for (var i = 0; i < parts.length; i++) { var p = parts[i]; if (!p || p === ".") continue; if (p === "..") { if (!out.length) return null; out.pop(); } else out.push(p); }
+    var k = out.join("/").toLowerCase();
+    if (!M[k] && !P[k]) { var d = k ? k + "/" : ""; if (P[d + "index.html"]) k = d + "index.html"; else if (P[d + "index.htm"]) k = d + "index.htm"; }
+    return { k: k, h: h };
+  };
+  var url = function (ref) { if (!local(ref)) return null; var r = look(ref); return r && M[r.k] ? M[r.k] + r.h : null; };
+  var fix = function (v) { return typeof v === "string" ? url(v) || v : v; };
+  var css = function (s) { return typeof s === "string" ? s.replace(/url\(\s*(['"]?)([^'")]+?)\1\s*\)/g, function (all, q, u) { var n = url(u); return n ? 'url("' + n + '")' : all; }) : s; };
+  var html = function (s) { return typeof s === "string" ? css(s.replace(/(\s(?:src|poster|data)\s*=\s*)(["'])([^"']*)\2/gi, function (all, a, q, u) { var n = url(u); return n ? a + q + n + q : all; })) : s; };
+  var wrap = function (C, prop, fn) { try { var o = C.prototype, d = Object.getOwnPropertyDescriptor(o, prop); if (d && d.set) Object.defineProperty(o, prop, { get: d.get, configurable: true, enumerable: d.enumerable, set: function (v) { d.set.call(this, fn(v)); } }); } catch (e) { } };
+  [[HTMLImageElement, "src"], [HTMLScriptElement, "src"], [HTMLMediaElement, "src"], [HTMLSourceElement, "src"], [HTMLTrackElement, "src"], [HTMLEmbedElement, "src"], [HTMLInputElement, "src"], [HTMLLinkElement, "href"], [HTMLVideoElement, "poster"], [HTMLObjectElement, "data"]].forEach(function (x) { wrap(x[0], x[1], fix); }); // img.src = "a.png"
+  wrap(Element, "innerHTML", html); wrap(Element, "outerHTML", html);
+  ["backgroundImage", "background", "cssText", "listStyleImage", "maskImage", "content", "borderImage"].forEach(function (n) { wrap(CSSStyleDeclaration, n, css); }); // el.style.backgroundImage = "url(a.png)"
+  var iah = Element.prototype.insertAdjacentHTML; Element.prototype.insertAdjacentHTML = function (w, s) { return iah.call(this, w, html(s)); };
+  var sa = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (n, v) {
+    var l = String(n).toLowerCase();
+    if (typeof v === "string") {
+      if (l === "src" || l === "poster" || l === "data" || (l === "href" && !/^(a|area)$/i.test(this.tagName))) v = fix(v);
+      else if (l === "srcset") v = v.split(",").map(function (p) { var t = p.trim(), i = t.search(/\s/); return i < 0 ? fix(t) : fix(t.slice(0, i)) + t.slice(i); }).join(", ");
+      else if (l === "style") v = css(v);
+    }
+    return sa.call(this, n, v);
+  };
+  var f0 = window.fetch; if (f0) window.fetch = function (i, o) { if (typeof i === "string" || (window.URL && i instanceof URL)) i = fix(String(i)); return f0.call(this, i, o); };
+  var xo = XMLHttpRequest.prototype.open; XMLHttpRequest.prototype.open = function (m, u) { var a = Array.prototype.slice.call(arguments); if (typeof u === "string" || (window.URL && u instanceof URL)) a[1] = fix(String(u)); return xo.apply(this, a); };
+  var A0 = window.Audio; if (A0) { window.Audio = function (s) { var a = new A0(); if (s != null) a.src = fix(String(s)); return a; }; window.Audio.prototype = A0.prototype; }
+  var W0 = window.Worker; if (W0) { window.Worker = function (u, o) { return new W0(fix(u), o); }; window.Worker.prototype = W0.prototype; }
+  var F0 = window.FontFace; if (F0) { window.FontFace = function (n, s, d) { return new F0(n, css(s), d); }; window.FontFace.prototype = F0.prototype; }
+  var wo = window.open; window.open = function (u) { var a = Array.prototype.slice.call(arguments); a[0] = fix(u); return wo.apply(this, a); };
+  document.addEventListener("click", function (e) { // links: a file opens from its blob: URL, another page of the site opens through the OS
+    if (e.defaultPrevented || e.button) return;
+    var a = e.target && e.target.closest ? e.target.closest("a[href]") : null; if (!a) return;
+    var h = a.getAttribute("href"); if (!local(h)) return;
+    var r = look(h); if (!r) return;
+    if (M[r.k]) { a.setAttribute("href", M[r.k] + r.h); return; }
+    if (P[r.k] && TOP && parent !== window) { e.preventDefault(); parent.postMessage({ vusSite: "nav", key: r.k, hash: r.h }, "*"); }
+  }, true);
+}
+async function siteBuild(meta, b0, rootDir) { // the website around one html file: { url (the page to show), ctx, pages, free() }, or null when the folder has nothing else in it
+  const ctx = { map: new Map(), busy: new Set(), urls: [], root: rootDir || null };
+  const free = () => ctx.urls.forEach(u => URL.revokeObjectURL(u));
   try {
-    const out = await htmlBundle(await blobText(b0), f.parent || null, ctx);
-    if (![...ctx.map.values()].some(Boolean)) { ctx.urls.forEach(u => URL.revokeObjectURL(u)); return null; }
-    return URL.createObjectURL(new Blob([out], { type: "text/html;charset=utf-8" }));
-  } catch { ctx.urls.forEach(u => URL.revokeObjectURL(u)); return null; }
+    const { files, pages } = siteList(ctx.root);
+    if (!files.length && Object.keys(pages).length < 2 && !folders().some(x => sameDir(x, ctx.root))) return null;
+    const sm = {}, pg = {};
+    for (const { m, key } of files) { const u = await bundleUrl(m, ctx); if (u) sm[key] = u; }
+    for (const k in pages) pg[k] = 1;
+    const out = await htmlBundle(await blobText(b0), meta.parent || null, ctx, { map: sm, pages: pg, dir: relDir(meta.parent || null, ctx.root) || "", top: true });
+    const url = URL.createObjectURL(new Blob([out], { type: "text/html;charset=utf-8" })); ctx.urls.push(url);
+    return { url, ctx, pages, free };
+  } catch (e) { console.error(e); free(); return null; }
 }
 
 // Floating player for html / images / audio / video / pdf
@@ -1903,7 +2010,8 @@ async function viewer(root, os, f) {
   const b0 = await dbGet(f.id, "files");
   if (!b0) { root.innerHTML = '<div class="load err">File not found</div>'; return; }
   const k = kindOf(f.name), blob = new Blob([b0], { type: mimeOf(f.name) }), url = URL.createObjectURL(blob);
-  const shown = k === "html" && extOf(f.name) !== "svg" ? (await siteUrl(f, b0)) || url : url; // an html page gets the files next to it
+  let site = k === "html" ? await siteBuild(f, b0, f.parent || null) : null, shown = site ? site.url : url, curF = f; // an html page gets the files next to it (and its folder's other pages are reachable through links)
+  const sites = site ? [site] : [];
   const media = k === "image" ? `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain">`
     : k === "audio" ? `<div class="vc"><div style="font-size:64px">🎵</div><div>${esc(f.name)}</div><audio controls autoplay src="${url}"></audio></div>`
     : k === "video" ? `<video controls autoplay src="${url}" style="width:100%;height:100%"></video>`
@@ -1913,10 +2021,21 @@ async function viewer(root, os, f) {
     const a = e.target.dataset.a;
     if (a === "fs") root.querySelector(".vb").requestFullscreen?.();
     if (a === "tab") window.open(shown, "_blank");
-    if (a === "dl") dlBlob(f.name, blob);
-    if (a === "edit") openApp(editApp(f));
+    if (a === "dl") dbGet(curF.id, "files").then(bb => dlBlob(curF.name, bb || blob));
+    if (a === "edit") openApp(editApp(curF));
   };
   os.setTitle(f.name);
+  const frame = root.querySelector("iframe");
+  if (site && frame) { // a link to another page of the site: the page asks (vusSite nav), the OS builds that page the same way and shows it
+    const onMsg = async e => {
+      const d = e.data; if (!d || d.vusSite !== "nav" || e.source !== frame.contentWindow) return;
+      const id = site.pages[String(d.key)], meta = id && fmeta().find(x => x.id === id), b = meta && await dbGet(meta.id, "files"); if (!b) return;
+      const next = await siteBuild(meta, b, site.ctx.root); if (!next) return;
+      site = next; sites.push(next); curF = meta; shown = next.url; frame.src = next.url + (String(d.hash || "").startsWith("#") ? d.hash : ""); os.setTitle(meta.name);
+    };
+    window.addEventListener("message", onMsg);
+    const iv = setInterval(() => { if (!frame.isConnected) { clearInterval(iv); window.removeEventListener("message", onMsg); sites.forEach(s => s.free()); } }, 4000); // window closed: give the blob: URLs back
+  }
 }
 
 // Notepad with a File menu: New, Open, Save, Save As (with type list), Download, Exit
@@ -2169,7 +2288,7 @@ async function details(root, kind, id, a) {
   }
   const f = fmeta().find(x => x.id === id); if (!f) return show("<h2>File not found</h2>");
   const k = kindOf(f.name), ext = extOf(f.name), head = `<h2>${glyph(fileApp(f), 36)}${esc(f.name)}</h2>`;
-  const base = [["Name", esc(f.name)], ["Type", KIND_NAME[k] + (ext ? ` (.${esc(ext)})` : "")], ["MIME type", esc(mimeOf(f.name))], ["Size", sizeStr(f.size)], ["Location", esc(pathOf(f.parent || null))], ["Status", f.saved === false ? "Temporary (not saved yet)" : "Saved"], ["Modified", when(f.mod)]];
+  const base = [["Name", esc(f.name)], ["Type", fileKindName(f.name) + (ext ? ` (.${esc(ext)})` : "")], ["MIME type", esc(mimeOf(f.name))], ["Size", sizeStr(f.size)], ["Location", esc(pathOf(f.parent || null))], ["Status", f.saved === false ? "Temporary (not saved yet)" : "Saved"], ["Modified", when(f.mod)]];
   show(head + kv(base) + "<p>Reading file details…</p>");
   show(head + kv([...base, ...(await mediaInfo(f, k, await dbGet(id, "files")))]));
 }
@@ -3270,7 +3389,7 @@ const BIN = { builtin: 1, single: 1, name: "Recycle Bin", icon: "svg:bin", color
     if (!root.isConnected) return refreshers.delete(draw);
     purgeBin(); const b = getBin(), d = getSettings().binDays;
     rows = [...b.folders.filter(f => f.top).map(f => ({ k: "folder:" + f.id, kind: "folder", id: f.id, name: f.name, t: f.del, ic: "svg:folder", size: "" })),
-      ...b.files.filter(f => !b.folders.some(x => x.id === f.parent)).map(f => ({ k: "file:" + f.id, kind: "file", id: f.id, name: f.name, t: f.del, ic: KIND_ICON[kindOf(f.name)][0], size: fmt(f.size || 0) }))].sort((x, y) => y.t - x.t);
+      ...b.files.filter(f => !b.folders.some(x => x.id === f.parent)).map(f => ({ k: "file:" + f.id, kind: "file", id: f.id, name: f.name, t: f.del, ic: fileIcon(f.name)[0], size: fmt(f.size || 0) }))].sort((x, y) => y.t - x.t);
     [...sel].forEach(k => { if (!rows.some(r => r.k === k)) sel.delete(k); });
     root.innerHTML = `<div style="display:flex;flex-direction:column;height:100%"><div class="tabs" style="padding:8px;background:rgba(128,128,128,.14)"><button data-a="restore">Restore</button><button data-a="del">Delete permanently</button><button data-a="empty">Empty Recycle Bin</button></div><div style="flex:1;overflow:auto">${rows.length ? rows.map(r => `<div data-k="${esc(r.k)}" style="display:flex;align-items:center;gap:10px;padding:6px 10px;cursor:default;${sel.has(r.k) ? "background:var(--ac);color:#fff" : ""}">${glyph({ icon: r.ic }, 20)}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name)}</span><span style="width:100px">${new Date(r.t).toLocaleDateString()}</span><span style="width:70px">${r.size}</span></div>`).join("") : '<p style="padding:24px;text-align:center;opacity:.7">The Recycle Bin is empty.</p>'}</div><div style="padding:8px;font-size:12px;opacity:.7">${d ? `Items are deleted for good after ${d === 1 ? "1 day" : d + " days"}.` : "Items stay here until you delete them."} Change this in Settings > System.</div></div>`;
   };
