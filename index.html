@@ -71,9 +71,9 @@ input,select,button{font-family:var(--font)}
 .dlg .dlgf{display:flex;justify-content:flex-end;gap:8px;padding:12px 14px;background:rgba(128,128,128,.14)}
 .dlgf button{min-width:84px;padding:6px 14px;border:1px solid rgba(128,128,128,.6);background:rgba(128,128,128,.2);color:inherit;cursor:pointer}.dlgf button:hover{border-color:var(--ac)}.dlgf button:focus{outline:2px solid var(--ac);outline-offset:1px}.dlgf button.danger{background:#c42b1c;border-color:#c42b1c;color:#fff}
 .rz{position:absolute;touch-action:none;z-index:6}
-.rz.n{top:0;left:10px;right:10px;height:5px;cursor:ns-resize}.rz.s{bottom:0;left:10px;right:10px;height:5px;cursor:ns-resize}
-.rz.e{right:0;top:10px;bottom:10px;width:5px;cursor:ew-resize}.rz.w{left:0;top:10px;bottom:10px;width:5px;cursor:ew-resize}
-.rz.ne,.rz.nw,.rz.se,.rz.sw{width:12px;height:12px}
+.rz.n{top:0;left:12px;right:12px;height:6px;cursor:ns-resize}.rz.s{bottom:0;left:16px;right:16px;height:8px;cursor:ns-resize}
+.rz.e{right:0;top:12px;bottom:16px;width:8px;cursor:ew-resize}.rz.w{left:0;top:12px;bottom:16px;width:8px;cursor:ew-resize}
+.rz.ne,.rz.nw{width:12px;height:12px}.rz.se,.rz.sw{width:16px;height:16px}
 .rz.ne{top:0;right:0;cursor:nesw-resize}.rz.nw{top:0;left:0;cursor:nwse-resize}.rz.se{bottom:0;right:0;cursor:nwse-resize}.rz.sw{bottom:0;left:0;cursor:nesw-resize}
 .win.max .rz{display:none}
 @media (pointer:coarse){.rz.n,.rz.s{height:12px}.rz.e,.rz.w{width:12px}.rz.ne,.rz.nw,.rz.se,.rz.sw{width:22px;height:22px}}
@@ -483,6 +483,21 @@ $("#showdesk").onclick = () => {
 let z = 10, n = 0;
 const wins = new Map();
 
+// Keeps a window drag or resize going until the button is let go, wherever the pointer goes (over an iframe, off the page, even outside the browser).
+function holdDrag(e, move, end) {
+  const id = e.pointerId, src = e.currentTarget || e.target, shield = document.createElement("div"); // the shield covers the page so iframes can't swallow the movement
+  shield.style.cssText = "position:fixed;inset:0;z-index:2147483600;user-select:none;cursor:" + getComputedStyle(src).cursor;
+  document.body.appendChild(shield);
+  let done = false;
+  const stop = () => { if (done) return; done = true; for (const [t, f] of L) window.removeEventListener(t, f, true); shield.remove(); if (end) end(); };
+  const mv = ev => { if (ev.pointerId !== id) return; if (ev.pointerType === "mouse" && ev.buttons === 0) return stop(); /* let go outside the window */ ev.preventDefault(); move(ev); };
+  const up = ev => { if (ev.pointerId === id) stop(); };
+  const cancel = ev => { if (ev.pointerId === id && ev.pointerType !== "mouse") stop(); }; // a mouse "cancel" only means the browser tried to start a text or image drag; that is blocked below
+  const nope = ev => ev.preventDefault(), esc = ev => { if (ev.key === "Escape") stop(); };
+  const L = [["pointermove", mv], ["pointerup", up], ["pointercancel", cancel], ["mouseup", stop], ["blur", stop], ["keydown", esc], ["dragstart", nope], ["selectstart", nope]];
+  for (const [t, f] of L) window.addEventListener(t, f, true);
+  try { src.setPointerCapture(id); } catch { /* the window listeners and the shield keep it going anyway */ }
+}
 function openApp(app) {
   if (app.exec) return app.exec(); // shortcut files run instead of opening a window
   if (app.fid) recentAdd(app.fid);
@@ -522,9 +537,7 @@ function openApp(app) {
   bar.onpointerdown = e => {
     if (e.target.closest("button") || el.classList.contains("max")) return;
     let sx = e.clientX, sy = e.clientY, l = el.offsetLeft, t = el.offsetTop, moved = false, zone = null;
-    bar.setPointerCapture(e.pointerId);
-    bar.onpointermove = ev => {
-      if (ev.pointerType === "mouse" && ev.buttons === 0) return bar.onpointerup(); // the button was let go while the pointer was away
+    holdDrag(e, ev => {
       if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
       if (!moved) {
         moved = true;
@@ -537,23 +550,21 @@ function openApp(app) {
       el.style.left = Math.min(Math.max(l + ev.clientX - sx, 80 - el.offsetWidth), $("#desktop").clientWidth - 80) + "px"; el.style.top = Math.min(Math.max(0, t + ev.clientY - sy), $("#desktop").clientHeight - 32) + "px";
       const R = $("#desktop").getBoundingClientRect(); zone = getSettings().snap ? (ev.clientX <= R.left + 6 ? "l" : ev.clientX >= R.right - 6 ? "r" : ev.clientY <= R.top + 6 ? "t" : null) : null;
       showSnap(zone);
-    };
-    bar.onpointerup = bar.onlostpointercapture = () => { bar.onpointermove = bar.onpointerup = bar.onlostpointercapture = null; showSnap(null); if (zone) snapWin(el, zone); };
+    }, () => { showSnap(null); if (zone) snapWin(el, zone); });
   };
-  el.querySelectorAll(".rz").forEach(h => h.onpointerdown = e => { // drag any edge or corner
+  el.querySelectorAll(".rz").forEach(h => h.onpointerdown = e => { // drag any edge or corner; it keeps going until the button is let go
     if (el.classList.contains("max")) return;
-    e.preventDefault(); h.setPointerCapture(e.pointerId);
-    const d = h.dataset.d, sx = e.clientX, sy = e.clientY, w = el.offsetWidth, ht = el.offsetHeight, l = el.offsetLeft, t = el.offsetTop;
-    h.onpointermove = ev => {
-      if (ev.pointerType === "mouse" && ev.buttons === 0) return h.onpointerup();
-      const dx = ev.clientX - sx, dy = ev.clientY - sy; let nw = w, nh = ht, nl = l, nt = t;
+    e.preventDefault();
+    const R = $("#desktop").getBoundingClientRect(), cx = x => Math.min(Math.max(x, R.left), R.right), cy = y => Math.min(Math.max(y, R.top), R.bottom); // past the screen edge the window just stops growing, so it can't get lost off screen
+    const d = h.dataset.d, sx = cx(e.clientX), sy = cy(e.clientY), w = el.offsetWidth, ht = el.offsetHeight, l = el.offsetLeft, t = el.offsetTop;
+    holdDrag(e, ev => {
+      const dx = cx(ev.clientX) - sx, dy = cy(ev.clientY) - sy; let nw = w, nh = ht, nl = l, nt = t;
       if (d.includes("e")) nw = Math.max(300, w + dx);
       if (d.includes("s")) nh = Math.max(200, ht + dy);
       if (d.includes("w")) { nw = Math.max(300, w - dx); nl = l + w - nw; }
       if (d.includes("n")) { nh = Math.max(200, ht - dy); nt = Math.max(0, t + ht - nh); nh = t + ht - nt; }
       el.style.width = nw + "px"; el.style.height = nh + "px"; el.style.left = nl + "px"; el.style.top = nt + "px";
-    };
-    h.onpointerup = h.onlostpointercapture = () => { h.onpointermove = h.onpointerup = h.onlostpointercapture = null; };
+    });
   });
   el.addEventListener("pointerdown", () => focus(id), true);
   focus(id);

@@ -1,5 +1,6 @@
 11.15.2026 8:00 PM
 - New Virtual Machine app (Start menu, or right-click the taskbar): runs a safe copy of VUS-OS in a sandbox with its own empty storage. Nothing you do inside it can change your real files. A red VM badge in its taskbar shows you are inside it. Close the window to shut it down.
+- Windows are easier to resize: bigger edge and corner grab areas, and a drag now keeps going until you let go of the mouse button, even if you move fast or leave the window or screen. Esc cancels it.
 
 11.15.2026 7:00 PM
 - File Explorer: new Windows-style layout with back, forward and up buttons, an address bar (C:\Users\Owner\Desktop) and one File menu for New, Upload and Export. Tabs were removed.
