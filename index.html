@@ -1971,15 +1971,23 @@ async function notepad(root, os, id) {
 
 // ===================== ZIP (own implementation, works offline) =====================
 const crcT = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
-const crc32 = u8 => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = crcT[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+const crcS = (() => { const t = new Uint32Array(1024); t.set(crcT); for (let i = 0; i < 256; i++) { let c = crcT[i]; for (let k = 1; k < 4; k++) { c = crcT[c & 255] ^ (c >>> 8); t[k * 256 + i] = c >>> 0; } } return t; })(); // extra tables so 4 bytes are handled per step (about 1.5x faster)
+const crcUpdate = (c, u8) => { let i = 0; const n = u8.length, T = crcS; for (const end = n - 3; i < end; i += 4) { c ^= u8[i] | (u8[i + 1] << 8) | (u8[i + 2] << 16) | (u8[i + 3] << 24); c = T[768 + (c & 255)] ^ T[512 + ((c >>> 8) & 255)] ^ T[256 + ((c >>> 16) & 255)] ^ T[c >>> 24]; } for (; i < n; i++) c = crcT[(c ^ u8[i]) & 255] ^ (c >>> 8); return c; };
+const crc32 = u8 => (crcUpdate(0xFFFFFFFF, u8) ^ 0xFFFFFFFF) >>> 0;
+async function worthPacking(raw) { // pictures, music and video are already compressed: a quick test on the first 64 KB skips the slow full attempt
+  if (raw.length <= 64) return false; if (raw.length < 262144) return true;
+  try { return (await deflateRaw(raw.subarray(0, 65536))).length < 58000; } catch { return true; }
+}
 const deflateRaw = async u8 => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());
-async function crcBlob(blob) { // CRC-32 of a Blob read in pieces, so a big file never has to sit in memory whole
-  let c = 0xFFFFFFFF, n = 0; const r = blob.stream().getReader();
-  for (;;) {
-    const { done, value } = await r.read(); if (done) break;
-    for (let i = 0; i < value.length; i++) c = crcT[(c ^ value[i]) & 255] ^ (c >>> 8);
-    if (++n % 64 === 0) await new Promise(res => setTimeout(res, 0)); // let the OS breathe
-  }
+async function crcBlob(blob, onBytes) { // CRC-32 of a Blob read in pieces, so a big file never has to sit in memory whole. onBytes(n) is called for every piece (progress, and it may throw to cancel)
+  let c = 0xFFFFFFFF, t = performance.now(); const r = blob.stream().getReader();
+  try {
+    for (;;) {
+      const { done, value } = await r.read(); if (done) break;
+      c = crcUpdate(c, value); if (onBytes) onBytes(value.length);
+      if (performance.now() - t > 30) { await new Promise(res => setTimeout(res, 0)); t = performance.now(); } // give the page a turn about every 30 ms so it never looks frozen
+    }
+  } finally { try { r.cancel(); } catch { /* already finished */ } }
   return (c ^ 0xFFFFFFFF) >>> 0;
 }
 async function makeZip(entries, opt = {}) { // entries: [{name, data: Uint8Array | blob: Blob | neither (folder), date, pack}]. Files go in one at a time and finished parts are handed to the browser as Blobs, so memory stays low even for big backups.
@@ -1990,12 +1998,12 @@ async function makeZip(entries, opt = {}) { // entries: [{name, data: Uint8Array
     if (opt.check) opt.check(); // lets the progress panel's Cancel stop the export
     const name = enc.encode(e.name), isDir = !e.data && !e.blob, src = e.data || e.blob || new Uint8Array(0);
     const blob = src instanceof Blob ? src : null, size = blob ? blob.size : src.length;
-    let crc, body = src, method = 0, csize = size;
+    let crc, body = src, method = 0, csize = size, rep = 0; // rep = bytes already reported to the progress bar for this file
     if (size <= 16 * 1024 * 1024) { // small: read it and try to compress it
       const raw = blob ? new Uint8Array(await blob.arrayBuffer()) : src; crc = crc32(raw); body = raw;
-      if (raw.length > 64) { try { const d = await deflateRaw(raw); if (d.length < raw.length) { body = d; method = 8; csize = d.length; } } catch { /* store it */ } }
+      if (await worthPacking(raw)) { try { const d = await deflateRaw(raw); if (d.length < raw.length) { body = d; method = 8; csize = d.length; } } catch { /* store it */ } }
     } else { // big: CRC in pieces and store as is (media is already compressed); only text-like data (pack) is compressed, as a stream
-      crc = blob ? await crcBlob(blob) : crc32(src);
+      crc = blob ? await crcBlob(blob, n => { rep += n; if (opt.check) opt.check(); if (opt.onBytes) opt.onBytes(e, n); }) : crc32(src);
       if (e.pack) { try { const d = await new Response(new Blob([src]).stream().pipeThrough(new CompressionStream("deflate-raw"))).blob(); if (d.size < size) { body = d; method = 8; csize = d.size; } } catch { /* store it */ } }
     }
     if (size > 0xFFFFFFFF || off > 0xFFFFFFFF) throw new Error("This backup is bigger than 4 GB, which a .zip can't hold. Untick some files and export again.");
@@ -2005,7 +2013,7 @@ async function makeZip(entries, opt = {}) { // entries: [{name, data: Uint8Array
     parts.push(head, body); mem += head.length + (body instanceof Blob ? 0 : body.length);
     central.push(cat(u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(method), u16(tm), u16(dd), u32(crc), u32(csize), u32(size), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(isDir ? 0x10 : 0), u32(off), name));
     off += head.length + csize;
-    if (opt.onEntry) opt.onEntry(e, size); // progress
+    if (opt.onEntry) opt.onEntry(e, size - rep); // progress (big files already reported most of their bytes while being read)
     if (mem > 32 * 1024 * 1024) { parts = [new Blob(parts)]; mem = 0; } // hand finished data to the browser, which can keep it on disk
     if (++count % 10 === 0 || size > 1024 * 1024) await new Promise(res => setTimeout(res, 0)); // pause so the OS stays responsive
   }
@@ -3005,9 +3013,11 @@ async function doExport() {
   entries.unshift({ name: "manifest.json", data: new TextEncoder().encode(JSON.stringify(m)) });
   const rest = entries.reduce((t, e) => t + (e.name.startsWith("files/") ? 0 : e.blob ? e.blob.size : e.data ? e.data.length : 0), 0);
   tkP.total = Math.max(1, rest); tkP.w = Math.max(1, rest / 1e6);
-  const zip = await makeZip(entries, { check: P.check, onEntry: (e, sz) => { if (e.name.startsWith("files/")) { if (tkF) P.set(tkF, tkF.done + sz); } else P.set(tkP, tkP.done + sz); } });
-  P.check(); dlBlob("vus-os-backup.zip", zip);
-  notify("Backup saved", "vus-os-backup.zip was downloaded." + (unread.length ? " Could not read: " + unread.join(", ") + "." : ""));
+  const bump = (e, sz) => { if (e.name.startsWith("files/")) { if (tkF) P.set(tkF, tkF.done + sz); } else P.set(tkP, tkP.done + sz); };
+  const zip = await makeZip(entries, { check: P.check, onBytes: bump, onEntry: bump });
+  const dn = new Date(), pad = n => String(n).padStart(2, "0"), fname = "vus-os-backup " + (dn.getMonth() + 1) + "." + dn.getDate() + "." + dn.getFullYear() + " " + pad(dn.getHours()) + "-" + pad(dn.getMinutes()) + ".zip"; // month.day.year 24-hour time (a colon can't be used in file names)
+  P.check(); dlBlob(fname, zip);
+  notify("Backup saved", fname + " was downloaded." + (unread.length ? " Could not read: " + unread.join(", ") + "." : ""));
 }
 function pickBackup() { const i = document.createElement("input"); i.type = "file"; i.accept = ".zip,application/zip"; i.onchange = () => i.files[0] && doImport(i.files[0]); i.click(); }
 async function doImport(file) {
