@@ -71,9 +71,9 @@ input,select,button{font-family:var(--font)}
 .dlg .dlgf{display:flex;justify-content:flex-end;gap:8px;padding:12px 14px;background:rgba(128,128,128,.14)}
 .dlgf button{min-width:84px;padding:6px 14px;border:1px solid rgba(128,128,128,.6);background:rgba(128,128,128,.2);color:inherit;cursor:pointer}.dlgf button:hover{border-color:var(--ac)}.dlgf button:focus{outline:2px solid var(--ac);outline-offset:1px}.dlgf button.danger{background:#c42b1c;border-color:#c42b1c;color:#fff}
 .rz{position:absolute;touch-action:none;z-index:6}
-.rz.n{top:0;left:12px;right:12px;height:6px;cursor:ns-resize}.rz.s{bottom:0;left:16px;right:16px;height:8px;cursor:ns-resize}
-.rz.e{right:0;top:12px;bottom:16px;width:8px;cursor:ew-resize}.rz.w{left:0;top:12px;bottom:16px;width:8px;cursor:ew-resize}
-.rz.ne,.rz.nw{width:12px;height:12px}.rz.se,.rz.sw{width:16px;height:16px}
+.rz.n{top:0;left:10px;right:10px;height:5px;cursor:ns-resize}.rz.s{bottom:0;left:10px;right:10px;height:5px;cursor:ns-resize}
+.rz.e{right:0;top:10px;bottom:10px;width:5px;cursor:ew-resize}.rz.w{left:0;top:10px;bottom:10px;width:5px;cursor:ew-resize}
+.rz.ne,.rz.nw,.rz.se,.rz.sw{width:12px;height:12px}
 .rz.ne{top:0;right:0;cursor:nesw-resize}.rz.nw{top:0;left:0;cursor:nwse-resize}.rz.se{bottom:0;right:0;cursor:nwse-resize}.rz.sw{bottom:0;left:0;cursor:nesw-resize}
 .win.max .rz{display:none}
 @media (pointer:coarse){.rz.n,.rz.s{height:12px}.rz.e,.rz.w{width:12px}.rz.ne,.rz.nw,.rz.se,.rz.sw{width:22px;height:22px}}
@@ -192,6 +192,7 @@ input,select,button{font-family:var(--font)}
 .fxn .nb{width:30px;height:28px;border:1px solid var(--bd);background:rgba(128,128,128,.18);color:inherit;font-size:14px;cursor:default;border-radius:0}.fxn .nb:hover{background:rgba(128,128,128,.32)}
 .fxad{flex:1;min-width:0;display:flex;align-items:center;gap:1px;height:28px;padding:0 4px;border:1px solid var(--bd);background:rgba(128,128,128,.1);font-size:12px;overflow:hidden;white-space:nowrap}
 .fxad .seg{padding:3px 6px;cursor:default}.fxad .seg:hover{background:rgba(128,128,128,.28)}.fxad i{opacity:.5;font-style:normal;font-size:11px}
+.fxad{cursor:text}.fxad input.fxai{flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;color:inherit;font:inherit;padding:0 4px}
 .fxq{width:170px;height:28px;padding:0 8px;border:1px solid var(--bd);background:rgba(128,128,128,.1);color:inherit;font-size:12px;outline:0}.fxq:focus{border-color:var(--ac)}
 .fxw .fxt{background:rgba(128,128,128,.14);padding:6px}
 .fxs{width:200px;overflow:auto}.fxs .tn{padding:5px 8px;gap:6px;font-size:13px}.fxs .tg{width:14px;text-align:center;font-size:9px;opacity:.7;flex-shrink:0}.fxs .tl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.fxs .tsep{height:1px;padding:0;margin:6px 8px;background:var(--bd);border:0}
@@ -688,7 +689,12 @@ const dbDel = async (k, st = "files") => { if (MEMDB) { MEMDB[st].delete(k); ret
 
 // App updates need no version numbers: a saved app is compared with the copy on GitHub and updated when the code differs.
 const metaAll = () => LS("meta", {});
+// inside the VM every app that has code can be edited, official ones too. An app inside the OS repo is edited as its own repo file (apps/notes.js); any other app is kept in the overlay as apps-edited/<name>.js or .html
+const vmAppPath = a => { const u = String(a.url || "").split(/[?#]/)[0]; return u.startsWith(OS_REPO) ? decodeURIComponent(u.slice(OS_REPO.length)) : "apps-edited/" + String(a.name).replace(/[^\w.\- ]/g, "_") + (isNative(a) ? ".js" : ".html"); };
+const vmAppText = a => { if (!window.__VM) return null; const p = vmAppPath(a); return Object.prototype.hasOwnProperty.call(window.__VM.overlay, p) ? window.__VM.overlay[p] : null; }; // the edited code of an app, or null
+const vmApps = () => catalog.filter(a => !a.builtin && a.url && (isNative(a) || /raw\.githubusercontent\.com/.test(a.url)));
 async function fetchCode(app) {
+  const ed = vmAppText(app); if (ed !== null) return ed; // inside the VM an edited copy wins over GitHub
   const r = await fetch(app.url, { cache: "no-cache" }); // always asks GitHub whether the file changed (cheap when it hasn't)
   if (!r.ok) throw new Error(r.status);
   return r.text();
@@ -710,6 +716,7 @@ async function updateApp(app) { // on any failure the old saved copy stays
 const cachedApps = () => Object.entries(metaAll()).map(([name, m]) => ({ app: catalog.find(a => a.name === name && a.url === m.url), m })).filter(x => x.app);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const fetchFresh = async app => { // a copy that skips every cache (the ?t= makes it a brand new link)
+  const ed = vmAppText(app); if (ed !== null) return ed;
   const r = await fetch(app.url + (app.url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store" });
   if (!r.ok) throw new Error(r.status);
   return r.text();
@@ -833,7 +840,9 @@ async function loadNow(app, body, win) {
       const f = document.createElement("iframe");
       f.src = "about:blank";
       body.appendChild(f);
-      const d = f.contentDocument; d.open(); d.write(text); d.close();
+      const d = f.contentDocument; d.open();
+      if (window.__VM) ["localStorage", "sessionStorage"].forEach((nm, i) => { try { Object.defineProperty(f.contentWindow, nm, { value: i ? window.__VM.ss : window.__VM.ls, configurable: true, writable: true }); } catch {} }); // the VM has no real storage, so the app gets the VM's in-memory copy
+      d.write(text); d.close();
       ["pointerdown", "keydown", "pointermove", "wheel"].forEach(ev => f.contentWindow.addEventListener(ev, () => { lastAct = Date.now(); }, true));
     }
   } catch (e) {
@@ -877,6 +886,17 @@ function winDialog(msg, buttons, title) { // resolves with the chosen button's v
   });
 }
 const winAlert = msg => winDialog(msg, [["OK", true]]);
+function winPrompt(msg, def = "", title) { // a small box with a text field; resolves with the typed text, or null when cancelled
+  return new Promise(res => {
+    const o = document.createElement("div"); o.className = "dlg";
+    o.innerHTML = `<div class="dlgb"><div class="dlgt">${esc(title || getSettings().site || "VUS-OS")}</div><div class="dlgm"><p>${esc(msg).replace(/\n/g, "<br>")}</p><input style="width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:8px;background:rgba(128,128,128,.15);color:inherit;border:1px solid var(--bd)"></div><div class="dlgf"><button data-v="1">OK</button><button data-v="0">Cancel</button></div></div>`;
+    const inp = o.querySelector("input"); inp.value = def;
+    const finish = v => { document.removeEventListener("keydown", kd, true); o.remove(); res(v); };
+    const kd = e => { if (e.key === "Escape") { e.stopPropagation(); finish(null); } else if (e.key === "Enter" && e.target === inp) { e.stopPropagation(); finish(inp.value); } };
+    o.onclick = e => { const b = e.target.closest("button"); if (b) finish(b.dataset.v === "1" ? inp.value : null); };
+    document.addEventListener("keydown", kd, true); document.body.appendChild(o); inp.focus(); inp.select();
+  });
+}
 const winConfirm = (msg, yes = "OK") => winDialog(msg, [[yes, true], ["Cancel", false]]);
 function typeYes(msg) { // a dialog where you must type "yes" before Continue works (Enter also submits, Esc cancels)
   return new Promise(res => {
@@ -1242,6 +1262,7 @@ function explorerOld(root, os, dir0) { // old version with tabs, replaced by exp
   }), { root: grid });
   const unsaved = x => x.saved === false;
   let q = ""; const exp = new Set(); // q = search text, exp = expanded folders in the sidebar
+  let editing = false; // true while the address bar is a text box
   const go = (loc, dir) => { cur.loc = loc; cur.dir = dir; q = ""; root.querySelector(".fxq").value = ""; draw(); };
   const tree = () => {
     for (let d = cur.loc === "dir" ? cur.dir : null; d;) { const f = folders().find(x => x.id === d); if (!f) break; if (f.parent) exp.add(f.parent); d = f.parent; } // keep the path to the open folder visible
@@ -1254,6 +1275,65 @@ function explorerOld(root, os, dir0) { // old version with tabs, replaced by exp
     if (cur.loc !== "dir") return `<span class="seg">${{ temp: "Temporary", bin: "Recycle Bin", recent: "Recent", fav: "Favorites" }[cur.loc] || "Saved"}</span>`;
     const chain = []; for (let d = cur.dir; d;) { const f = folders().find(x => x.id === d); if (!f) break; chain.unshift(f); d = f.parent; }
     return [`<span class="seg" data-d="">Desktop</span>`, ...chain.map(f => `<span class="seg" data-d="${f.id}">${esc(f.name)}</span>`)].join("<i>›</i>");
+  };
+  const pathText = () => trail().map(t => t[0]).join(BS); // what the address bar says when you click it to type
+  const resolvePath = async text => { // a typed path -> { go: [loc, dir, sp], open? }, or null when there is no such place
+    let t = text.trim(); if (t.length > 1 && t[0] === '"' && t[t.length - 1] === '"') t = t.slice(1, -1);
+    const parts = t.split(BS).join("/").split("/").map(s => s.trim()).filter(Boolean), lo = parts.map(s => s.toLowerCase());
+    if (!parts.length || (parts.length === 1 && ["this pc", "pc", "computer"].includes(lo[0]))) return { go: ["pc"] };
+    const special = { recent: ["recent"], favorites: ["fav"], temporary: ["temp"], saved: ["saved"], "recycle bin": ["bin"] };
+    if (parts.length === 1 && special[lo[0]]) return { go: special[lo[0]] };
+    if (lo[0] === "c:") { parts.shift(); lo.shift(); }
+    else if (["desktop", "downloads", "documents"].includes(lo[0])) { parts.unshift("Users", userName()); lo.unshift("users", userName().toLowerCase()); } // a short name means one of your own folders
+    if (!parts.length) return { go: ["c"] };
+    if (lo[0] === "apps") {
+      if (!inVM()) return null;
+      if (parts.length === 1) return { go: ["apps"] };
+      const a = parts.length === 2 && vmApps().find(x => x.name.toLowerCase() === lo[1]);
+      return a ? { go: ["apps"], open: () => openApp(vmFileApp(vmAppPath(a))) } : null;
+    }
+    if (lo[0] === "system") {
+      await loadSys(); const list = inVM() ? vmList() : sysTree; let P = "";
+      for (let i = 1; i < parts.length; i++) {
+        const pre = P ? P + "/" : ""; let hit = null, isFile = false;
+        for (const x of list) { if (!x.path.startsWith(pre)) continue; const rest = x.path.slice(pre.length), j = rest.indexOf("/"), seg = j < 0 ? rest : rest.slice(0, j); if (seg.toLowerCase() === lo[i]) { hit = seg; isFile = j < 0; break; } }
+        if (!hit) return null;
+        P = pre + hit;
+        if (isFile) return i === parts.length - 1 ? { go: ["sys", null, P.includes("/") ? P.slice(0, P.lastIndexOf("/")) : ""], open: () => openApp(sysFileApp(P)) } : null;
+      }
+      return { go: ["sys", null, P] };
+    }
+    if (lo[0] === "users") {
+      if (parts.length === 1) return { go: ["users"] };
+      if (lo[1] !== userName().toLowerCase()) return null;
+      if (parts.length === 2) return { go: ["home"] };
+      let dir = null;
+      if (lo[2] !== "desktop") { const h = folders().find(f => f.home && f.name.toLowerCase() === lo[2]); if (!h) return null; dir = h.id; }
+      for (let i = 3; i < parts.length; i++) {
+        const f = folders().find(x => sameDir(x, dir) && x.name.toLowerCase() === lo[i]);
+        if (f) { dir = f.id; continue; }
+        const fi = i === parts.length - 1 && fmeta().find(x => sameDir(x, dir) && x.name.toLowerCase() === lo[i]);
+        return fi ? { go: ["dir", dir], open: () => os.open("file", fi.id) } : null;
+      }
+      return { go: ["dir", dir] };
+    }
+    return null;
+  };
+  const editAddr = () => { // click the address bar to type a path, like Windows
+    if (editing) return; editing = true;
+    adEl.innerHTML = '<input class="fxai" spellcheck="false" autocomplete="off">';
+    const inp = adEl.firstChild; inp.value = pathText(); inp.focus(); inp.select();
+    const done = () => { if (!editing) return; editing = false; adEl.innerHTML = crumb(); };
+    inp.onkeydown = async e => {
+      e.stopPropagation();
+      if (e.key === "Escape") { e.preventDefault(); done(); }
+      else if (e.key === "Enter") {
+        e.preventDefault(); const text = inp.value, r = await resolvePath(text); done();
+        if (!r) return winAlert("Can't find " + text.trim() + NL + "Check the spelling and try again.");
+        go(...r.go); if (r.open) r.open();
+      }
+    };
+    inp.onblur = () => setTimeout(done, 0);
   };
   const search = () => { // looks inside this folder and every folder under it
     const ql = q.toLowerCase(), ids = cur.dir ? [cur.dir, ...descendants(cur.dir)] : null, inside = x => !ids || ids.includes(x.parent);
@@ -1322,9 +1402,9 @@ function ensureHome() { // makes Downloads and Documents the first time they are
   const have = folders(), miss = HOME_FOLDERS.filter(n => !have.some(f => f.home && f.name === n));
   if (miss.length) save("folders", [...have, ...miss.map(n => ({ id: newId(), name: n, parent: null, saved: true, home: true }))]);
 }
-let sysTree = null; // the OS's own files, listed from the repo once per page load
-async function loadSys() {
-  if (sysTree) return sysTree;
+let sysTree = null, sysP = null; // the OS's own files, listed from the repo once per page load
+function loadSys() { return sysTree ? Promise.resolve(sysTree) : sysP || (sysP = loadSys2()); }
+async function loadSys2() {
   try {
     const r = await fetch("https://api.github.com/repos/Cra-Z-Gaming/VUS-OS/git/trees/main?recursive=1");
     if (!r.ok) throw new Error(r.status);
@@ -1334,8 +1414,9 @@ async function loadSys() {
   }
   return sysTree;
 }
-const sysReadOnly = () => winAlert("System files are read-only. To change them you will use the VM (not built yet).");
-function sysFileApp(path) { // opens a system file as plain text, no saving
+const sysReadOnly = () => winAlert("System files are read-only here. To change them, open the Virtual Machine app (Start menu) and edit them there.");
+function sysFileApp(path) { // opens a system file: read-only in the real OS, an editor inside the VM
+  if (inVM()) return vmFileApp(path);
   const name = path.split("/").pop();
   return { builtin: 1, name, icon: "svg:text", color: "blue", open: async (root, os) => {
     os.setTitle(name + " (read-only)");
@@ -1345,9 +1426,109 @@ function sysFileApp(path) { // opens a system file as plain text, no saving
       const r = await fetch(OS_REPO + path.split("/").map(encodeURIComponent).join("/"), { cache: "no-cache" });
       if (!r.ok) throw new Error(r.status);
       const t = await r.text();
-      root.innerHTML = '<div style="height:100%;display:flex;flex-direction:column"><div style="padding:6px 10px;font-size:12px;background:rgba(128,128,128,.14);border-bottom:1px solid var(--bd)">System file · read-only. To change system files you will use the VM (not built yet).</div><pre style="flex:1;margin:0;padding:10px;overflow:auto;font:12px var(--mono);white-space:pre;user-select:text"></pre></div>';
+      root.innerHTML = '<div style="height:100%;display:flex;flex-direction:column"><div style="padding:6px 10px;font-size:12px;background:rgba(128,128,128,.14);border-bottom:1px solid var(--bd)">System file · read-only. To change system files, use the Virtual Machine app (Start menu).</div><pre style="flex:1;margin:0;padding:10px;overflow:auto;font:12px var(--mono);white-space:pre;user-select:text"></pre></div>';
       root.querySelector("pre").textContent = t;
     } catch (e) { root.innerHTML = '<div class="load err">Couldn\'t load this file from the repo.</div>'; }
+  } };
+}
+
+// ----- inside the VM: C:\System can be edited freely. Edits live in window.__VM.overlay and are sent to the real OS window, which keeps them -----
+const BS = String.fromCharCode(92), NL = String.fromCharCode(10);
+const inVM = () => typeof window.__VM === "object" && !!window.__VM;
+const VM_DEL = ".vm-deleted"; // reserved overlay entry: a JSON list of repo files that were deleted in the VM
+const SYS_BIN = { test: n => [".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".zip", ".exe"].some(e => n.toLowerCase().endsWith(e)) }; // non-text files: shown as nothing, can only be deleted
+const vmPathOk = p => p.length < 200 && p.split("/").every(s => s && s !== "." && s !== ".." && s.split("").every(c => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.- ".includes(c)));
+const ovHas = p => Object.prototype.hasOwnProperty.call(window.__VM.overlay, p);
+const vmGone = () => { try { return JSON.parse(window.__VM.overlay[VM_DEL] || "[]"); } catch { return []; } };
+const vmSetGone = l => { if (l.length) window.__VM.overlay[VM_DEL] = JSON.stringify(l); else delete window.__VM.overlay[VM_DEL]; };
+const vmIsBase = p => (!!sysTree && sysTree.some(x => x.path === p)) || (p.startsWith("apps-edited/") && vmApps().some(a => vmAppPath(a) === p)); // does a default copy exist to go back to?
+function vmSync(path) { // tells the manager window to keep the edits, and refreshes a cached app whose file was just changed
+  try { parent.postMessage({ vus: "vm-overlay", overlay: window.__VM.overlay }, "*"); } catch {}
+  if (path) catalog.filter(a => a.url && vmAppPath(a) === path).forEach(a => updateApp(a));
+}
+function vmList() { // what C:\System shows inside the VM: the repo's files with the edits applied
+  const ov = window.__VM.overlay, gone = vmGone(), base = new Map((sysTree || []).map(x => [x.path, x])), out = [];
+  base.forEach((x, p) => { if (!gone.includes(p)) out.push({ path: p, size: ovHas(p) ? ov[p].length : x.size, edited: ovHas(p) }); });
+  Object.keys(ov).forEach(p => { if (p !== VM_DEL && !p.startsWith("apps-edited/") && !base.has(p)) out.push({ path: p, size: ov[p].length, edited: true, added: true }); }); // apps-edited/ belongs to C:\Apps, not C:\System
+  return out;
+}
+function vmCheck(path, text) { // null = fine, otherwise the reason it can't be kept
+  if (!vmPathOk(path) || path === VM_DEL) return "That name isn't allowed. Use letters, numbers, spaces and . _ - (and / to put it in a folder).";
+  if (text.length > VM_LIMITS.one) return "That file is too big for the VM (3 MB at most).";
+  const ov = window.__VM.overlay, keys = Object.keys(ov).filter(k => k !== path);
+  if (keys.length + 1 > VM_LIMITS.files) return "The VM keeps up to " + VM_LIMITS.files + " edited files.";
+  if (keys.reduce((n, k) => n + ov[k].length, text.length) > VM_LIMITS.all) return "The VM's edits are over 8 MB in total.";
+  return null;
+}
+async function vmRead(path) {
+  if (ovHas(path)) return window.__VM.overlay[path];
+  const app = catalog.find(a => vmAppPath(a) === path);
+  const r = await fetch(app ? app.url : OS_REPO + path.split("/").map(encodeURIComponent).join("/"), { cache: "no-cache" });
+  if (!r.ok) throw new Error(r.status);
+  return r.text();
+}
+function vmWrite(path, text) { const err = vmCheck(path, text); if (err) return err; window.__VM.overlay[path] = text; vmSetGone(vmGone().filter(p => p !== path)); vmSync(path); return null; }
+function vmDelete(path) {
+  if (path === "index.html") return "index.html can't be deleted because the OS needs it. You can edit it instead.";
+  const g = vmGone(); if (vmIsBase(path) && !g.includes(path)) { g.push(path); vmSetGone(g); }
+  delete window.__VM.overlay[path]; vmSync(path); return null;
+}
+function vmRevert(path) { delete window.__VM.overlay[path]; vmSetGone(vmGone().filter(p => p !== path)); vmSync(path); }
+const vmRefresh = () => refreshers.forEach(f => f());
+async function vmNewFile(sp) {
+  const name = await winPrompt("New file in System" + (sp ? BS + sp.split("/").join(BS) : "") + ":" + NL + "You can include folders, like tools/test.js", "");
+  if (name === null || !name.trim()) return;
+  const path = (sp ? sp + "/" : "") + name.trim().split(BS).join("/");
+  if (vmList().some(x => x.path.toLowerCase() === path.toLowerCase())) return winAlert("A file with that name already exists.");
+  const err = vmWrite(path, ""); if (err) return winAlert(err);
+  vmRefresh(); openApp(sysFileApp(path));
+}
+async function vmRenameFile(path) {
+  if (path === "index.html") return winAlert("index.html can't be renamed because the OS needs it.");
+  if (SYS_BIN.test(path)) return winAlert("Pictures and other non-text files can't be renamed in the VM. You can delete them.");
+  const old = path.split("/").pop(), dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
+  const nn = await winPrompt("New name for " + old + ":", old); if (nn === null || !nn.trim() || nn.trim() === old) return;
+  const np = dir + nn.trim().split(BS).join("/");
+  if (vmList().some(x => x.path.toLowerCase() === np.toLowerCase())) return winAlert("A file with that name already exists.");
+  let err; try { err = vmWrite(np, await vmRead(path)); } catch { err = "Couldn't read that file."; }
+  if (err) return winAlert(err);
+  vmDelete(path); vmRefresh();
+}
+async function vmRenameDir(p) {
+  const files = vmList().filter(x => x.path.startsWith(p + "/"));
+  if (files.some(x => SYS_BIN.test(x.path))) return winAlert("This folder has pictures or other non-text files, which can't be moved in the VM.");
+  const old = p.split("/").pop(), par = p.includes("/") ? p.slice(0, p.lastIndexOf("/") + 1) : "";
+  const nn = await winPrompt("New name for the folder " + old + ":", old); if (nn === null || !nn.trim() || nn.trim() === old) return;
+  const np = par + nn.trim().split(BS).join("/"), taken = new Set(vmList().map(x => x.path.toLowerCase()));
+  if (files.some(x => taken.has((np + x.path.slice(p.length)).toLowerCase()))) return winAlert("Something in that folder already has the same name.");
+  for (const x of files) { let err; try { err = vmWrite(np + x.path.slice(p.length), await vmRead(x.path)); } catch { err = "Couldn't read " + x.path + "."; } if (err) { vmRefresh(); return winAlert(err); } vmDelete(x.path); }
+  vmRefresh();
+}
+async function vmDeleteFile(path) { if (!(await winConfirm("Delete " + path.split("/").pop() + " from this VM?", "Delete"))) return; const err = vmDelete(path); if (err) return winAlert(err); vmRefresh(); }
+async function vmDeleteDir(p) { if (!(await winConfirm("Delete the folder " + p.split("/").pop() + " and everything in it from this VM?", "Delete"))) return; const bad = vmList().filter(x => x.path.startsWith(p + "/")).map(x => vmDelete(x.path)).find(Boolean); vmRefresh(); if (bad) winAlert(bad); }
+function vmRevertFile(path) { vmRevert(path); vmRefresh(); }
+function vmFileApp(path) { // a plain text editor for one system file; Save keeps it in the VM's edits
+  const name = path.split("/").pop();
+  return { builtin: 1, name, icon: "svg:text", color: "blue", open: async (root, os) => {
+    os.setTitle(name);
+    if (SYS_BIN.test(name)) { root.innerHTML = '<div class="load">This kind of file cannot be shown here.</div>'; return; }
+    root.innerHTML = '<div class="load">Loading...</div>';
+    let text; try { text = await vmRead(path); } catch { root.innerHTML = '<div class="load err">Could not load this file.</div>'; return; }
+    root.innerHTML = '<div style="height:100%;display:flex;flex-direction:column"><div style="display:flex;gap:8px;align-items:center;padding:6px 10px;font-size:12px;background:rgba(128,128,128,.14);border-bottom:1px solid var(--bd)"><button data-a="save">Save</button><button data-a="rev">Revert to default</button><span class="sfm" style="color:var(--mute)">Edit freely: this is a virtual machine.</span></div><textarea spellcheck="false" style="flex:1;margin:0;padding:10px;border:0;outline:0;resize:none;font:12px var(--mono);white-space:pre;tab-size:2;color:inherit;background:transparent"></textarea></div>';
+    const ta = root.querySelector("textarea"), msg = root.querySelector(".sfm"); ta.value = text;
+    const save = () => {
+      const err = vmWrite(path, ta.value); if (err) { msg.textContent = err; return; }
+      os.setTitle(name); msg.textContent = path === "index.html" ? "Saved. Restart the VM (Power > Restart) to use the new index.html." : "Saved. Apps use the new code the next time they open."; vmRefresh();
+    };
+    ta.oninput = () => { os.setTitle("*" + name); msg.textContent = "Unsaved changes"; };
+    ta.onkeydown = e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); } else if (e.key === "Tab") { e.preventDefault(); document.execCommand("insertText", false, "  "); } };
+    root.onclick = async e => {
+      const b = e.target.closest("button[data-a]"); if (!b) return;
+      if (b.dataset.a === "save") return save();
+      if (!vmIsBase(path)) { msg.textContent = "This file is new, so there is no default to go back to. Delete it from the file list instead."; return; }
+      if (!(await winConfirm("Throw away your edits to " + name + " and go back to the default?", "Revert"))) return;
+      vmRevert(path); try { ta.value = await vmRead(path); } catch {} os.setTitle(name); msg.textContent = "Reverted to default."; vmRefresh();
+    };
   } };
 }
 
@@ -1360,14 +1541,23 @@ function explorer(root, os, dir0) {
   const grid = root.querySelector(".fx"), side = root.querySelector(".fxs"), act = root.querySelector(".fxa"), pv = root.querySelector(".fxv"), qEl = root.querySelector(".fxq"), adEl = root.querySelector(".fxad"), tools = root.querySelector(".fxt");
   const backB = root.querySelector("[data-n=back]"), fwdB = root.querySelector("[data-n=fwd]"), upB = root.querySelector("[data-n=up]");
   let q = ""; const exp = new Set(); // q = search text, exp = expanded folders in the sidebar
-  const isVirt = () => ["pc", "c", "users", "home", "sys"].includes(cur.loc); // the made-up parts of the PC: tiles only, nothing can be added
-  const show = c => { cur = c; q = ""; qEl.value = ""; draw(); };
+  const isVirt = () => ["pc", "c", "users", "home", "sys", "apps"].includes(cur.loc); // the made-up parts of the PC: tiles only, nothing can be added
+  const reveal = () => { // opens the sidebar branches that lead to the place we just went to
+    const L = cur.loc, add = (...k) => k.forEach(x => exp.add(x));
+    if (L === "c") add("v:pc");
+    else if (L === "apps") add("v:pc", "v:c");
+    else if (L === "users") add("v:pc", "v:c");
+    else if (L === "home") add("v:pc", "v:c", "v:users");
+    else if (L === "sys") { add("v:pc", "v:c", "v:sys"); let p = ""; cur.sp.split("/").filter(Boolean).slice(0, -1).forEach(s => { p += (p ? "/" : "") + s; add("v:sys:" + p); }); }
+  };
+  const show = c => { cur = c; q = ""; qEl.value = ""; reveal(); draw(); };
   const go = (loc, dir = null, sp = "") => { if (loc !== cur.loc || dir !== cur.dir || sp !== cur.sp) { hist.push(cur); fwd.length = 0; } show({ loc, dir, sp }); };
   const upTarget = () => { // what the Up button does (null = nowhere to go)
     const L = cur.loc;
     if (L === "pc") return null;
     if (L === "c") return ["pc"];
     if (L === "users") return ["c"];
+    if (L === "apps") return ["c"];
     if (L === "home") return ["users"];
     if (L === "sys") return cur.sp ? ["sys", null, cur.sp.split("/").slice(0, -1).join("/")] : ["c"];
     if (L !== "dir") return ["dir", null];
@@ -1408,17 +1598,28 @@ function explorer(root, os, dir0) {
   const tree = () => {
     for (let d = cur.loc === "dir" ? cur.dir : null; d;) { const f = folders().find(x => x.id === d); if (!f) break; if (f.parent) exp.add(f.parent); d = f.parent; } // keep the path to the open folder visible
     const node = (f, depth) => { const kids = folders().filter(x => sameDir(x, f.id)); return `<div class="tn ${cur.loc === "dir" && cur.dir === f.id ? "on" : ""}" data-nav="${f.id}" data-drop="${f.id}" style="padding-left:${10 + depth * 14}px"><span class="tg" ${kids.length ? `data-tg="${f.id}"` : ""}>${kids.length ? (exp.has(f.id) ? "▾" : "▸") : ""}</span>${svgI("folder", 16)}<span class="tl">${esc(f.name)}</span></div>${exp.has(f.id) ? kids.map(k => node(k, depth + 1)).join("") : ""}`; };
-    const vrow = (loc, label, icon, pad) => `<div class="tn ${cur.loc === loc ? "on" : ""}" data-vloc="${loc}" style="padding-left:${pad}px"><span class="tg"></span>${svgI(icon, 16)}<span class="tl">${label}</span></div>`;
+    const vnode = (key, label, icon, depth, nav, on, kids) => `<div class="tn ${on ? "on" : ""}" ${nav} style="padding-left:${10 + depth * 14}px"><span class="tg" ${kids ? `data-tg="${key}"` : ""}>${kids ? (exp.has(key) ? "▾" : "▸") : ""}</span>${svgI(icon, 16)}<span class="tl">${esc(label)}</span></div>${kids && exp.has(key) ? kids() : ""}`; // one row of the This PC branch; kids() builds the rows under it
+    const sysKids = (pre, depth) => { // the folders inside C:\System
+      const list = inVM() ? vmList() : sysTree, dirs = new Set();
+      list.forEach(x => { if (!x.path.startsWith(pre)) return; const rest = x.path.slice(pre.length), i = rest.indexOf("/"); if (i >= 0) dirs.add(rest.slice(0, i)); });
+      return [...dirs].sort().map(n => { const p = pre + n, sub = list.some(x => x.path.startsWith(p + "/") && x.path.slice(p.length + 1).includes("/")); return vnode("v:sys:" + p, n, "folder", depth, `data-vloc="sys" data-vsp="${esc(p)}"`, cur.loc === "sys" && cur.sp === p, sub ? () => sysKids(p + "/", depth + 1) : null); }).join("");
+    };
+    const homeKids = d => { const df = folders().filter(x => sameDir(x, null)); return vnode("v:desk", "Desktop", "desktop", d, `data-nav="" data-drop=""`, cur.loc === "dir" && !cur.dir, df.length ? () => df.map(f => node(f, d + 1)).join("") : null) + folders().filter(x => x.home).map(f => node(f, d)).join(""); };
+    const pcTree = () => vnode("v:pc", "This PC", "drive", 0, `data-vloc="pc"`, cur.loc === "pc", () =>
+      vnode("v:c", "Local Disk (C:)", "drive", 1, `data-vloc="c"`, cur.loc === "c", () =>
+        vnode("v:users", "Users", "folder", 2, `data-vloc="users"`, cur.loc === "users", () => vnode("v:home", userName(), "folder", 3, `data-vloc="home"`, cur.loc === "home", () => homeKids(4)))
+        + vnode("v:sys", inVM() ? "System" : "System (read-only)", "folder", 2, `data-vloc="sys" data-vsp=""`, cur.loc === "sys" && !cur.sp, () => { if (!sysTree) { loadSys().then(() => draw()); return `<div class="tn" style="padding-left:${10 + 3 * 14}px"><span class="tg"></span><span class="tl" style="opacity:.6">Loading...</span></div>`; } return sysKids("", 3); }) + (inVM() ? vnode("v:apps", "Apps", "folder", 2, `data-vloc="apps"`, cur.loc === "apps", null) : "")));
     const nTemp = folders().filter(unsaved).length + fmeta().filter(unsaved).length;
     return `<div class="tn ${cur.loc === "dir" && !cur.dir ? "on" : ""}" data-nav="" data-drop="" style="padding-left:10px"><span class="tg"></span>${svgI("desktop", 16)}<span class="tl">Desktop</span></div>${folders().filter(x => sameDir(x, null)).map(f => node(f, 1)).join("")}${folders().filter(x => x.home).map(f => node(f, 0)).join("")}<div class="tsep"></div>`
       + [["fav", svgI("star", 16), "Favorites", ""], ["recent", svgI("temp", 16), "Recent", ""], ["temp", svgI("temp", 16), "Temporary", nTemp || ""], ["saved", svgI("saved", 16), "Saved", ""], ["bin", svgI(binCount() ? "binfull" : "bin", 16), "Recycle Bin", binCount() || ""]].map(([k, i, l, n]) => `<div class="tn ${k === cur.loc ? "on" : ""}" data-loc="${k}" style="padding-left:10px"><span class="tg"></span>${i}<span class="tl">${l}</span><b>${n}</b></div>`).join("")
-      + `<div class="tsep"></div>` + vrow("pc", "This PC", "drive", 10) + vrow("c", "Local Disk (C:)", "drive", 24) + vrow("sys", "System (read-only)", "folder", 38);
+      + `<div class="tsep"></div>` + pcTree();
   };
   const trail = () => { // the parts of the address bar: [label, loc, dir, sp]
     const L = cur.loc, base = [["C:", "c"]], u = [...base, ["Users", "users"], [userName(), "home"]];
     if (L === "pc") return [["This PC", "pc"]];
     if (L === "c") return base;
     if (L === "users") return u.slice(0, 2);
+    if (L === "apps") return [...base, ["Apps", "apps"]];
     if (L === "home") return u;
     if (L === "sys") { const t = [...base, ["System", "sys"]]; let p = ""; cur.sp.split("/").filter(Boolean).forEach(s => { p += (p ? "/" : "") + s; t.push([s, "sys", null, p]); }); return t; }
     if (L !== "dir") return [[{ temp: "Temporary", bin: "Recycle Bin", recent: "Recent", fav: "Favorites" }[L] || "Saved", L]];
@@ -1430,9 +1631,9 @@ function explorer(root, os, dir0) {
     const ql = q.toLowerCase(), ids = cur.dir ? [cur.dir, ...descendants(cur.dir)] : null, inside = x => !ids || ids.includes(x.parent);
     return [folders().filter(x => inside(x) && x.id !== cur.dir && x.name.toLowerCase().includes(ql)), fmeta().filter(x => inside(x) && x.name.toLowerCase().includes(ql))];
   };
-  const tile = (label, icon, open, menu) => { // a folder or file of the made-up PC (not a real stored item)
+  const tile = (label, icon, open, menu, edited) => { // a folder or file of the made-up PC (not a real stored item); edited = changed inside the VM
     const el = document.createElement("div"); el.className = "vi"; el.title = label; el.dataset.name = label;
-    el.innerHTML = glyph({ icon }) + `<div class="lbl">${esc(label)}</div>`;
+    el.innerHTML = glyph({ icon }) + `<div class="lbl">${esc(label)}${edited ? ' <span style="color:#f59e0b" title="Edited in this VM">●</span>' : ""}</div>`;
     el.onclick = () => { grid.querySelectorAll(".vi.on").forEach(x => x.classList.remove("on")); clearSel(); el.classList.add("on"); };
     el.ondblclick = open;
     if (menu) el.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, menu); };
@@ -1441,14 +1642,26 @@ function explorer(root, os, dir0) {
   const drawVirt = () => {
     const L = cur.loc;
     if (L === "pc") tile("Local Disk (C:)", "svg:drive", () => go("c"));
-    else if (L === "c") { tile("Users", "svg:folder", () => go("users")); tile("System", "svg:folder", () => go("sys")); }
+    else if (L === "c") { tile("Users", "svg:folder", () => go("users")); tile("System", "svg:folder", () => go("sys")); if (inVM()) tile("Apps", "svg:folder", () => go("apps")); }
+    else if (L === "apps") { // inside the VM: every app with code, official ones too
+      vmApps().sort((a, b) => a.name.localeCompare(b.name)).forEach(a => {
+        const p = vmAppPath(a), open = () => openApp(vmFileApp(p)), menu = [["Edit code", open]];
+        if (ovHas(p)) menu.push(["Revert to default", () => vmRevertFile(p)]);
+        tile(a.name, isNative(a) ? "svg:text" : "svg:html", open, menu, ovHas(p));
+      });
+      if (!grid.querySelector(".vi")) grid.insertAdjacentHTML("beforeend", '<p class="fxe">No apps with code yet.</p>');
+    }
     else if (L === "users") tile(userName(), "svg:folder", () => go("home"));
     else if (L === "home") { tile("Desktop", "svg:desktop", () => go("dir", null)); folders().filter(f => f.home).forEach(f => tile(f.name, "svg:folder", () => go("dir", f.id))); }
     else { // sys: the OS's own files, view only
-      const pre = cur.sp ? cur.sp + "/" : "", dirs = new Set(), files = [];
-      sysTree.forEach(x => { if (!x.path.startsWith(pre)) return; const rest = x.path.slice(pre.length), i = rest.indexOf("/"); if (i < 0) files.push(x); else dirs.add(rest.slice(0, i)); });
-      [...dirs].sort().forEach(n => tile(n, "svg:folder", () => go("sys", null, pre + n), [["Open", () => go("sys", null, pre + n)], ["Rename", sysReadOnly], ["Delete", sysReadOnly]]));
-      files.sort((a, b) => a.path.localeCompare(b.path)).forEach(x => { const n = x.path.split("/").pop(), open = () => openApp(sysFileApp(x.path)); tile(n, (KIND_ICON[kindOf(n)] || [])[0] || "svg:text", open, [["Open", open], ["Rename", sysReadOnly], ["Delete", sysReadOnly]]); });
+      const pre = cur.sp ? cur.sp + "/" : "", dirs = new Set(), files = [], vm = inVM(), list = vm ? vmList() : sysTree;
+      list.forEach(x => { if (!x.path.startsWith(pre)) return; const rest = x.path.slice(pre.length), i = rest.indexOf("/"); if (i < 0) files.push(x); else dirs.add(rest.slice(0, i)); });
+      [...dirs].sort().forEach(n => tile(n, "svg:folder", () => go("sys", null, pre + n), [["Open", () => go("sys", null, pre + n)], ["Rename", vm ? () => vmRenameDir(pre + n) : sysReadOnly], ["Delete", vm ? () => vmDeleteDir(pre + n) : sysReadOnly]]));
+      files.sort((a, b) => a.path.localeCompare(b.path)).forEach(x => {
+        const n = x.path.split("/").pop(), open = () => openApp(sysFileApp(x.path)), menu = [["Open", open], ["Rename", vm ? () => vmRenameFile(x.path) : sysReadOnly], ["Delete", vm ? () => vmDeleteFile(x.path) : sysReadOnly]];
+        if (vm && x.edited && !x.added) menu.push(["Revert to default", () => vmRevertFile(x.path)]);
+        tile(n, (KIND_ICON[kindOf(n)] || [])[0] || "svg:text", open, menu, vm && x.edited);
+      });
       if (!dirs.size && !files.length) grid.insertAdjacentHTML("beforeend", '<p class="fxe">No files here.</p>');
     }
   };
@@ -1463,10 +1676,10 @@ function explorer(root, os, dir0) {
     qEl.style.display = inBin || virt ? "none" : "";
     binBox.style.display = inBin ? "block" : "none";
     if (inBin && !binBox.firstChild) BIN.open(binBox, os);
-    adEl.innerHTML = crumb();
+    if (!editing) adEl.innerHTML = crumb();
     backB.disabled = !hist.length; fwdB.disabled = !fwd.length; upB.disabled = !upTarget();
     act.innerHTML = virt || ["dir", "bin", "recent", "fav"].includes(cur.loc) ? "" : `<button data-a="all">Select all</button>${cur.loc === "temp" ? '<button data-a="save">Save selected</button>' : ""}<button data-a="del">Delete selected</button>`;
-    os.setTitle({ recent: "Recent", fav: "Favorites", temp: "Temporary", saved: "Saved", bin: "Recycle Bin", pc: "This PC", c: "Local Disk (C:)", users: "Users", home: userName(), sys: cur.sp ? cur.sp.split("/").pop() : "System" }[cur.loc] || (d ? d.name : "File Explorer"));
+    os.setTitle({ recent: "Recent", fav: "Favorites", temp: "Temporary", saved: "Saved", bin: "Recycle Bin", pc: "This PC", c: "Local Disk (C:)", apps: "Apps", users: "Users", home: userName(), sys: cur.sp ? cur.sp.split("/").pop() : "System" }[cur.loc] || (d ? d.name : "File Explorer"));
     const pref = LS("fxview", "icons") === "list", list = pref && !virt; grid.classList.toggle("list", list);
     root.querySelector("[data-a=view]").textContent = pref ? "▦ Icons" : "☰ Details";
     grid.innerHTML = ""; io.disconnect(); grid._dir = cur.loc === "dir" ? cur.dir : undefined; // where a drop here goes (null = Desktop)
@@ -1488,7 +1701,7 @@ function explorer(root, os, dir0) {
   side.onclick = e => {
     const tg = e.target.closest("[data-tg]"); if (tg) { exp.has(tg.dataset.tg) ? exp.delete(tg.dataset.tg) : exp.add(tg.dataset.tg); return draw(); }
     const nv = e.target.closest("[data-nav]"); if (nv) return go("dir", nv.dataset.nav || null);
-    const vl = e.target.closest("[data-vloc]"); if (vl) return go(vl.dataset.vloc);
+    const vl = e.target.closest("[data-vloc]"); if (vl) return go(vl.dataset.vloc, null, vl.dataset.vsp || "");
     const k = e.target.closest("[data-loc]"); if (k) go(k.dataset.loc, null);
   };
   root.querySelector(".fxn").onclick = e => {
@@ -1502,12 +1715,14 @@ function explorer(root, os, dir0) {
     }
     const sg = e.target.closest("[data-g]"); if (sg) go(sg.dataset.g, sg.dataset.gd || null, sg.dataset.gs || "");
   };
+  adEl.onclick = e => { if (editing || e.target.closest(".seg")) return; editAddr(); }; // click the empty part of the address bar to type a path
   qEl.oninput = e => { q = e.target.value.trim(); draw(); };
   tools.onclick = e => {
     const a = e.target.dataset.a, sel = selIcons().filter(i => grid.contains(i));
     if (a === "file") {
       e.stopPropagation();
-      if (isVirt()) return winAlert(cur.loc === "sys" ? "System files are read-only. To change them you will use the VM (not built yet)." : "You can't add files here. Open Desktop, Downloads or Documents first.");
+      if (inVM() && cur.loc === "sys") return menuAt(e.target, [["New file...", () => vmNewFile(cur.sp)], ["Refresh", draw]]);
+      if (isVirt()) return winAlert(cur.loc === "sys" ? "System files are read-only here. To change them, open the Virtual Machine app (Start menu) and edit them there." : "You can't add files here. Open Desktop, Downloads or Documents first.");
       menuAt(e.target, [["New folder", () => newFolder(here(), grid)], ["New text document", () => newFile("txt", here(), grid)], ["New shortcut (.vsh)", () => newVsh(here(), grid)], ["Upload files...", () => pickUpload(here(), false)], ["Upload folder...", () => pickUpload(here(), true)], ["Upload zip file...", () => pickUpload(here(), "zip")], ["Export as .zip", () => exportZip(sel.length ? sel : [...grid.querySelectorAll(".icon")])]]);
     }
     else if (a === "prev") { save("fxpreview", !LS("fxpreview", false)); pvShow(); pvUpdate(); }
@@ -1516,7 +1731,7 @@ function explorer(root, os, dir0) {
     else if (a === "save") { sel.forEach(i => markSaved(i.dataset.kind, i.dataset.id)); renderIcons(); }
     else if (a === "del" && sel.length) deleteSel(sel);
   };
-  root.oncontextmenu = e => { if (e.target.closest(".icon")) return; e.preventDefault(); ctx(e, isVirt() ? [["Refresh", draw]] : newMenu(here(), grid)); };
+  root.oncontextmenu = e => { if (e.target.closest(".icon")) return; e.preventDefault(); ctx(e, isVirt() ? (inVM() && cur.loc === "sys" ? [["New file...", () => vmNewFile(cur.sp)], ["Refresh", draw]] : [["Refresh", draw]]) : newMenu(here(), grid)); };
   grid.ondragover = e => e.preventDefault();
   grid.ondrop = e => { e.preventDefault(); e.stopPropagation(); if (!isVirt()) addFiles(e.dataTransfer.files, here()); };
   grid.addEventListener("click", e => { const h = e.target.closest("[data-sort]"); if (!h) return; const k = h.dataset.sort, c = LS("fxsort", { k: "name", dir: 1 }); save("fxsort", c.k === k ? { k, dir: -c.dir } : { k, dir: 1 }); draw(); });
@@ -1553,16 +1768,20 @@ function vmPrelude(overlay) { // a <script> that runs first inside the VM page
       getOwnPropertyDescriptor: (t, p) => m.has(p) ? { value: m.get(p), writable: true, enumerable: true, configurable: true } : undefined
     });
   }
-  ["localStorage", "sessionStorage"].forEach(n => { try { Object.defineProperty(window, n, { value: mkStorage(), configurable: true, writable: true }); } catch (e) {} });
+  const st = {}; ["localStorage", "sessionStorage"].forEach(n => { st[n] = mkStorage(); try { Object.defineProperty(window, n, { value: st[n], configurable: true, writable: true }); } catch (e) {} });
   const real = window.fetch.bind(window), has = Object.prototype.hasOwnProperty;
   window.fetch = function (u, o) { // files that the user edited are served from the overlay instead of the repo
     try {
       const s = typeof u === "string" ? u : u && u.url ? u.url : String(u);
-      if (s.startsWith(D.repo)) { const p = decodeURIComponent(s.slice(D.repo.length).split(/[?#]/)[0]); if (has.call(D.overlay, p)) return Promise.resolve(new Response(D.overlay[p], { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } })); }
+      if (s.startsWith(D.repo)) {
+        const p = decodeURIComponent(s.slice(D.repo.length).split(/[?#]/)[0]); let gone = []; try { gone = JSON.parse(D.overlay[".vm-deleted"] || "[]"); } catch (e) {}
+        if (gone.indexOf(p) >= 0) return Promise.resolve(new Response("Not found", { status: 404 })); // deleted in the VM
+        if (has.call(D.overlay, p)) return Promise.resolve(new Response(D.overlay[p], { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } }));
+      }
     } catch (e) {}
     return real(u, o);
   };
-  window.__VM = { repo: D.repo, overlay: D.overlay };
+  window.__VM = { repo: D.repo, overlay: D.overlay, ls: st.localStorage, ss: st.sessionStorage };
 })(${data});`;
   return "<script>" + code + "<\/script>";
 }
@@ -1578,7 +1797,7 @@ async function vmBuild(overlay) { // fetches the repo's index.html and builds th
 // ----- Virtual Machine, step 2c: the manager window (real OS side) and the red VM badge (inside the VM) -----
 const VMAPP = { builtin: 1, single: 1, name: "Virtual Machine", icon: "svg:vm", color: "blue", w: 780, h: 540, open(root) {
   if (window.__VM) { root.innerHTML = '<div style="padding:20px">You are already inside a virtual machine. Open this app in the real VUS-OS.</div>'; return; }
-  root.innerHTML = '<div style="display:flex;flex-direction:column;height:100%"><div style="display:flex;gap:8px;align-items:center;padding:8px 10px;flex-wrap:wrap"><button data-a="start">Start</button><button data-a="restart">Restart</button><button data-a="stop">Stop</button><button data-a="full">Full screen</button><span class="vms" style="color:var(--mute);font-size:12px">Stopped</span></div><div class="vmb" style="flex:1;position:relative;background:#000;min-height:0"><div class="vmn" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#aaa;font-size:13px">A copy of VUS-OS runs here in a sandbox with its own empty storage.<br>Nothing you do inside it can change your real files. Press Start.</div></div></div>';
+  root.innerHTML = '<div style="display:flex;flex-direction:column;height:100%"><div style="display:flex;gap:8px;align-items:center;padding:8px 10px;flex-wrap:wrap"><button data-a="start">Start</button><button data-a="restart">Restart</button><button data-a="stop">Stop</button><button data-a="full">Full screen</button><button data-a="reset">Reset to default</button><span class="vms" style="color:var(--mute);font-size:12px">Stopped</span></div><div class="vmb" style="flex:1;position:relative;background:#000;min-height:0"><div class="vmn" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#aaa;font-size:13px">A copy of VUS-OS runs here in a sandbox with its own empty storage.<br>Nothing you do inside it can change your real files. Press Start.</div></div></div>';
   const q = s => root.querySelector(s), box = q(".vmb"), st = q(".vms"), note = q(".vmn");
   let frame = null, url = null, busy = false, token = 0, wait = 0;
   const say = t => { st.textContent = t; };
@@ -1596,9 +1815,14 @@ const VMAPP = { builtin: 1, single: 1, name: "Virtual Machine", icon: "svg:vm", 
       wait = setTimeout(() => { if (frame && st.textContent === "Starting...") say("No answer from the VM yet. Check the DevTools console (F12) for errors."); }, 10000);
     } catch (e) { say("Couldn't start: " + (e && e.message || e)); } finally { busy = false; }
   };
-  const onMsg = e => { if (frame && e.source === frame.contentWindow && e.data && e.data.vus === "vm-ready") { clearTimeout(wait); say("Running"); } }; // the sandbox has an opaque origin, so the sender is checked by window, not by origin
+  const onMsg = e => { // the sandbox has an opaque origin, so the sender is checked by window, not by origin
+    if (!frame || e.source !== frame.contentWindow || !e.data) return;
+    if (e.data.vus === "vm-ready") { clearTimeout(wait); say("Running"); }
+    else if (e.data.vus === "vm-overlay") { try { save("vmOverlay", cleanOverlay(e.data.overlay)); } catch { say("Couldn't keep your VM edits (storage is full)."); } } // edits survive closing the tab; only text, checked again here
+    else if (e.data.vus === "vm-restart") start();
+  };
   window.addEventListener("message", onMsg);
-  root.onclick = e => { const b = e.target.closest("button[data-a]"); if (!b) return; const a = b.dataset.a; if (a === "start" || a === "restart") start(); else if (a === "stop") stop(); else if (a === "full" && frame && frame.requestFullscreen) frame.requestFullscreen().catch(() => {}); };
+  root.onclick = e => { const b = e.target.closest("button[data-a]"); if (!b) return; const a = b.dataset.a; if (a === "start" || a === "restart") start(); else if (a === "stop") stop(); else if (a === "reset") winConfirm("Throw away all edits made in the VM and go back to the default OS?", "Reset").then(ok => { if (!ok) return; save("vmOverlay", {}); if (frame) start(); else say("Edits cleared."); }); else if (a === "full" && frame && frame.requestFullscreen) frame.requestFullscreen().catch(() => {}); };
   const iv = setInterval(() => { if (!root.isConnected) { clearInterval(iv); window.removeEventListener("message", onMsg); stop(); } }, 1500); // closing the window shuts the VM down
 } };
 if (window.__VM) { // inside the VM: a red badge in the taskbar so nobody mixes it up with the real OS, and tell the manager window we are up
@@ -3429,6 +3653,7 @@ const unsavedWins = () => [...wins.values()].filter(w => w.el.querySelector(".wt
 const unsavedMsg = (l, verb) => `These have unsaved changes:\n${l.map(w => "• " + w.el.querySelector(".wt").textContent.replace(/^\*/, "")).join("\n")}\n\n${verb} anyway? Unsaved changes will be lost.`;
 
 async function softRestart() { // closes everything and boots again without reloading, so about:blank survives
+  if (window.__VM) { try { parent.postMessage({ vus: "vm-restart" }, "*"); } catch {} return; } // inside the VM the manager window rebuilds it from the saved edits
   const dirty = unsavedWins();
   if (dirty.length && await winDialog(unsavedMsg(dirty, "Restart"), [["Restart anyway", "y", "danger"], ["Cancel", false]]) !== "y") return;
   [...wins.keys()].forEach(id => closeWin(id, true));
