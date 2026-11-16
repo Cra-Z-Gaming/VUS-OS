@@ -1,8 +1,11 @@
-11.15.2026 6:40 PM
+11.15.2026 8:00 PM
+- New Virtual Machine app (Start menu, or right-click the taskbar): runs a safe copy of VUS-OS in a sandbox with its own empty storage. Nothing you do inside it can change your real files. A red VM badge in its taskbar shows you are inside it. Close the window to shut it down.
+
+11.15.2026 7:00 PM
 - File Explorer: new Windows-style layout with back, forward and up buttons, an address bar (C:\Users\Owner\Desktop) and one File menu for New, Upload and Export. Tabs were removed.
 - New Downloads and Documents folders, and a This PC > Local Disk (C:) view.
 - C:\System shows the OS's own files. You can read them but not change them.
-- Right-click a .py or .js file and choose Run in Terminal to run it.
+- Right-click a .py or .js file and choose Run in Terminal to run it. In the Terminal, execute file.py (or .js) runs it too.
 - Languages: install Python and JavaScript from the Terminal (install python, install javascript), then run files with py and js. Supports input(), files, sub-folders, Stop and Ctrl+C.
 
 11.2.2026 6.30 AM

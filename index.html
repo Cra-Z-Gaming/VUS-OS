@@ -345,7 +345,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.15.2026 7:00 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.15.2026 8:00 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -390,6 +390,7 @@ const SVG = {
   store: ln('M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2'),
   update: ln('M20 12a8 8 0 1 1-2.5-5.8M20 4v5h-5'),
   taskmgr: ln('M3 20h18M6 17v-5M11 17V6M16 17v-8'),
+  vm: ln('M3 4h18v12H3zM8 20h8M12 16v4'),
   power: ln('M12 3v8M7 6.5a8 8 0 1 0 10 0'),
   desktop: ln('M4 5h16v11H4zM8 20h8M12 16v4'),
   temp: ln('M12 5a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM12 9v4l3 2'),
@@ -642,7 +643,7 @@ function makeOS(app, win) {
       remove: (kind, id) => kind === "folder" ? deleteFolder(id) : deleteFile(id),
       edit: id => openApp(editApp(fmeta().find(f => f.id === id))),
       open: (kind, id) => openApp(kind === "folder" ? folderApp(id) : fileApp(fmeta().find(f => f.id === id))),
-      apps: () => [EXPLORER, SETTINGS, STORE, UPDATES, TASKMGR, BIN, ...catalog.filter(a => installed().includes(key(a)))],
+      apps: () => [EXPLORER, SETTINGS, STORE, UPDATES, TASKMGR, VMAPP, BIN, ...catalog.filter(a => installed().includes(key(a)))],
       blob: id => dbGet(id, "files"), kind: name => kindOf(name),
       setBackground: id => { save("settings", { ...getSettings(), bgMode: "file", bgFile: id }); applyTheme(); },
       launch: a => openApp(a),
@@ -668,10 +669,11 @@ function makeOS(app, win) {
 // ===================== CODE CACHE + UPDATES =====================
 // Code is saved in IndexedDB the first time an app opens. After that it opens from the saved copy.
 // Small metadata {name: {url, version}} lives in localStorage.
-const idb = new Promise((res, rej) => { const r = indexedDB.open(NS, 2); r.onupgradeneeded = () => { ["code", "files"].forEach(n => { if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n); }); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-const dbGet = async (k, st = "code") => { try { const d = await idb; return await new Promise(res => { const q = d.transaction(st).objectStore(st).get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); } catch { return undefined; } };
-const dbSet = async (k, v, st = "code") => { try { const d = await idb; return await new Promise(res => { const t = d.transaction(st, "readwrite"); t.objectStore(st).put(v, k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
-const dbDel = async (k, st = "files") => { try { const d = await idb; return await new Promise(res => { const t = d.transaction(st, "readwrite"); t.objectStore(st).delete(k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
+const MEMDB = typeof window.__VM === "object" && window.__VM ? { code: new Map(), files: new Map() } : null; // VM mode (set by the VM prelude): the sandbox has no IndexedDB, so the saved code and files stay in memory
+const idb = MEMDB ? Promise.resolve(null) : new Promise((res, rej) => { const r = indexedDB.open(NS, 2); r.onupgradeneeded = () => { ["code", "files"].forEach(n => { if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n); }); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const dbGet = async (k, st = "code") => { if (MEMDB) return MEMDB[st].get(k); try { const d = await idb; return await new Promise(res => { const q = d.transaction(st).objectStore(st).get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); } catch { return undefined; } };
+const dbSet = async (k, v, st = "code") => { if (MEMDB) { MEMDB[st].set(k, v); return true; } try { const d = await idb; return await new Promise(res => { const t = d.transaction(st, "readwrite"); t.objectStore(st).put(v, k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
+const dbDel = async (k, st = "files") => { if (MEMDB) { MEMDB[st].delete(k); return true; } try { const d = await idb; return await new Promise(res => { const t = d.transaction(st, "readwrite"); t.objectStore(st).delete(k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); } catch { return false; } };
 
 // App updates need no version numbers: a saved app is compared with the copy on GitHub and updated when the code differs.
 const metaAll = () => LS("meta", {});
@@ -1512,6 +1514,88 @@ function explorer(root, os, dir0) {
 }
 const EXPLORER = { builtin: 1, single: 1, name: "File Explorer", icon: "svg:folder", color: "amber", open: (root, os) => explorer(root, os, null) };
 
+// ----- Virtual Machine, step 2b: builds the page that runs a COPY of the OS inside a sandboxed iframe -----
+// overlay = { "apps/notes.js": "text", "index.html": "text", ... }: the user's edited system files. Anything not in it comes from the repo.
+const VM_LIMITS = { files: 200, one: 3 * 1048576, all: 8 * 1048576 };
+function cleanOverlay(o) { // keeps only safe text entries (used for saved edits now, and for imported OS files later)
+  const out = {}; let n = 0, total = 0;
+  if (!o || typeof o !== "object") return out;
+  for (const [p, t] of Object.entries(o)) {
+    if (typeof t !== "string" || t.length > VM_LIMITS.one) continue;
+    if (!/^[\w.\- ]+(\/[\w.\- ]+)*$/.test(p) || p.split("/").some(s => s === ".." || s === ".")) continue; // no .., no leading /, no odd characters
+    if (++n > VM_LIMITS.files || (total += t.length) > VM_LIMITS.all) break;
+    out[p] = t;
+  }
+  return out;
+}
+function vmPrelude(overlay) { // a <script> that runs first inside the VM page
+  const data = JSON.stringify({ repo: OS_REPO, overlay: cleanOverlay(overlay) }).replace(/</g, "\\u003c"); // can't end the script tag early
+  const code = `(function (D) {
+  function mkStorage() { // the sandbox has no real localStorage / sessionStorage, so these live in memory only
+    const m = new Map(), api = { getItem: k => m.has(String(k)) ? m.get(String(k)) : null, setItem: (k, v) => { m.set(String(k), String(v)); }, removeItem: k => { m.delete(String(k)); }, clear: () => m.clear(), key: i => [...m.keys()][i] ?? null };
+    return new Proxy({}, {
+      get: (t, p) => p === "length" ? m.size : typeof p === "string" && Object.prototype.hasOwnProperty.call(api, p) ? api[p] : typeof p === "string" && m.has(p) ? m.get(p) : undefined,
+      set: (t, p, v) => { if (typeof p === "string") m.set(p, String(v)); return true; },
+      deleteProperty: (t, p) => { m.delete(p); return true; },
+      has: (t, p) => m.has(p),
+      ownKeys: () => [...m.keys()],
+      getOwnPropertyDescriptor: (t, p) => m.has(p) ? { value: m.get(p), writable: true, enumerable: true, configurable: true } : undefined
+    });
+  }
+  ["localStorage", "sessionStorage"].forEach(n => { try { Object.defineProperty(window, n, { value: mkStorage(), configurable: true, writable: true }); } catch (e) {} });
+  const real = window.fetch.bind(window), has = Object.prototype.hasOwnProperty;
+  window.fetch = function (u, o) { // files that the user edited are served from the overlay instead of the repo
+    try {
+      const s = typeof u === "string" ? u : u && u.url ? u.url : String(u);
+      if (s.startsWith(D.repo)) { const p = decodeURIComponent(s.slice(D.repo.length).split(/[?#]/)[0]); if (has.call(D.overlay, p)) return Promise.resolve(new Response(D.overlay[p], { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } })); }
+    } catch (e) {}
+    return real(u, o);
+  };
+  window.__VM = { repo: D.repo, overlay: D.overlay };
+})(${data});`;
+  return "<script>" + code + "<\/script>";
+}
+function buildVmHtml(baseHtml, overlay) { // the whole OS page for the VM: the edited index.html (if any) with the prelude in front
+  const ov = cleanOverlay(overlay), page = typeof ov["index.html"] === "string" ? ov["index.html"] : baseHtml, pre = vmPrelude(ov), m = page.match(/<head[^>]*>/i);
+  return m ? page.slice(0, m.index + m[0].length) + pre + page.slice(m.index + m[0].length) : pre + page;
+}
+async function vmBuild(overlay) { // fetches the repo's index.html and builds the VM page; returns a blob: URL for the iframe
+  const r = await fetch(OS_REPO + "index.html", { cache: "no-cache" });
+  if (!r.ok) throw new Error("Couldn't download the OS (" + r.status + ")");
+  return URL.createObjectURL(new Blob([buildVmHtml(await r.text(), overlay)], { type: "text/html" }));
+}
+// ----- Virtual Machine, step 2c: the manager window (real OS side) and the red VM badge (inside the VM) -----
+const VMAPP = { builtin: 1, single: 1, name: "Virtual Machine", icon: "svg:vm", color: "blue", w: 780, h: 540, open(root) {
+  if (window.__VM) { root.innerHTML = '<div style="padding:20px">You are already inside a virtual machine. Open this app in the real VUS-OS.</div>'; return; }
+  root.innerHTML = '<div style="display:flex;flex-direction:column;height:100%"><div style="display:flex;gap:8px;align-items:center;padding:8px 10px;flex-wrap:wrap"><button data-a="start">Start</button><button data-a="restart">Restart</button><button data-a="stop">Stop</button><button data-a="full">Full screen</button><span class="vms" style="color:var(--mute);font-size:12px">Stopped</span></div><div class="vmb" style="flex:1;position:relative;background:#000;min-height:0"><div class="vmn" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#aaa;font-size:13px">A copy of VUS-OS runs here in a sandbox with its own empty storage.<br>Nothing you do inside it can change your real files. Press Start.</div></div></div>';
+  const q = s => root.querySelector(s), box = q(".vmb"), st = q(".vms"), note = q(".vmn");
+  let frame = null, url = null, busy = false, token = 0, wait = 0;
+  const say = t => { st.textContent = t; };
+  const stop = () => { token++; clearTimeout(wait); if (frame) { frame.remove(); frame = null; } if (url) { URL.revokeObjectURL(url); url = null; } note.style.display = "flex"; say("Stopped"); };
+  const start = async () => {
+    if (busy) return;
+    stop(); busy = true; const my = token; say("Downloading the OS...");
+    try {
+      const u = await vmBuild(LS("vmOverlay", {}));
+      if (my !== token) { URL.revokeObjectURL(u); return; } // stopped while downloading
+      url = u; frame = document.createElement("iframe");
+      frame.setAttribute("sandbox", "allow-scripts"); // no allow-same-origin: the VM can't reach the real storage or page
+      frame.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:0;background:#000";
+      frame.src = u; note.style.display = "none"; box.appendChild(frame); say("Starting...");
+      wait = setTimeout(() => { if (frame && st.textContent === "Starting...") say("No answer from the VM yet. Check the DevTools console (F12) for errors."); }, 10000);
+    } catch (e) { say("Couldn't start: " + (e && e.message || e)); } finally { busy = false; }
+  };
+  const onMsg = e => { if (frame && e.source === frame.contentWindow && e.data && e.data.vus === "vm-ready") { clearTimeout(wait); say("Running"); } }; // the sandbox has an opaque origin, so the sender is checked by window, not by origin
+  window.addEventListener("message", onMsg);
+  root.onclick = e => { const b = e.target.closest("button[data-a]"); if (!b) return; const a = b.dataset.a; if (a === "start" || a === "restart") start(); else if (a === "stop") stop(); else if (a === "full" && frame && frame.requestFullscreen) frame.requestFullscreen().catch(() => {}); };
+  const iv = setInterval(() => { if (!root.isConnected) { clearInterval(iv); window.removeEventListener("message", onMsg); stop(); } }, 1500); // closing the window shuts the VM down
+} };
+if (window.__VM) { // inside the VM: a red badge in the taskbar so nobody mixes it up with the real OS, and tell the manager window we are up
+  const vs = document.createElement("style"); vs.textContent = ".vmbadge{align-self:center;margin:6px 8px;padding:3px 10px;border-radius:4px;background:#d92d20;color:#fff;font:700 12px/1.4 sans-serif;letter-spacing:.5px;white-space:nowrap;flex:none}"; document.head.appendChild(vs);
+  const vb = document.createElement("div"); vb.className = "vmbadge"; vb.textContent = "VM"; vb.title = "This is a virtual machine. Nothing here touches your real VUS-OS.";
+  $("#taskbar").insertBefore(vb, $("#tray"));
+  try { parent.postMessage({ vus: "vm-ready" }, "*"); } catch {}
+}
 function runInTerminal(f) { // right-click > Run in Terminal for .py and .js files
   const t = catalog.find(a => a.name === "Terminal");
   if (!t) return winAlert("The Terminal app isn't available.");
@@ -1913,7 +1997,7 @@ const TASKMGR = { builtin: 1, single: 1, name: "Task Manager", icon: "svg:taskmg
   let tab = "proc", sel = null, sort = { k: "name", dir: 1 }; // dir 1 = A-Z or low to high, -1 = the reverse
   root.innerHTML = '<div class="tm"><div class="tabs tmt"><button data-t="proc">Processes</button><button data-t="perf">Performance</button></div><div class="tmb"></div><div class="tabs tmf"><button data-a="switch">Switch to</button><button data-a="end">End task</button></div></div>';
   const body = root.querySelector(".tmb"), foot = root.querySelector(".tmf");
-  const typeOf = a => [STORE, SETTINGS, UPDATES, EXPLORER, TASKMGR].includes(a) ? "System" : catalog.includes(a) ? "App" : "File";
+  const typeOf = a => [STORE, SETTINGS, UPDATES, EXPLORER, TASKMGR, VMAPP].includes(a) ? "System" : catalog.includes(a) ? "App" : "File";
   const COLS = [["name", "Name"], ["status", "Status"], ["type", "Type"], ["storage", "Storage"], ["mem", "Memory (est.)"]], NUM = { storage: 1, mem: 1 };
   // Browsers don't report memory per window, so it is estimated from the app's code size, a file's size, and how many page elements the window has.
   const info = w => {
@@ -2045,7 +2129,7 @@ $("#startBtn").onclick = e => { e.stopPropagation(); toggleStart(!start.classLis
 $("#searchBtn").onclick = e => { e.stopPropagation(); toggleStart(true); };
 document.addEventListener("click", e => { if (!start.contains(e.target) && start.classList.contains("open")) toggleStart(false); });
 $("#startQ").oninput = drawStart;
-[["folder", "File Explorer", () => openApp(EXPLORER)], ["terminal", "Terminal", () => openApp(catalog.find(a => a.name === "Terminal"))], ["store", "App Store", () => openApp(STORE)], ["update", "Updates", () => openApp(UPDATES)], ["settings", "Settings", () => openApp(SETTINGS)], ["power", "Power", e => ctx(e, [...(hasPw() && !GUEST ? [["Lock", lockNow]] : []), ...(GUEST ? [["Sign in to your account...", guestSignIn]] : []), ["Sleep", sleepNow], ["Restart", softRestart]])]].forEach(([i, t, fn]) => {
+[["folder", "File Explorer", () => openApp(EXPLORER)], ["terminal", "Terminal", () => openApp(catalog.find(a => a.name === "Terminal"))], ["store", "App Store", () => openApp(STORE)], ["update", "Updates", () => openApp(UPDATES)], ["vm", "Virtual Machine", () => openApp(VMAPP)], ["settings", "Settings", () => openApp(SETTINGS)], ["power", "Power", e => ctx(e, [...(hasPw() && !GUEST ? [["Lock", lockNow]] : []), ...(GUEST ? [["Sign in to your account...", guestSignIn]] : []), ["Sleep", sleepNow], ["Restart", softRestart]])]].forEach(([i, t, fn]) => {
   const d = document.createElement("div"); d.innerHTML = svgI(i, 20); d.title = t;
   d.onclick = e => { e.stopPropagation(); if (t === "Power") fn(e); else { fn(); toggleStart(false); } };
   $(".st-rail").appendChild(d);
@@ -2098,7 +2182,7 @@ function tick() {
 }
 setInterval(tick, 1000); tick();
 
-$("#taskbar").addEventListener("contextmenu", e => { e.preventDefault(); ctx(e, [["Task Manager", () => openApp(TASKMGR)], ["Close all windows", closeAll], ["Taskbar settings", () => openSettings("taskbar")], ["Settings", () => openApp(SETTINGS)]]); });
+$("#taskbar").addEventListener("contextmenu", e => { e.preventDefault(); ctx(e, [["Task Manager", () => openApp(TASKMGR)], ["Virtual Machine", () => openApp(VMAPP)], ["Close all windows", closeAll], ["Taskbar settings", () => openSettings("taskbar")], ["Settings", () => openApp(SETTINGS)]]); });
 
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") { $("#ctx").style.display = "none"; if (start.classList.contains("open")) toggleStart(false); }
@@ -3011,7 +3095,7 @@ async function newVsh(parent = null, box = null) {
 
 // --- the commands a shortcut can run: the same as Terminal, minus the typing-only ones (cd, clear, exit, help, commands, history, paste, alias) ---
 const VSH_CMDS = ["execute", "open", "ls", "cat", "edit", "mkdir", "rm", "cp", "mv", "rename", "find", "kill", "run", "fetch", "save", "copy", "ver", "version", "sys-upd", "system-update", "restart", "theme", "lock", "sleep", "notify", "wait", "echo", "pwd", "touch", "tree", "grep", "date", "time", "whoami"];
-const sysApps = () => [EXPLORER, SETTINGS, STORE, UPDATES, TASKMGR, BIN, ...catalog.filter(a => installed().includes(key(a)))];
+const sysApps = () => [EXPLORER, SETTINGS, STORE, UPDATES, TASKMGR, VMAPP, BIN, ...catalog.filter(a => installed().includes(key(a)))];
 // Same rule as Terminal: only the shortcut's own folder is searched (apps count as the Desktop). A leading \ searches everywhere.
 const shTargets = (par, glob) => {
   const fl = glob ? folders() : folders().filter(x => sameDir(x, par)), fi = glob ? fmeta() : fmeta().filter(x => sameDir(x, par));
@@ -3348,7 +3432,7 @@ async function softRestart() { // closes everything and boots again without relo
 }
 
 // Remembers which windows are open so an update can bring them back. Apps the update removed simply don't come back.
-const SYS_APPS = () => [EXPLORER, SETTINGS, STORE, UPDATES, TASKMGR, BIN];
+const SYS_APPS = () => [EXPLORER, SETTINGS, STORE, UPDATES, TASKMGR, VMAPP, BIN];
 const snapshotWins = () => [...wins.values()].map(w => {
   const a = w.app, s = w.el.style, o = { z: +s.zIndex, l: s.left, t: s.top, w: s.width, h: s.height, max: w.el.classList.contains("max"), min: w.el.classList.contains("min"), top: !!w.onTop };
   if (catalog.includes(a)) return { ...o, key: key(a) };

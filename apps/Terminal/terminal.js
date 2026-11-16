@@ -72,7 +72,7 @@ export default {
       { n: ["edit"], d: "Open a file in Notepad.", ex: "edit notes.txt" },
       { n: ["mkdir"], d: "Make a new folder here.", ex: "mkdir Projects" },
       { n: ["rm"], d: "Move a file or folder here to the Recycle Bin.", ex: "rm old.txt" },
-      { n: ["execute", "open"], d: "Open an app, file or folder. Only looks in the current folder (apps count as the Desktop). Start the name with \\ to search everywhere.", ex: "execute \\Notes" },
+      { n: ["execute", "open"], d: "Open an app, file or folder. Only looks in the current folder (apps count as the Desktop). A .py or .js file in this folder is run instead (needs the language installed). Start the name with \\ to search everywhere.", ex: "execute \\Notes" },
       { n: ["kill"], d: "Force-close an open program when closing it normally doesn't work. Only open programs are suggested.", ex: "kill notes" },
       { n: ["fetch"], d: "Show the text at a link (raw GitHub links work).", ex: "fetch https://example.com/a.txt" },
       { n: ["save"], d: "Save the last fetched text as a file here.", ex: "save a.txt" },
@@ -190,11 +190,16 @@ export default {
       edit: a => { const f = find(a, here().n); if (!f) return print(`No file named "${a}" here.`, "err"); sys.edit(f.id); },
       mkdir: a => { if (!a) return print("Usage: mkdir <name>", "err"); sys.mkdir(a, cwd); print(`Created ${a}/`); },
       rm: async a => { const f = find(a, here().n), d = find(a, here().f); if (!f && !d) return print(`Nothing named "${a}" here.`, "err"); await sys.remove(f ? "file" : "folder", (f || d).id); print(`Moved ${a} to the Recycle Bin.`); },
-      execute: a => {
+      execute: async a => {
         const glob = a.startsWith("\\"); if (glob) a = a.slice(1).trim();
         if (!a) return print("Usage: execute <name>   (start with \\ to search everywhere)", "err");
         const t = targets(glob), m = find(a, t) || rank(t, a)[0];
         if (!m) return print(`Nothing found for "${a}"${glob ? "." : " here. Start with \\ to search everywhere."}`, "err");
+        if (m.kind.startsWith("file") && /\.(py|js)$/i.test(m.name) && find(m.name, here().n)) { // a Python or JavaScript file in this folder runs instead of opening as text
+          const id = /\.py$/i.test(m.name) ? "python" : "javascript";
+          if (!LANG_OK || !installedLangs()[id]) return print(`${id === "python" ? "Python" : "JavaScript"} isn't installed yet. Run: install ${id}`, "err");
+          return runLang(id, '"' + m.name + '"');
+        }
         m.run(); print(`Opened ${m.name}`);
       },
       kill: a => {
