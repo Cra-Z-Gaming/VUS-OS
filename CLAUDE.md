@@ -35,7 +35,8 @@ Still to do for step 1: (a) test it in the browser; (b) Terminal: `ls` at the ro
 - Buttons: Reset to default (fresh OS), Import an OS file/zip, Export the edited OS. Imported OS files are untrusted code, which is the main reason the VM must be isolated from the real storage.
 
 ### Step 3 (small, can be done any time)
-- Make `execute file.py` / `execute file.js` run the file when the language is installed (today `execute` opens .py as text); add a Run entry to the right-click menu.
+- DONE, not tested in a browser: right-click a .py / .js file > "Run in Terminal" (`runInTerminal()` in index.html pushes a job onto `window.__vusTermQ` and fires the `vus-term-run` event; `takeQueue()` at the end of terminal.js runs it in the file's folder, or says to `install python` / `install javascript`). Needs the new terminal.js pushed.
+- Still open: make the `execute file.py` command itself run the file (today it opens .py as text).
 
 ## To do
 0. The user ran a script using `urllib` and got `urlopen error unknown url type: https`: that means the pyodide-http patch (see Known limits) was NOT active in the copy of python.js they run (the installed language file is stored locally from when they ran `install python`, so a new python.js only takes effect after it is pushed to the repo and the user runs `uninstall python` then `install python`). Tell them this; re-check once they have done it.

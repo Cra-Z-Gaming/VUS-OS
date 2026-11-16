@@ -403,6 +403,21 @@ export default {
     };
     $(".tb").onclick = e => { const a = e.target.dataset.a; if (a === "out") { const h = $(".trm").classList.toggle("noout"); e.target.textContent = h ? "Show output" : "Hide output"; } else if (a === "clr") out.innerHTML = ""; else if (a === "stop") stopRun(); };
     $(".trm").onclick = e => { if (!e.target.closest("button,.cb,.sg") && !getSelection().toString()) inp.focus(); };
+    // "Run in Terminal" (right-click on a .py or .js file) sends jobs here: { dir, cmd, lang }
+    const takeQueue = async () => {
+      if (!root.isConnected) return window.removeEventListener("vus-term-run", takeQueue); // this Terminal was closed
+      const q = window.__vusTermQ || [];
+      while (q.length) {
+        const j = q.shift();
+        if (runH || busy) { print("Busy. Stop the running program first.", "err", false); continue; }
+        if (!LANG_OK || !installedLangs()[j.lang]) { print(`${j.lang === "python" ? "Python" : "JavaScript"} isn't installed yet. Run: install ${j.lang}`, "err", false); continue; }
+        cwd = j.dir && folders().find(f => f.id === j.dir) ? j.dir : null; prompt();
+        inp.value = j.cmd; suggest();
+        await inp.onkeydown({ key: "Enter", ctrlKey: false, preventDefault() {} }); // same as typing the command and pressing Enter
+      }
+    };
+    window.addEventListener("vus-term-run", takeQueue);
     print("VUS Terminal. Type help for commands, or commands for the full list.", "dim"); prompt(); inp.focus();
+    takeQueue(); // a job may already be waiting (the Terminal was opened by Run in Terminal)
   }
 };

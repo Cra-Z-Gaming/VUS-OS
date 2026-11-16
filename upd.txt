@@ -2,6 +2,7 @@
 - File Explorer: new Windows-style layout with back, forward and up buttons, an address bar (C:\Users\Owner\Desktop) and one File menu for New, Upload and Export. Tabs were removed.
 - New Downloads and Documents folders, and a This PC > Local Disk (C:) view.
 - C:\System shows the OS's own files. You can read them but not change them.
+- Right-click a .py or .js file and choose Run in Terminal to run it.
 - Languages: install Python and JavaScript from the Terminal (install python, install javascript), then run files with py and js. Supports input(), files, sub-folders, Stop and Ctrl+C.
 
 11.2.2026 6.30 AM

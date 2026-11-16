@@ -345,7 +345,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.15.2026 6:40 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.15.2026 7:00 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -1157,6 +1157,7 @@ function fillItems(box, fl, fi, openFolder, list) {
       ["Details", () => openApp(detailsApp("folder", f.id, null, f.name))]], { kind: "folder", id: f.id, del: () => deleteFolder(f.id), cols: list ? ["", "Folder", n + " item" + (n === 1 ? "" : "s")] : null }));
   });
   fi.forEach(f => box.appendChild(iconEl(fileApp(f), f.name, () => openApp(fileApp(f)), [
+    ...(/\.(py|js)$/i.test(f.name) ? [["Run in Terminal", () => runInTerminal(f)]] : []),
     ["Download", () => downloadFile(f.id)],
     ...(kindOf(f.name) === "vsh" ? [["Edit", () => openApp(vshEditor(f))]] : []),
     ...(kindOf(f.name) === "html" || extOf(f.name) === "svg" ? [["Edit", () => openApp(editApp(f))]] : []),
@@ -1511,6 +1512,13 @@ function explorer(root, os, dir0) {
 }
 const EXPLORER = { builtin: 1, single: 1, name: "File Explorer", icon: "svg:folder", color: "amber", open: (root, os) => explorer(root, os, null) };
 
+function runInTerminal(f) { // right-click > Run in Terminal for .py and .js files
+  const t = catalog.find(a => a.name === "Terminal");
+  if (!t) return winAlert("The Terminal app isn't available.");
+  const py = /\.py$/i.test(f.name);
+  (window.__vusTermQ = window.__vusTermQ || []).push({ dir: f.parent || null, cmd: (py ? "py " : "js ") + '"' + f.name.replace(/"/g, "") + '"', lang: py ? "python" : "javascript" });
+  openApp(t); window.dispatchEvent(new Event("vus-term-run")); // if a Terminal is already open it picks the job up now, otherwise a new one does when it starts
+}
 function fileApp(f) {
   const k = kindOf(f.name), [icon, color] = KIND_ICON[k];
   return { builtin: 1, name: f.name, icon, color, size: f.size, fid: f.id, ...(k === "vsh" ? { exec: () => runVsh(f.id) } : {}), open: (root, os) => k === "text" ? notepad(root, os, f.id) : viewer(root, os, f) };
