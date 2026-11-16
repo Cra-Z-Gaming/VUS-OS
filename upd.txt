@@ -1,3 +1,7 @@
+11.16.2026 7:31 AM
+- Lock screen: the Greeting widget now has a holiday line under it. It says things like Happy Thanksgiving, Merry Christmas Eve, Thank you to all our veterans today, Happy Hanukkah, Eid Mubarak, Diwali, Lunar New Year, and fun days like Pi Day. Up to two show when days overlap.
+- In the Greeting widget's options (Settings > User > Widgets, or Customize lock screen) you can turn the holiday line off, or skip the religious and cultural holidays or the fun days.
+
 11.16.2026 7:30 AM
 - User page in Settings: profile picture (shown on the lock screen and at the top of the Start menu; click it to open the User page), display name and birthday. The lock screen and password settings moved there from System.
 - Lock screen: the Greeting says Happy birthday on your birthday, and there is a new Birthday widget that counts down to it.

@@ -349,7 +349,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.16.2026 7:30 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.16.2026 7:31 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -2488,9 +2488,59 @@ async function lkWeather(nd, o, d) { // reads the saved location, refreshes from
   const f = o.unit === "f", tmp = Math.round(f ? c.c * 9 / 5 + 32 : c.c); box.className = "lk-big lk-wx";
   box.textContent = `${tmp}°${f ? "F" : "C"} · ${LK_WX[c.code] || "Weather"}`;
 }
+// ----- holidays: a second line under the lock screen Greeting widget -----
+const HOL_DIWALI = { 2026: [11, 8], 2027: [10, 29], 2028: [10, 17], 2029: [11, 5], 2030: [10, 26], 2031: [11, 14], 2032: [11, 2], 2033: [10, 22], 2034: [11, 10], 2035: [10, 30] }; // the Hindu calendar is not built into the browser, so Diwali and Holi are tables (add years when they run out)
+const HOL_HOLI = { 2026: [3, 4], 2027: [3, 22], 2028: [3, 11], 2029: [3, 1], 2030: [3, 20] };
+const holNth = (y, m, wd, n) => { if (n > 0) return 1 + (wd - new Date(y, m - 1, 1).getDay() + 7) % 7 + (n - 1) * 7; const last = new Date(y, m, 0); return last.getDate() - (last.getDay() - wd + 7) % 7; }; // day of the month of the n-th weekday (0 = Sunday); n = -1 is the last one
+const holEaster = y => { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451); return new Date(y, Math.floor((h + l - 7 * m + 114) / 31) - 1, (h + l - 7 * m + 114) % 31 + 1); };
+const holOrthodox = y => { const a = y % 4, b = y % 7, c = y % 19, d = (19 * c + 15) % 30, e = (2 * a + 4 * b - d + 34) % 7; return new Date(y, Math.floor((d + e + 114) / 31) - 1, (d + e + 114) % 31 + 1 + 13); }; // Julian date plus 13 days (right for 1900 to 2099)
+const holCalF = {};
+const holCal = (c, at) => { try { const f = holCalF[c] || (holCalF[c] = new Intl.DateTimeFormat("en-u-ca-" + c, { month: c === "hebrew" ? "long" : "numeric", day: "numeric" })), p = {}; for (const x of f.formatToParts(at)) p[x.type] = x.value; return { m: String(p.month || ""), d: +p.day || 0 }; } catch { return { m: "", d: 0 }; } }; // the day in the Hebrew, Islamic or Chinese calendar (Chrome has them built in)
+function holidayList(d) { // [[group, text], ...] for one day. Groups: m = main, r = religious and cultural, f = fun days
+  const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate(), wd = d.getDay(), at = new Date(y, m - 1, day, 12);
+  const on = (mm, dd) => m === mm && day === dd, nth = (mm, w, n) => m === mm && wd === w && day === holNth(y, mm, w, n);
+  const rel = (dt, off = 0) => { const z = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() + off); return z.getFullYear() === y && z.getMonth() + 1 === m && z.getDate() === day; };
+  const E = holEaster(y), O = holOrthodox(y), TG = new Date(y, 10, holNth(y, 11, 4, 4)), LB = new Date(y, 8, holNth(y, 9, 1, 1));
+  const he = holCal("hebrew", at), is = holCal("islamic-umalqura", at), ch = holCal("chinese", at), dw = HOL_DIWALI[y], ho = HOL_HOLI[y];
+  const hanuka = [0, 1, 2, 3, 4, 5, 6, 7].some(k => { const h = holCal("hebrew", new Date(y, m - 1, day - k, 12)); return h.m === "Kislev" && h.d === 25; });
+  const L = [
+    ["m", "Happy New Year!", on(1, 1)], ["m", "Happy Martin Luther King Jr. Day!", nth(1, 1, 3)], ["m", "Happy Australia Day!", on(1, 26)],
+    ["m", "Happy Valentine's Day!", on(2, 14)], ["m", "Happy Presidents' Day!", nth(2, 1, 3)], ["m", "Happy Mardi Gras!", rel(E, -47)],
+    ["m", "Happy International Women's Day!", on(3, 8)], ["m", "Happy St. Patrick's Day!", on(3, 17)], ["m", "Happy Nowruz!", on(3, 20)],
+    ["m", "Happy Easter!", rel(E)], ["m", "Happy Earth Day!", on(4, 22)], ["m", "Happy Cinco de Mayo!", on(5, 5)],
+    ["m", "Happy Mother's Day!", nth(5, 0, 2)], ["m", "Remembering those who served this Memorial Day.", nth(5, 1, -1)],
+    ["m", "Happy Juneteenth!", on(6, 19)], ["m", "Happy Father's Day!", nth(6, 0, 3)], ["m", "Happy Canada Day!", on(7, 1)], ["m", "Happy 4th of July!", on(7, 4)],
+    ["m", "Happy Bastille Day!", on(7, 14)], ["m", "Happy Independence Day, India!", on(8, 15)], ["m", "Happy Labor Day!", nth(9, 1, 1)],
+    ["m", "Remembering September 11.", on(9, 11)], ["m", "Viva Mexico! Happy Independence Day!", on(9, 16)],
+    ["m", "Happy Thanksgiving, Canada!", nth(10, 1, 2)], ["m", "Happy Columbus Day / Indigenous Peoples' Day!", nth(10, 1, 2)], ["m", "Happy Halloween!", on(10, 31)],
+    ["m", "Happy Dia de los Muertos!", on(11, 1) || on(11, 2)], ["m", "Thank you to all our veterans today!", on(11, 11)], ["m", "Happy Thanksgiving!", nth(11, 4, 4)],
+    ["m", "Remembering Pearl Harbor.", on(12, 7)], ["m", "Merry Christmas Eve!", on(12, 24)], ["m", "Merry Christmas!", on(12, 25)],
+    ["m", "Happy Boxing Day!", on(12, 26)], ["m", "Happy Kwanzaa!", (m === 12 && day >= 26) || (m === 1 && day === 1)], ["m", "Happy New Year's Eve!", on(12, 31)],
+    ["m", "Happy Lunar New Year!", ch.m === "1" && ch.d === 1], ["m", "Happy Lantern Festival!", ch.m === "1" && ch.d === 15], ["m", "Happy Dragon Boat Festival!", ch.m === "5" && ch.d === 5], ["m", "Happy Mid-Autumn Festival!", ch.m === "8" && ch.d === 15],
+    ["m", "Happy Diwali!", !!dw && on(dw[0], dw[1])], ["m", "Happy Holi!", !!ho && on(ho[0], ho[1])],
+    ["r", "Happy Epiphany!", on(1, 6)], ["r", "Merry Orthodox Christmas!", on(1, 7)], ["r", "Ash Wednesday", rel(E, -46)], ["r", "Happy Palm Sunday!", rel(E, -7)],
+    ["r", "Have a reflective Good Friday.", rel(E, -2)], ["r", "Happy Orthodox Easter!", rel(O)], ["r", "Happy Pentecost!", rel(E, 49)], ["r", "Happy All Saints' Day!", on(11, 1)],
+    ["r", "Happy Hanukkah!", hanuka], ["r", "Shanah Tovah! Happy Rosh Hashanah!", he.m === "Tishri" && he.d === 1], ["r", "Wishing you a meaningful Yom Kippur.", he.m === "Tishri" && he.d === 10],
+    ["r", "Happy Sukkot!", he.m === "Tishri" && he.d === 15], ["r", "Happy Purim!", (he.m === "Adar" || he.m === "Adar II") && he.d === 14], ["r", "Happy Passover!", he.m === "Nisan" && he.d === 15], ["r", "Happy Shavuot!", he.m === "Sivan" && he.d === 6],
+    ["r", "Ramadan Mubarak!", is.m === "9"], ["r", "Eid Mubarak!", (is.m === "10" && is.d <= 3) || (is.m === "12" && is.d >= 10 && is.d <= 12)], ["r", "Happy Islamic New Year!", is.m === "1" && is.d === 1],
+    ["f", "Happy Groundhog Day!", on(2, 2)], ["f", "Happy National Pizza Day!", on(2, 9)], ["f", "Happy Leap Day!", on(2, 29)], ["f", "Happy Pi Day!", on(3, 14)], ["f", "Happy April Fools' Day!", on(4, 1)],
+    ["f", "Happy Siblings Day!", on(4, 10)], ["f", "Happy Arbor Day!", nth(4, 5, -1)], ["f", "May the Fourth be with you!", on(5, 4)], ["f", "Don't panic, it's Towel Day!", on(5, 25)],
+    ["f", "Happy National Donut Day!", nth(6, 5, 1)], ["f", "Happy Flag Day!", on(6, 14)], ["f", "Happy National Ice Cream Day!", nth(7, 0, 3)], ["f", "Happy International Cat Day!", on(8, 8)],
+    ["f", "Happy National Dog Day!", on(8, 26)], ["f", "Happy Grandparents Day!", rel(LB, 6)], ["f", "Ahoy! It's Talk Like a Pirate Day!", on(9, 19)], ["f", "Happy Mole Day!", on(10, 23)],
+    ["f", "Happy Black Friday!", rel(TG, 1)], ["f", "Watch out, it's Friday the 13th!", wd === 5 && day === 13],
+  ];
+  return L.filter(x => x[2]).map(x => [x[0], x[1]]);
+}
+let holCache = { k: "", v: "" };
+function holidayText(d, o) { // the line under the Greeting: up to two holiday messages, "" when there is none or the widget's holiday line is turned off. o = the Greeting widget's options (noHol, noRel, noFun)
+  o = o || {}; if (o.noHol) return "";
+  const k = d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate() + (o.noRel ? "r" : "") + (o.noFun ? "f" : "");
+  if (holCache.k !== k) holCache = { k, v: holidayList(d).filter(x => !(x[0] === "r" && o.noRel) && !(x[0] === "f" && o.noFun)).sort((a, b) => "mrf".indexOf(a[0]) - "mrf".indexOf(b[0])).slice(0, 2).map(x => x[1]).join("  ·  ") };
+  return holCache.v;
+}
 const LOCK_WIDGETS = [
-  { id: "greeting", name: "Greeting", opts: [], html: () => '<div class="lk-greet"></div>',
-    upd: (nd, o, S, d) => { const h = d.getHours(); lkSet(nd, ".lk-greet", (birthdayIn(d) === 0 ? "Happy birthday" : h >= 5 && h < 12 ? "Good morning" : h >= 12 && h < 17 ? "Good afternoon" : h >= 17 && h < 22 ? "Good evening" : "Good night") + (userNameSet() ? ", " + userNameSet() : "")); } }, // the name and birthday come from Settings > User
+  { id: "greeting", name: "Greeting", opts: [["noHol", "bool", "Turn off the holiday line"], ["noRel", "bool", "Skip religious and cultural holidays"], ["noFun", "bool", "Skip fun days (Pi Day, Pizza Day...)"]], html: () => '<div class="lk-greet"></div><div class="lk-sm lk-hol"></div>',
+    upd: (nd, o, S, d) => { const h = d.getHours(); lkSet(nd, ".lk-greet", (birthdayIn(d) === 0 ? "Happy birthday" : h >= 5 && h < 12 ? "Good morning" : h >= 12 && h < 17 ? "Good afternoon" : h >= 17 && h < 22 ? "Good evening" : "Good night") + (userNameSet() ? ", " + userNameSet() : "")); const hl = holidayText(d, o), hn = nd.querySelector(".lk-hol"); if (hn) { lkSet(nd, ".lk-hol", hl); hn.style.display = hl ? "" : "none"; } } }, // the name and birthday come from Settings > User
   { id: "birthday", name: "Birthday", opts: [], html: () => '<div class="lk-sm lk-bd"></div>', upd: (nd, o, S, d) => { const n = birthdayIn(d); lkSet(nd, ".lk-bd", n === null ? "Set your birthday in Settings > User" : n === 0 ? "Happy birthday! \ud83c\udf82" : n === 1 ? "Your birthday is tomorrow" : `Your birthday is in ${n} days`); } },
   { id: "analog", name: "Analog clock", opts: [["sec", "bool", "Seconds hand"]],
     html: o => `<svg class="lk-an" viewBox="0 0 120 120" width="170" height="170"><circle cx="60" cy="60" r="56" fill="rgba(255,255,255,.06)" stroke="#fff" stroke-width="2" opacity=".85"/>${lkTicks}<line class="lk-hh" x1="60" y1="60" x2="60" y2="34" stroke="#fff" stroke-width="4" stroke-linecap="round"/><line class="lk-mh" x1="60" y1="60" x2="60" y2="20" stroke="#fff" stroke-width="3" stroke-linecap="round"/>${o.sec ? '<line class="lk-sh" x1="60" y1="68" x2="60" y2="14" style="stroke:var(--ac2,#4cc2ff)" stroke-width="1.5" stroke-linecap="round"/>' : ""}<circle cx="60" cy="60" r="3" fill="#fff"/></svg>`,
@@ -2547,7 +2597,7 @@ function lockWidgetUi() { // the Settings list: every widget with its switch, op
 }
 // Widgets without a saved spot get an automatic one: clock on top, columns at the sides, small info along the bottom (one spread-out column on narrow screens).
 const LK_ZONE = { greeting: "L", birthday: "L", worldclock: "L", countdown: "L", progress: "L", note: "L", fact: "L", analog: "R", calendar: "R", weather: "R", moon: "R", digital: "H", date: "H" }; // anything else goes to the bottom row
-const LK_H = { greeting: 40, birthday: 22, analog: 180, digital: 80, date: 28, worldclock: 110, calendar: 250, countdown: 70, progress: 90, weather: 36, moon: 22, battery: 22, network: 22, device: 22, storage: 50, uptime: 22, lockedfor: 22, recent: 22, notifications: 22, note: 70, fact: 60 }; // rough heights in px
+const LK_H = { greeting: 64, birthday: 22, analog: 180, digital: 80, date: 28, worldclock: 110, calendar: 250, countdown: 70, progress: 90, weather: 36, moon: 22, battery: 22, network: 22, device: 22, storage: 50, uptime: 22, lockedfor: 22, recent: 22, notifications: 22, note: 70, fact: 60 }; // rough heights in px
 const LK_W = { greeting: 340, birthday: 240, analog: 170, digital: 300, date: 260, worldclock: 240, calendar: 220, countdown: 240, progress: 240, weather: 280, moon: 240, battery: 190, network: 220, device: 240, storage: 250, uptime: 180, lockedfor: 180, recent: 320, notifications: 180, note: 320, fact: 320 }; // rough widths in px
 function lkAuto(ids, W, H, layout) { // -> { id: { x, y, s? } } as percent of the screen (centre points)
   const pad = 40, gap = 26, gx = 24, out = {}, low = layout === "two" ? 64 : 36; // low = room kept free at the bottom (the "click to unlock" hint)
