@@ -115,6 +115,7 @@ input,select,button{font-family:var(--font)}
 .xp .xh{display:flex;justify-content:space-between;align-items:center;gap:8px}.xp .xh button{padding:3px 10px;background:var(--hover);color:inherit;border:1px solid var(--bd);cursor:pointer;font:inherit}
 .xp .xr{margin-top:8px;font-size:12px}.xp .xr span{float:right;opacity:.75}.xp .xo{font-size:13px}
 .xp .xb{height:5px;background:rgba(128,128,128,.35);margin-top:3px}.xp .xb i{display:block;height:100%;width:0;background:var(--ac2)}
+.xp .xl{max-height:40vh;overflow-y:auto;padding-right:4px}
 [data-theme=light] .xp{background:#fff;color:#111}
 #showdesk{width:6px;border-left:1px solid #555;flex-shrink:0}
 #showdesk:hover{background:rgba(255,255,255,.2)}
@@ -693,6 +694,9 @@ const metaAll = () => LS("meta", {});
 const vmAppPath = a => { const u = String(a.url || "").split(/[?#]/)[0]; return u.startsWith(OS_REPO) ? decodeURIComponent(u.slice(OS_REPO.length)) : "apps-edited/" + String(a.name).replace(/[^\w.\- ]/g, "_") + (isNative(a) ? ".js" : ".html"); };
 const vmAppText = a => { if (!window.__VM) return null; const p = vmAppPath(a); return Object.prototype.hasOwnProperty.call(window.__VM.overlay, p) ? window.__VM.overlay[p] : null; }; // the edited code of an app, or null
 const vmApps = () => catalog.filter(a => !a.builtin && a.url && (isNative(a) || /raw\.githubusercontent\.com/.test(a.url)));
+// inside the VM every nested frame gets its own sandbox origin, so a hub app can't be written into its frame from here (contentDocument is null). It is handed over as srcdoc instead, with in-memory localStorage / sessionStorage put in front (the sandbox has no real ones)
+const VM_APP_PRE = '<script>(function(){function mk(){const m=new Map(),api={getItem:k=>m.has(String(k))?m.get(String(k)):null,setItem:(k,v)=>{m.set(String(k),String(v))},removeItem:k=>{m.delete(String(k))},clear:()=>m.clear(),key:i=>[...m.keys()][i]??null};return new Proxy({},{get:(t,p)=>p==="length"?m.size:typeof p==="string"&&Object.prototype.hasOwnProperty.call(api,p)?api[p]:typeof p==="string"&&m.has(p)?m.get(p):undefined,set:(t,p,v)=>{if(typeof p==="string")m.set(p,String(v));return true},deleteProperty:(t,p)=>{m.delete(p);return true},has:(t,p)=>m.has(p),ownKeys:()=>[...m.keys()],getOwnPropertyDescriptor:(t,p)=>m.has(p)?{value:m.get(p),writable:true,enumerable:true,configurable:true}:undefined})}["localStorage","sessionStorage"].forEach(n=>{try{Object.defineProperty(window,n,{value:mk(),configurable:true,writable:true})}catch(e){}})})()<\/script>';
+const vmAppDoc = t => { t = String(t); const m = t.match(/<head[^>]*>|<html[^>]*>|<!doctype[^>]*>/i); return m ? t.slice(0, m.index + m[0].length) + VM_APP_PRE + t.slice(m.index + m[0].length) : VM_APP_PRE + t; };
 async function fetchCode(app) {
   const ed = vmAppText(app); if (ed !== null) return ed; // inside the VM an edited copy wins over GitHub
   const r = await fetch(app.url, { cache: "no-cache" }); // always asks GitHub whether the file changed (cheap when it hasn't)
@@ -835,6 +839,8 @@ async function loadNow(app, body, win) {
     if (isNative(app)) {
       const mod = await import(URL.createObjectURL(new Blob([text], { type: "text/javascript" })));
       await mod.default.open(body, makeOS(app, win));
+    } else if (window.__VM) { // see vmAppDoc: inside the VM the page goes in as srcdoc
+      const f = document.createElement("iframe"); f.srcdoc = vmAppDoc(text); body.appendChild(f);
     } else {
       // classic hub apps: write the fetched HTML into an iframe (GitHub raw sends a sandbox CSP otherwise)
       const f = document.createElement("iframe");
@@ -928,6 +934,33 @@ const folders = () => LS("folders", []);
 const sameDir = (x, d) => (x.parent || null) === d && !(d === null && x.home); // Downloads and Documents (x.home) are not on the Desktop
 const usage = () => fmeta().reduce((n, f) => n + (f.size || 0), 0) + getBin().files.reduce((n, f) => n + (f.size || 0), 0) + Object.values(metaAll()).reduce((n, m) => n + (m.size || 0), 0);
 const limitBytes = () => (getSettings().limitMB || 512) * 1048576;
+// ----- how much this whole site really stores. usage() only counts VUS-OS's own files and apps (that is what the limit is about); games and other pages on this site keep their own saves, and runtimes like Python live in the browser cache, so the browser's own number is shown next to it -----
+async function siteStore() { // the browser's estimate for everything this site keeps (null when the browser can't say)
+  try { const e = await navigator.storage.estimate(), d = e.usageDetails || {}; return { usage: e.usage || 0, quota: e.quota || 0, idb: d.indexedDB, caches: d.caches }; } catch { return null; }
+}
+const lsBytes = () => { let n = 0; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k !== null) n += (k.length + (localStorage.getItem(k) || "").length) * 2; } } catch { /* storage blocked */ } return n; };
+const valSize = (v, d = 0) => v == null ? 0 : typeof v === "string" ? v.length * 2 : typeof v === "number" ? 8 : typeof v === "boolean" ? 4 : v instanceof Blob ? v.size : v instanceof ArrayBuffer ? v.byteLength : ArrayBuffer.isView(v) ? v.byteLength : d > 6 ? 0 : v instanceof Map ? [...v].reduce((n, [a, b]) => n + valSize(a, d + 1) + valSize(b, d + 1), 0) : v instanceof Set ? [...v].reduce((n, a) => n + valSize(a, d + 1), 0) : typeof v === "object" ? Object.keys(v).reduce((n, k) => n + k.length * 2 + valSize(v[k], d + 1), 0) : 0; // rough size of one saved value
+let siteMeas = null; // { dbs: [{ name, size, rows }] } after "Measure saved data" in Settings
+async function measureSite(onStep) { // reads every database of the other pages on this site (not VUS-OS's own) and adds up the sizes. Slow for big saves, so it only runs when asked
+  const out = []; let names = [];
+  try { names = ((await indexedDB.databases()) || []).map(d => d.name).filter(n => n && !/^vos/.test(n)); } catch { /* older browsers can't list databases */ }
+  for (const name of names) {
+    if (onStep) onStep(name);
+    let size = 0, rows = 0;
+    try {
+      const db = await idbOpen(name);
+      try {
+        for (const sn of [...db.objectStoreNames]) {
+          await new Promise((res, rej) => { const q = db.transaction(sn, "readonly").objectStore(sn).openCursor(); q.onsuccess = () => { const c = q.result; if (!c) return res(); size += valSize(c.value) + valSize(c.key); rows++; c.continue(); }; q.onerror = () => rej(q.error); });
+          await sleep(0);
+        }
+      } finally { db.close(); }
+    } catch { size = -1; } // couldn't be read (blocked or in use)
+    out.push({ name, size, rows });
+  }
+  siteMeas = { dbs: out.sort((a, b) => b.size - a.size) };
+  return siteMeas;
+}
 const fmt = b => b < 1024 ? b + " B" : b < 1048576 ? (b / 1024).toFixed(1) + " KB" : b < 1073741824 ? (b / 1048576).toFixed(1) + " MB" : (b / 1073741824).toFixed(2) + " GB";
 function pathOf(id) {
   const p = []; let f = folders().find(x => x.id === id), top = null;
@@ -1217,184 +1250,6 @@ async function thumbOf(f) { // a small picture of an image file, cached so big i
   if (url) { thumbCache.set(k, url); if (thumbCache.size > 300) { const o = thumbCache.keys().next().value; URL.revokeObjectURL(thumbCache.get(o)); thumbCache.delete(o); } }
   return url;
 }
-function explorerOld(root, os, dir0) { // old version with tabs, replaced by explorer() below (safe to delete)
-  const tabs = [{ loc: "dir", dir: dir0 }]; let cur = tabs[0], ti = 0; // each tab remembers its own folder
-  root.innerHTML = `<div class="fxw"><div class="fxtabs"></div><div class="fxn"><button class="nb" data-n="up" title="Up">↑</button><div class="fxad"></div><input class="fxq" placeholder="Search this folder" autocomplete="off"></div><div class="tabs fxt"><button data-a="new">New ▾</button><button data-a="upl">Upload ▾</button><button data-a="expz" title="Export selected items (or everything shown) as a .zip">Export zip</button><span class="fxa"></span><button data-a="prev" title="Show or hide the preview pane"></button><button data-a="view" title="Change view"></button></div><div class="fxb"><div class="fxs"></div><div class="fx"></div><div class="fxbin" style="flex:1;min-width:0;display:none"></div><div class="fxv"></div></div></div>`;
-  const grid = root.querySelector(".fx"), side = root.querySelector(".fxs"), act = root.querySelector(".fxa"), tabsEl = root.querySelector(".fxtabs"), pv = root.querySelector(".fxv");
-  const tabName = t => t.loc === "dir" ? (t.dir ? (folders().find(f => f.id === t.dir) || {}).name || "Folder" : "Desktop") : { temp: "Temporary", saved: "Saved", bin: "Recycle Bin", recent: "Recent", fav: "Favorites" }[t.loc] || "";
-  const drawTabs = () => { tabsEl.innerHTML = tabs.map((t, i) => `<div data-ti="${i}" class="${i === ti ? "on" : ""}">${esc(tabName(t))}${tabs.length > 1 ? `<b data-x="${i}" title="Close tab">✕</b>` : ""}</div>`).join("") + '<div data-new="1" title="New tab">+</div>'; };
-  tabsEl.onclick = e => {
-    const x = e.target.closest("[data-x]"), t = e.target.closest("[data-ti]");
-    if (x) { const i = +x.dataset.x; tabs.splice(i, 1); if (ti > i || ti >= tabs.length) ti = Math.max(0, ti - 1); cur = tabs[ti]; }
-    else if (t) { ti = +t.dataset.ti; cur = tabs[ti]; }
-    else if (e.target.closest("[data-new]")) { tabs.push({ loc: cur.loc, dir: cur.dir }); ti = tabs.length - 1; cur = tabs[ti]; }
-    else return;
-    q = ""; root.querySelector(".fxq").value = ""; draw();
-  };
-  // preview pane: shows the selected file (picture, text, audio or video) without opening it
-  let pvUrl = null, pvTok = 0, pvT = 0;
-  const pvShow = () => { pv.style.display = LS("fxpreview", false) && cur.loc !== "bin" ? "block" : "none"; root.querySelector("[data-a=prev]").textContent = LS("fxpreview", false) ? "▣ Hide preview" : "▢ Preview"; };
-  const pvUpdate = async () => {
-    if (pv.style.display === "none") return;
-    const tok = ++pvTok, sel = selIcons().filter(i => grid.contains(i));
-    if (pvUrl) { URL.revokeObjectURL(pvUrl); pvUrl = null; }
-    if (!sel.length) { pv.innerHTML = '<p style="color:var(--mute)">Select a file to see a preview.</p>'; return; }
-    if (sel.length > 1) { pv.innerHTML = `<p>${sel.length} items selected</p>`; return; }
-    const i = sel[0], id = i.dataset.id;
-    if (i.dataset.kind === "folder") { const n = fmeta().filter(x => x.parent === id).length + folders().filter(x => x.parent === id).length; pv.innerHTML = `<b style="word-break:break-all">${esc(i.dataset.name)}</b><p style="color:var(--mute)">Folder · ${n} item${n === 1 ? "" : "s"}</p>`; return; }
-    const f = fmeta().find(x => x.id === id); if (!f) { pv.innerHTML = ""; return; }
-    const k = kindOf(f.name);
-    pv.innerHTML = `<b style="word-break:break-all">${esc(f.name)}</b><p style="color:var(--mute);margin-bottom:10px">${KIND_NAME[k] || "File"} · ${fmt(f.size || 0)}<br>${when(f.mod)}</p>`;
-    if (k === "binary" || k === "pdf") return;
-    const b = await dbGet(id, "files"); if (tok !== pvTok || !b) return;
-    if (k === "image" || k === "audio" || k === "video") pvUrl = URL.createObjectURL(new Blob([b], { type: mimeOf(f.name) }));
-    if (k === "image") pv.insertAdjacentHTML("beforeend", `<img src="${pvUrl}" style="max-width:100%;border:1px solid var(--bd)">`);
-    else if (k === "audio") pv.insertAdjacentHTML("beforeend", `<audio controls src="${pvUrl}" style="width:100%"></audio>`);
-    else if (k === "video") pv.insertAdjacentHTML("beforeend", `<video controls src="${pvUrl}" style="width:100%"></video>`);
-    else { const t = await b.slice(0, 3000).text(); if (tok !== pvTok || t.includes("\0")) return; pv.insertAdjacentHTML("beforeend", `<pre style="white-space:pre-wrap;word-break:break-all;font:11px var(--mono);user-select:text">${esc(t)}${(f.size || 0) > 3000 ? "\n..." : ""}</pre>`); }
-  };
-  const pvSched = () => { clearTimeout(pvT); pvT = setTimeout(pvUpdate, 120); };
-  new MutationObserver(pvSched).observe(grid, { subtree: true, attributes: true, attributeFilter: ["class"] }); // runs when the selection changes
-  // thumbnails: images in Icons view load their picture when they scroll into sight
-  const io = new IntersectionObserver(es => es.forEach(en => {
-    if (!en.isIntersecting) return; io.unobserve(en.target); const el = en.target, f = fmeta().find(x => x.id === el.dataset.id); if (!f) return;
-    thumbQ = thumbQ.then(() => thumbOf(f)).then(u => { const g = u && el.isConnected && el.querySelector(".gl"); if (g) g.innerHTML = `<img src="${u}" draggable="false" style="width:100%;height:100%;object-fit:cover">`; }).catch(() => {});
-  }), { root: grid });
-  const unsaved = x => x.saved === false;
-  let q = ""; const exp = new Set(); // q = search text, exp = expanded folders in the sidebar
-  let editing = false; // true while the address bar is a text box
-  const go = (loc, dir) => { cur.loc = loc; cur.dir = dir; q = ""; root.querySelector(".fxq").value = ""; draw(); };
-  const tree = () => {
-    for (let d = cur.loc === "dir" ? cur.dir : null; d;) { const f = folders().find(x => x.id === d); if (!f) break; if (f.parent) exp.add(f.parent); d = f.parent; } // keep the path to the open folder visible
-    const row = (f, depth) => { const kids = folders().filter(x => sameDir(x, f.id)); return `<div class="tn ${cur.loc === "dir" && cur.dir === f.id ? "on" : ""}" data-nav="${f.id}" data-drop="${f.id}" style="padding-left:${10 + depth * 14}px"><span class="tg" ${kids.length ? `data-tg="${f.id}"` : ""}>${kids.length ? (exp.has(f.id) ? "▾" : "▸") : ""}</span>${svgI("folder", 16)}<span class="tl">${esc(f.name)}</span></div>${exp.has(f.id) ? kids.map(k => row(k, depth + 1)).join("") : ""}`; };
-    const nTemp = folders().filter(unsaved).length + fmeta().filter(unsaved).length;
-    return `<div class="tn ${cur.loc === "dir" && !cur.dir ? "on" : ""}" data-nav="" data-drop="" style="padding-left:10px"><span class="tg"></span>${svgI("desktop", 16)}<span class="tl">Desktop</span></div>${folders().filter(x => sameDir(x, null)).map(f => row(f, 1)).join("")}<div class="tsep"></div>`
-      + [["fav", svgI("star", 16), "Favorites", ""], ["recent", svgI("temp", 16), "Recent", ""], ["temp", svgI("temp", 16), "Temporary", nTemp || ""], ["saved", svgI("saved", 16), "Saved", ""], ["bin", svgI(binCount() ? "binfull" : "bin", 16), "Recycle Bin", binCount() || ""]].map(([k, i, l, n]) => `<div class="tn ${k === cur.loc ? "on" : ""}" data-loc="${k}" style="padding-left:10px"><span class="tg"></span>${i}<span class="tl">${l}</span><b>${n}</b></div>`).join("");
-  };
-  const crumb = () => {
-    if (cur.loc !== "dir") return `<span class="seg">${{ temp: "Temporary", bin: "Recycle Bin", recent: "Recent", fav: "Favorites" }[cur.loc] || "Saved"}</span>`;
-    const chain = []; for (let d = cur.dir; d;) { const f = folders().find(x => x.id === d); if (!f) break; chain.unshift(f); d = f.parent; }
-    return [`<span class="seg" data-d="">Desktop</span>`, ...chain.map(f => `<span class="seg" data-d="${f.id}">${esc(f.name)}</span>`)].join("<i>›</i>");
-  };
-  const pathText = () => trail().map(t => t[0]).join(BS); // what the address bar says when you click it to type
-  const resolvePath = async text => { // a typed path -> { go: [loc, dir, sp], open? }, or null when there is no such place
-    let t = text.trim(); if (t.length > 1 && t[0] === '"' && t[t.length - 1] === '"') t = t.slice(1, -1);
-    const parts = t.split(BS).join("/").split("/").map(s => s.trim()).filter(Boolean), lo = parts.map(s => s.toLowerCase());
-    if (!parts.length || (parts.length === 1 && ["this pc", "pc", "computer"].includes(lo[0]))) return { go: ["pc"] };
-    const special = { recent: ["recent"], favorites: ["fav"], temporary: ["temp"], saved: ["saved"], "recycle bin": ["bin"] };
-    if (parts.length === 1 && special[lo[0]]) return { go: special[lo[0]] };
-    if (lo[0] === "c:") { parts.shift(); lo.shift(); }
-    else if (["desktop", "downloads", "documents"].includes(lo[0])) { parts.unshift("Users", userName()); lo.unshift("users", userName().toLowerCase()); } // a short name means one of your own folders
-    if (!parts.length) return { go: ["c"] };
-    if (lo[0] === "apps") {
-      if (!inVM()) return null;
-      if (parts.length === 1) return { go: ["apps"] };
-      const a = parts.length === 2 && vmApps().find(x => x.name.toLowerCase() === lo[1]);
-      return a ? { go: ["apps"], open: () => openApp(vmFileApp(vmAppPath(a))) } : null;
-    }
-    if (lo[0] === "system") {
-      await loadSys(); const list = inVM() ? vmList() : sysTree; let P = "";
-      for (let i = 1; i < parts.length; i++) {
-        const pre = P ? P + "/" : ""; let hit = null, isFile = false;
-        for (const x of list) { if (!x.path.startsWith(pre)) continue; const rest = x.path.slice(pre.length), j = rest.indexOf("/"), seg = j < 0 ? rest : rest.slice(0, j); if (seg.toLowerCase() === lo[i]) { hit = seg; isFile = j < 0; break; } }
-        if (!hit) return null;
-        P = pre + hit;
-        if (isFile) return i === parts.length - 1 ? { go: ["sys", null, P.includes("/") ? P.slice(0, P.lastIndexOf("/")) : ""], open: () => openApp(sysFileApp(P)) } : null;
-      }
-      return { go: ["sys", null, P] };
-    }
-    if (lo[0] === "users") {
-      if (parts.length === 1) return { go: ["users"] };
-      if (lo[1] !== userName().toLowerCase()) return null;
-      if (parts.length === 2) return { go: ["home"] };
-      let dir = null;
-      if (lo[2] !== "desktop") { const h = folders().find(f => f.home && f.name.toLowerCase() === lo[2]); if (!h) return null; dir = h.id; }
-      for (let i = 3; i < parts.length; i++) {
-        const f = folders().find(x => sameDir(x, dir) && x.name.toLowerCase() === lo[i]);
-        if (f) { dir = f.id; continue; }
-        const fi = i === parts.length - 1 && fmeta().find(x => sameDir(x, dir) && x.name.toLowerCase() === lo[i]);
-        return fi ? { go: ["dir", dir], open: () => os.open("file", fi.id) } : null;
-      }
-      return { go: ["dir", dir] };
-    }
-    return null;
-  };
-  const editAddr = () => { // click the address bar to type a path, like Windows
-    if (editing) return; editing = true;
-    adEl.innerHTML = '<input class="fxai" spellcheck="false" autocomplete="off">';
-    const inp = adEl.firstChild; inp.value = pathText(); inp.focus(); inp.select();
-    const done = () => { if (!editing) return; editing = false; adEl.innerHTML = crumb(); };
-    inp.onkeydown = async e => {
-      e.stopPropagation();
-      if (e.key === "Escape") { e.preventDefault(); done(); }
-      else if (e.key === "Enter") {
-        e.preventDefault(); const text = inp.value, r = await resolvePath(text); done();
-        if (!r) return winAlert("Can't find " + text.trim() + NL + "Check the spelling and try again.");
-        go(...r.go); if (r.open) r.open();
-      }
-    };
-    inp.onblur = () => setTimeout(done, 0);
-  };
-  const search = () => { // looks inside this folder and every folder under it
-    const ql = q.toLowerCase(), ids = cur.dir ? [cur.dir, ...descendants(cur.dir)] : null, inside = x => !ids || ids.includes(x.parent);
-    return [folders().filter(x => inside(x) && x.id !== cur.dir && x.name.toLowerCase().includes(ql)), fmeta().filter(x => inside(x) && x.name.toLowerCase().includes(ql))];
-  };
-  const draw = () => {
-    if (!root.isConnected) return refreshers.delete(draw); // window was closed
-    drawTabs(); pvShow();
-    let d = cur.loc === "dir" && cur.dir && folders().find(f => f.id === cur.dir);
-    if (cur.loc === "dir" && cur.dir && !d) cur.dir = null;
-    const nTemp = folders().filter(unsaved).length + fmeta().filter(unsaved).length;
-    side.innerHTML = tree();
-    const inBin = cur.loc === "bin", binBox = root.querySelector(".fxbin"); // Recycle Bin shows right inside the window
-    root.querySelector(".fxt").style.display = root.querySelector(".fxq").style.display = grid.style.display = inBin ? "none" : "";
-    binBox.style.display = inBin ? "block" : "none";
-    if (inBin && !binBox.firstChild) BIN.open(binBox, os);
-    root.querySelector(".fxad").innerHTML = crumb();
-    act.innerHTML = ["dir", "bin", "recent", "fav"].includes(cur.loc) ? "" : `<button data-a="all">Select all</button>${cur.loc === "temp" ? '<button data-a="save">Save selected</button>' : ""}<button data-a="del">Delete selected</button>`;
-    os.setTitle(cur.loc === "recent" ? "Recent" : cur.loc === "fav" ? "Favorites" : cur.loc === "temp" ? "Temporary" : cur.loc === "saved" ? "Saved" : cur.loc === "bin" ? "Recycle Bin" : d ? d.name : "File Explorer");
-    const list = LS("fxview", "icons") === "list"; grid.classList.toggle("list", list);
-    root.querySelector("[data-a=view]").textContent = list ? "▦ Icons" : "☰ Details";
-    grid.innerHTML = ""; grid._dir = cur.loc === "dir" ? cur.dir : undefined; // where a drop here goes (null = Desktop)
-    const f = cur.loc === "temp" ? [folders().filter(unsaved), fmeta().filter(unsaved)]
-      : cur.loc === "saved" ? [folders().filter(x => !unsaved(x)), fmeta().filter(x => !unsaved(x))]
-      : cur.loc === "recent" ? [[], recentFiles()] : cur.loc === "fav" ? favItems() : q ? search() : [folders().filter(x => sameDir(x, cur.dir)), fmeta().filter(x => sameDir(x, cur.dir))];
-    fillItems(grid, f[0], f[1], id => go("dir", id), list);
-    io.disconnect(); if (!list) grid.querySelectorAll('.icon[data-kind="file"]').forEach(el => { const fm = fmeta().find(x => x.id === el.dataset.id); if (fm && kindOf(fm.name) === "image" && (fm.size || 0) < 15e6) io.observe(el); });
-    pvSched();
-    if (!grid.querySelector(".icon")) grid.insertAdjacentHTML("beforeend", `<p class="fxe">${q ? "No matches." : cur.loc === "temp" ? "Nothing temporary. New and uploaded items wait here until you save them." : cur.loc === "saved" ? "Nothing saved yet." : cur.loc === "recent" ? "No recent files yet. Files you open show up here." : cur.loc === "fav" ? "No favorites yet. Right-click a file or folder and choose Add to Favorites." : "This folder is empty. Right-click to create something, or drop files here."}</p>`);
-  };
-  refreshers.add(draw);
-  const here = () => cur.loc === "dir" ? cur.dir : null;
-  const menuAt = (btn, items) => { const r = btn.getBoundingClientRect(); ctx({ clientX: r.left, clientY: r.bottom }, items); };
-  side.onclick = e => {
-    const tg = e.target.closest("[data-tg]"); if (tg) { exp.has(tg.dataset.tg) ? exp.delete(tg.dataset.tg) : exp.add(tg.dataset.tg); return draw(); }
-    const nv = e.target.closest("[data-nav]"); if (nv) return go("dir", nv.dataset.nav || null);
-    const k = e.target.closest("[data-loc]"); if (k) go(k.dataset.loc, null);
-  };
-  root.querySelector(".fxn").onclick = e => {
-    if (e.target.closest("[data-n=up]")) { if (cur.loc !== "dir") go("dir", null); else { const d = folders().find(f => f.id === cur.dir); go("dir", d ? d.parent || null : null); } return; }
-    const sg = e.target.closest("[data-d]"); if (sg) go("dir", sg.dataset.d || null);
-  };
-  root.querySelector(".fxq").oninput = e => { q = e.target.value.trim(); draw(); };
-  root.querySelector(".fxt").onclick = e => {
-    const a = e.target.dataset.a, sel = selIcons().filter(i => grid.contains(i));
-    if (a === "new") { e.stopPropagation(); menuAt(e.target, [["Folder", () => newFolder(here(), grid)], ["Text document", () => newFile("txt", here(), grid)], ["Shortcut (.vsh)", () => newVsh(here(), grid)]]); }
-    else if (a === "upl") { e.stopPropagation(); menuAt(e.target, [["Files...", () => pickUpload(here(), false)], ["Folder...", () => pickUpload(here(), true)], ["Zip file...", () => pickUpload(here(), "zip")]]); }
-    else if (a === "expz") exportZip(sel.length ? sel : [...grid.querySelectorAll(".icon")]);
-    else if (a === "prev") { save("fxpreview", !LS("fxpreview", false)); pvShow(); pvUpdate(); }
-    else if (a === "view") { save("fxview", LS("fxview", "icons") === "list" ? "icons" : "list"); draw(); }
-    else if (a === "all") grid.querySelectorAll(".icon").forEach(i => i.classList.add("sel"));
-    else if (a === "save") { sel.forEach(i => markSaved(i.dataset.kind, i.dataset.id)); renderIcons(); }
-    else if (a === "del" && sel.length) deleteSel(sel);
-  };
-  root.oncontextmenu = e => { if (e.target.closest(".icon")) return; e.preventDefault(); ctx(e, newMenu(here(), grid)); };
-  grid.ondragover = e => e.preventDefault();
-  grid.ondrop = e => { e.preventDefault(); e.stopPropagation(); addFiles(e.dataTransfer.files, here()); };
-  grid.addEventListener("click", e => { const h = e.target.closest("[data-sort]"); if (!h) return; const k = h.dataset.sort, c = LS("fxsort", { k: "name", dir: 1 }); save("fxsort", c.k === k ? { k, dir: -c.dir } : { k, dir: 1 }); draw(); });
-  marquee(grid);
-  draw();
-}
 // ----- the made-up PC around the Explorer: C:\Users\<name>\Desktop / Downloads / Documents, and a read-only C:\System -----
 const HOME_FOLDERS = ["Downloads", "Documents"]; // real folders (they travel with export/import and backups) that are not shown on the Desktop
 const userName = () => GUEST ? "Guest" : "Owner";
@@ -1541,6 +1396,7 @@ function explorer(root, os, dir0) {
   const grid = root.querySelector(".fx"), side = root.querySelector(".fxs"), act = root.querySelector(".fxa"), pv = root.querySelector(".fxv"), qEl = root.querySelector(".fxq"), adEl = root.querySelector(".fxad"), tools = root.querySelector(".fxt");
   const backB = root.querySelector("[data-n=back]"), fwdB = root.querySelector("[data-n=fwd]"), upB = root.querySelector("[data-n=up]");
   let q = ""; const exp = new Set(); // q = search text, exp = expanded folders in the sidebar
+  let editing = false; // true while the address bar is a text box
   const isVirt = () => ["pc", "c", "users", "home", "sys", "apps"].includes(cur.loc); // the made-up parts of the PC: tiles only, nothing can be added
   const reveal = () => { // opens the sidebar branches that lead to the place we just went to
     const L = cur.loc, add = (...k) => k.forEach(x => exp.add(x));
@@ -1627,6 +1483,65 @@ function explorer(root, os, dir0) {
     return [...u, ...(chain.length && chain[0].home ? [] : [["Desktop", "dir", null]]), ...chain.map(f => [f.name, "dir", f.id])];
   };
   const crumb = () => trail().map(([l, g, gd, gs]) => `<span class="seg" data-g="${g}" data-gd="${gd || ""}" data-gs="${esc(gs || "")}">${esc(l)}</span>`).join("<i>\\</i>");
+  const pathText = () => trail().map(t => t[0]).join(BS); // what the address bar says when you click it to type
+  const resolvePath = async text => { // a typed path -> { go: [loc, dir, sp], open? }, or null when there is no such place
+    let t = text.trim(); if (t.length > 1 && t[0] === '"' && t[t.length - 1] === '"') t = t.slice(1, -1);
+    const parts = t.split(BS).join("/").split("/").map(s => s.trim()).filter(Boolean), lo = parts.map(s => s.toLowerCase());
+    if (!parts.length || (parts.length === 1 && ["this pc", "pc", "computer"].includes(lo[0]))) return { go: ["pc"] };
+    const special = { recent: ["recent"], favorites: ["fav"], temporary: ["temp"], saved: ["saved"], "recycle bin": ["bin"] };
+    if (parts.length === 1 && special[lo[0]]) return { go: special[lo[0]] };
+    if (lo[0] === "c:") { parts.shift(); lo.shift(); }
+    else if (["desktop", "downloads", "documents"].includes(lo[0])) { parts.unshift("Users", userName()); lo.unshift("users", userName().toLowerCase()); } // a short name means one of your own folders
+    if (!parts.length) return { go: ["c"] };
+    if (lo[0] === "apps") {
+      if (!inVM()) return null;
+      if (parts.length === 1) return { go: ["apps"] };
+      const a = parts.length === 2 && vmApps().find(x => x.name.toLowerCase() === lo[1]);
+      return a ? { go: ["apps"], open: () => openApp(vmFileApp(vmAppPath(a))) } : null;
+    }
+    if (lo[0] === "system") {
+      await loadSys(); const list = inVM() ? vmList() : sysTree; let P = "";
+      for (let i = 1; i < parts.length; i++) {
+        const pre = P ? P + "/" : ""; let hit = null, isFile = false;
+        for (const x of list) { if (!x.path.startsWith(pre)) continue; const rest = x.path.slice(pre.length), j = rest.indexOf("/"), seg = j < 0 ? rest : rest.slice(0, j); if (seg.toLowerCase() === lo[i]) { hit = seg; isFile = j < 0; break; } }
+        if (!hit) return null;
+        P = pre + hit;
+        if (isFile) return i === parts.length - 1 ? { go: ["sys", null, P.includes("/") ? P.slice(0, P.lastIndexOf("/")) : ""], open: () => openApp(sysFileApp(P)) } : null;
+      }
+      return { go: ["sys", null, P] };
+    }
+    if (lo[0] === "users") {
+      if (parts.length === 1) return { go: ["users"] };
+      if (lo[1] !== userName().toLowerCase()) return null;
+      if (parts.length === 2) return { go: ["home"] };
+      let dir = null;
+      if (lo[2] !== "desktop") { const h = folders().find(f => f.home && f.name.toLowerCase() === lo[2]); if (!h) return null; dir = h.id; }
+      for (let i = 3; i < parts.length; i++) {
+        const f = folders().find(x => sameDir(x, dir) && x.name.toLowerCase() === lo[i]);
+        if (f) { dir = f.id; continue; }
+        const fi = i === parts.length - 1 && fmeta().find(x => sameDir(x, dir) && x.name.toLowerCase() === lo[i]);
+        return fi ? { go: ["dir", dir], open: () => os.open("file", fi.id) } : null;
+      }
+      return { go: ["dir", dir] };
+    }
+    return null;
+  };
+  const editAddr = () => { // click the address bar to type a path, like Windows
+    if (editing) return; editing = true;
+    adEl.innerHTML = '<input class="fxai" spellcheck="false" autocomplete="off">';
+    const inp = adEl.firstChild; inp.value = pathText(); inp.focus(); inp.select();
+    const done = () => { if (!editing) return; editing = false; adEl.innerHTML = crumb(); };
+    inp.onkeydown = async e => {
+      e.stopPropagation();
+      if (e.key === "Escape") { e.preventDefault(); done(); }
+      else if (e.key === "Enter") {
+        e.preventDefault(); const text = inp.value, r = await resolvePath(text); done();
+        if (!r) return winAlert("Can't find " + text.trim() + NL + "Check the spelling and try again.");
+        go(...r.go); if (r.open) r.open();
+      }
+    };
+    inp.onblur = () => setTimeout(done, 0);
+  };
   const search = () => { // looks inside this folder and every folder under it
     const ql = q.toLowerCase(), ids = cur.dir ? [cur.dir, ...descendants(cur.dir)] : null, inside = x => !ids || ids.includes(x.parent);
     return [folders().filter(x => inside(x) && x.id !== cur.dir && x.name.toLowerCase().includes(ql)), fmeta().filter(x => inside(x) && x.name.toLowerCase().includes(ql))];
@@ -1809,7 +1724,7 @@ const VMAPP = { builtin: 1, single: 1, name: "Virtual Machine", icon: "svg:vm", 
       const u = await vmBuild(LS("vmOverlay", {}));
       if (my !== token) { URL.revokeObjectURL(u); return; } // stopped while downloading
       url = u; frame = document.createElement("iframe");
-      frame.setAttribute("sandbox", "allow-scripts"); // no allow-same-origin: the VM can't reach the real storage or page
+      frame.setAttribute("sandbox", "allow-scripts allow-popups allow-popups-to-escape-sandbox allow-modals"); // no allow-same-origin: the VM can't reach the real storage or page. Popups (external apps and links) and alert/confirm are allowed because apps need them; a popup opens as a normal tab
       frame.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:0;background:#000";
       frame.src = u; note.style.display = "none"; box.appendChild(frame); say("Starting...");
       wait = setTimeout(() => { if (frame && st.textContent === "Starting...") say("No answer from the VM yet. Check the DevTools console (F12) for errors."); }, 10000);
@@ -2169,6 +2084,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
         <label>Recycle Bin: delete items after<select data-k="binDays" data-n="1">${opts([[0, "Never (don't delete)"], [1, "1 day"], [3, "3 days"], [7, "1 week"], [14, "2 weeks"], [30, "1 month"], [180, "6 months"]], s.binDays)}</select></label>
         <label>Opening speed limiter<select data-k="limiter">${opts([["off", "Off (instant)"], ["low", "Low"], ["med", "Medium"], ["high", "High"]], s.limiter)}</select></label><p>Big files and apps open one at a time behind a progress bar. Small ones still open instantly.</p>
         <h3>Biggest items</h3>${items.slice(0, bigAll ? 100 : 5).map(x => `<div class="item row"><div style="flex:1;overflow:hidden"><b>${esc(x.n)}</b><small>${fmt(x.size)}</small></div><button data-act="${x.act}" data-i="${esc(x.id)}">${x.b}</button></div>`).join("") || "<p>Nothing stored yet.</p>"}${items.length > 5 ? `<button data-act="bigtoggle">${bigAll ? "Show less" : `Show more (${Math.min(items.length, 100) - 5} more)`}</button>` : ""}
+        <h3>Other data on this site</h3><p>Saves kept by games and other pages on this site are not VUS-OS files, so they are not in the list above. Press the button to measure them.</p>${siteMeas ? siteMeas.dbs.map(x => `<div class="item row"><div style="flex:1;overflow:hidden"><b>${esc(x.name)}</b><small>${x.size < 0 ? "couldn't be read right now" : fmt(x.size) + " · " + x.rows + " rows"}</small></div></div>`).join("") || "<p>No saved data from other pages.</p>" : ""}<button data-act="measure">${siteMeas ? "Measure again" : "Measure saved data from other pages"}</button> <span id="meas"></span>
         <h3>Multitasking</h3><label>Snap windows to screen edges<input type="checkbox" data-k="snap" ${s.snap ? "checked" : ""}></label><p>Drag a window to the left or right edge for half the screen, or to the top edge to maximize it.</p>
         <label>Remember each app's window size and position<input type="checkbox" data-k="rememberWin" ${s.rememberWin ? "checked" : ""}></label>
         <h3>Keyboard shortcuts</h3><label>Enable keyboard shortcuts<input type="checkbox" data-k="keys" ${s.keys ? "checked" : ""}></label><label>File shortcuts (Ctrl+C/X/V/A, Delete or Alt+Backspace, F2)<input type="checkbox" data-k="keysFile" ${s.keysFile ? "checked" : ""}></label><label>Editor shortcuts (Ctrl+S and Ctrl+O in Notepad, Ctrl+S in the shortcut editor)<input type="checkbox" data-k="keysEdit" ${s.keysEdit ? "checked" : ""}></label><p>The master switch turns all of these off, plus the lock key. Basic keys like Esc and Enter in dialogs always work.</p>
@@ -2202,7 +2118,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
   const draw = () => {
     nav.innerHTML = NAV.map(([k, i, l]) => `<div data-go="${k}" class="${k === page ? "on" : ""}">${i}&nbsp; ${l}</div>`).join("");
     box.innerHTML = pages[page]();
-    if (page === "system") navigator.storage?.estimate?.().then(e => { const el = box.querySelector("#est"); if (el) el.textContent = `This browser reports ${fmt(e.usage)} used of about ${fmt(e.quota)} available.`; });
+    if (page === "system") siteStore().then(s => { const el = box.querySelector("#est"); if (!el || !s) return; const os = usage(); el.innerHTML = `<b>Whole site: ${fmt(s.usage)}</b> used of about ${fmt(s.quota)} (the browser's estimate; it counts everything on this site, including games, other pages and downloaded runtimes, not just VUS-OS files).<br>VUS-OS files and apps (what the limit above counts): ${fmt(os)}<br>Everything else: about ${fmt(Math.max(0, s.usage - os))}${s.idb != null ? ` · databases ${fmt(s.idb)}` : ""}${s.caches ? ` · downloaded runtimes and caches ${fmt(s.caches)}` : ""} · small saved settings ${fmt(lsBytes())}`; });
   };
   root.onclick = e => {
     const t = e.target.closest("[data-go],[data-act],[data-sw]"); if (!t) return;
@@ -2212,6 +2128,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
     else if (d.act === "delf") winConfirm("Delete this file permanently? (It skips the Recycle Bin.)", "Delete").then(ok => ok && deleteFile(d.i, true).then(draw));
     else if (d.act === "delc") clearCache(d.i).then(draw);
     else if (d.act === "bigtoggle") { bigAll = !bigAll; draw(); }
+    else if (d.act === "measure") { t.disabled = true; const m = box.querySelector("#meas"); measureSite(n => { if (m) m.textContent = "Measuring " + n + "..."; }).then(() => { if (root.isConnected) draw(); }); }
     else if (d.act === "upd") openApp(UPDATES);
     else if (d.act === "pwset") setPw().then(draw);
     else if (d.act === "bkadd") addBackup().then(draw);
@@ -2510,7 +2427,7 @@ const LOCK_WIDGETS = [
   { id: "device", name: "Device info", opts: [], html: () => '<div class="lk-sm lk-dv"></div>',
     upd: nd => lkSet(nd, ".lk-dv", [navigator.hardwareConcurrency && navigator.hardwareConcurrency + " cores", navigator.deviceMemory && "~" + navigator.deviceMemory + " GB RAM", screen.width + "×" + screen.height].filter(Boolean).join(" · ")) },
   { id: "storage", name: "OS storage", opts: [], html: () => '<div class="lk-pr"></div>',
-    upd: (nd, o, S, d) => { if (nd._p && d - nd._p < 10000) return; nd._p = +d; const u = usage(), l = limitBytes(); nd.querySelector(".lk-pr").innerHTML = `<div>Storage<span>${fmt(u)} of ${fmt(l)}</span></div>${lkBar(u / l * 100)}`; } },
+    upd: (nd, o, S, d) => { if (nd._p && d - nd._p < 10000) return; nd._p = +d; const u = usage(), l = limitBytes(), box = nd.querySelector(".lk-pr"); box.innerHTML = `<div>Storage<span>${fmt(u)} of ${fmt(l)}</span></div>${lkBar(u / l * 100)}`; siteStore().then(s => { if (s && box.isConnected) box.insertAdjacentHTML("beforeend", `<div>Whole site<span>${fmt(s.usage)}</span></div>`); }); } },
   { id: "uptime", name: "OS open for", opts: [], html: () => '<div class="lk-sm lk-up"></div>', upd: (nd, o, S, d) => lkSet(nd, ".lk-up", "OS open for " + lkSpan(Date.now() - performance.timeOrigin)) },
   { id: "lockedfor", name: "Locked for", opts: [], html: () => '<div class="lk-sm lk-lf"></div>', upd: (nd, o, S, d, born) => lkSet(nd, ".lk-lf", "Locked for " + lkSpan(Date.now() - born)) },
   { id: "recent", name: "Recent apps", opts: [], html: () => '<div class="lk-sm lk-rc"></div>',
@@ -2679,7 +2596,8 @@ function askPw(title, o = {}) { // resolves with the typed password, or null if 
 }
 async function copyDiag() { // a text summary to paste into a bug report: no files, no passwords
   const st = { ...getSettings() }; delete st.favData;
-  const t = [`VUS-OS Version-${OS_VERSION}`, `Browser: ${navigator.userAgent}`, `Window: ${innerWidth}x${innerHeight} @${devicePixelRatio}x, online: ${navigator.onLine}`, `Storage: ${fmt(usage())} of ${fmt(limitBytes())}`,
+  const ss = await siteStore(), site = ss ? fmt(ss.usage) + " of about " + fmt(ss.quota) + " (databases " + (ss.idb != null ? fmt(ss.idb) : "?") + ", caches " + (ss.caches != null ? fmt(ss.caches) : "?") + ")" : "not available";
+  const t = [`VUS-OS Version-${OS_VERSION}`, `Browser: ${navigator.userAgent}`, `Window: ${innerWidth}x${innerHeight} @${devicePixelRatio}x, online: ${navigator.onLine}`, `VUS-OS storage (what the limit counts): ${fmt(usage())} of ${fmt(limitBytes())}`, `Whole site storage (browser estimate): ${site}, small saved settings: ${fmt(lsBytes())}`,
     `Files: ${fmeta().length}, folders: ${folders().length}, saved apps: ${Object.keys(metaAll()).length}, Guest: ${GUEST}`, `Installed: ${installed().map(k => k.split("|")[0]).join(", ") || "none"}`, `Open windows: ${[...wins.values()].map(w => w.app.name).join(", ") || "none"}`,
     `Settings: ${JSON.stringify(st)}`, `Recent errors:\n${errLog.join("\n") || "none"}`].join("\n");
   try { await navigator.clipboard.writeText(t); } catch { const x = document.createElement("textarea"); x.value = t; document.body.appendChild(x); x.select(); document.execCommand("copy"); x.remove(); }
@@ -2700,7 +2618,7 @@ async function wipeNs(ns) {
   if (ns === NS) { try { (await idb).close(); } catch {} }
   await new Promise(r => { const q = indexedDB.deleteDatabase(ns); q.onsuccess = q.onerror = q.onblocked = r; });
 }
-async function wipeAll() { await wipeNs("vos2"); await wipeNs("vosg"); sessionStorage.clear(); location.reload(); } // factory reset
+async function wipeAll() { await wipeNs("vos2"); await wipeNs("vosg"); try { for (const n of await caches.keys()) if (n.startsWith("vus-python-")) await caches.delete(n); } catch { /* no Cache Storage here */ } sessionStorage.clear(); location.reload(); } // factory reset (also removes the downloaded Python runtime)
 async function deleteGuest() { if (await winDialog("Delete everything saved in Guest mode?", [["Delete", "y", "danger"], ["Cancel", false]]) === "y") { await wipeNs("vosg"); location.reload(); } }
 async function deleteAll() {
   if (GUEST) return deleteGuest();
@@ -2940,14 +2858,15 @@ async function exportPicker() { // resolves with the ticked options (apps, files
 }
 let XP = null; // the export progress panel while an export runs
 const closeXP = () => { if (XP) { XP.el.remove(); XP = null; } };
-function makeExportPanel() { // progress panel in the corner (it sits in the toast stack, so it follows the taskbar position): overall bar and time left, one bar per task, and Cancel
+function makeExportPanel(title = "Exporting backup", cancellable = true) { // progress panel in the corner (it sits in the toast stack, so it follows the taskbar position): overall bar and time left, one bar per task, and Cancel
   const el = document.createElement("div"); el.className = "xp";
-  el.innerHTML = `<div class="xh"><b>Exporting backup</b><button>Cancel</button></div><div class="xr xo"><span>Starting...</span>Overall<div class="xb"><i></i></div></div><div class="xl"></div>`;
+  el.innerHTML = `<div class="xh"><b>${esc(title)}</b><button>Cancel</button></div><div class="xr xo"><span>Starting...</span>Overall<div class="xb"><i></i></div></div><div class="xl"></div>`;
   const P = { el, tasks: [], cancelled: false }, t0 = Date.now(), list = el.querySelector(".xl"), btn = el.querySelector("button"), ov = el.querySelector(".xo");
   let best = 0, last = 0;
   const mb = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : 1) + " MB" : Math.max(1, Math.round(n / 1e3)) + " KB";
   P.check = () => { if (P.cancelled) throw new Error("Export cancelled"); };
   btn.onclick = () => { P.cancelled = true; btn.disabled = true; btn.textContent = "Cancelling..."; };
+  if (!cancellable) btn.style.display = "none"; // an import can't be stopped halfway without leaving a mess
   P.add = (label, total, w = 1, unit = "") => { // unit: "b" bytes, "r" rows, "" just a bar. w = how much of the whole export this task is (for the overall bar)
     const row = document.createElement("div"); row.className = "xr"; row.innerHTML = `<span></span>${esc(label)}<div class="xb"><i></i></div>`; list.appendChild(row);
     const t = { total: Math.max(1, total), done: 0, w, unit, sp: row.querySelector("span"), bar: row.querySelector("i") };
@@ -2960,13 +2879,17 @@ function makeExportPanel() { // progress panel in the corner (it sits in the toa
     for (const t of P.tasks) {
       const f = t.done / t.total; sw += t.w; sd += t.w * f;
       t.bar.style.width = (f * 100).toFixed(1) + "%";
-      t.sp.textContent = t.unit === "b" ? mb(t.done) + " / " + mb(t.total) : t.unit === "r" ? t.done + " / " + t.total + " rows" : f >= 1 ? "done" : "";
+      t.sp.textContent = t.unit === "b" ? mb(t.done) + " / " + mb(t.total) : t.unit === "r" ? t.done + " / " + t.total + " rows" : t.unit === "f" ? t.done + " / " + t.total + " files" : t.unit === "d" ? t.done + " / " + t.total + " databases" : f >= 1 ? "done" : "";
     }
-    best = Math.max(best, sw ? sd / sw : 0); // never goes backwards when a task is added late
+    best = Math.max(best, Math.min(sw ? sd / sw : 0, P.finished ? 1 : 0.99)); // never goes backwards, and never shows 100% until the work is really finished (the last steps can't report progress)
     const spent = now - t0, left = best > 0.03 && spent > 3000 ? spent * (1 - best) / best / 1000 : null; // time left is guessed from how fast it has gone so far
-    ov.querySelector("span").textContent = Math.floor(best * 100) + "%" + (left === null ? " · estimating time..." : left < 3 ? " · almost done" : " · " + (left < 10 ? "a few seconds" : left < 60 ? "about " + Math.round(left / 5) * 5 + " seconds" : "about " + Math.round(left / 60) + " min") + " left");
+    ov.querySelector("span").textContent = Math.min(P.finished ? 100 : 99, Math.floor(best * 100)) + "%" + (P.finished ? " · " + (P.msg || "done") : best >= 0.99 ? " · finishing up, please wait..." : left === null ? " · estimating time..." : left < 3 ? " · almost done" : " · " + (left < 10 ? "a few seconds" : left < 60 ? "about " + Math.round(left / 5) * 5 + " seconds" : "about " + Math.round(left / 60) + " min") + " left");
     ov.querySelector("i").style.width = (best * 100).toFixed(1) + "%";
   };
+  P.finish = (msg, ms = 15000) => new Promise(res => { // the real 100%: shows a message and a Close button, and goes away by itself after ms
+    P.finished = true; P.msg = msg; P.tasks.forEach(t => { t.done = t.total; }); P.draw(true);
+    btn.style.display = ""; btn.disabled = false; btn.textContent = "Close"; btn.onclick = () => res(); setTimeout(res, ms);
+  });
   $("#toasts").prepend(el); P.draw(true); return P;
 }
 async function doExport() {
@@ -3018,6 +2941,7 @@ async function doExport() {
   const dn = new Date(), pad = n => String(n).padStart(2, "0"), fname = "vus-os-backup " + (dn.getMonth() + 1) + "." + dn.getDate() + "." + dn.getFullYear() + " " + pad(dn.getHours()) + "-" + pad(dn.getMinutes()) + ".zip"; // month.day.year 24-hour time (a colon can't be used in file names)
   P.check(); dlBlob(fname, zip);
   notify("Backup saved", fname + " was downloaded." + (unread.length ? " Could not read: " + unread.join(", ") + "." : ""));
+  await P.finish("Backup ready. Your browser is now saving the file, which can take a minute for a big backup.", 20000); // the panel stays so there is feedback while the browser writes the download
 }
 function pickBackup() { const i = document.createElement("input"); i.type = "file"; i.accept = ".zip,application/zip"; i.onchange = () => i.files[0] && doImport(i.files[0]); i.click(); }
 async function doImport(file) {
@@ -3043,6 +2967,11 @@ async function doImport(file) {
       if (!ok) secure = null;
     }
   }
+  const P = XP = makeExportPanel("Importing backup", false), notes = [];
+  const tkI = m.files || m.folders ? P.add("Files and folders" + (m.files && m.files.length ? " (" + m.files.length + ")" : ""), (m.files || []).length || 1, 3, "f") : null;
+  const tkS = P.add("Apps, settings and layout", 1, 1);
+  const dbE = m.site && !GUEST ? ents.filter(z => /^sitedb\/\d+\.ndjson$/.test(z.name)) : [], tkD = dbE.length ? P.add("Saved data from other pages", dbE.length, 3, "d") : null;
+  try {
   if (m.files || m.folders) {
     if (isRep && !m.bgOnly) { for (const f of fmeta()) await dbDel(f.id, "files"); save("files", []); save("folders", []); }
     const fo = [...folders()], fmap = {}; let pend = [...(m.folders || [])], prog = true;
@@ -3058,6 +2987,7 @@ async function doImport(file) {
     save("folders", fo);
     const fl = [...fmeta()], db = await idb;
     for (const f of m.files || []) {
+      P.set(tkI, tkI.done + 1);
       const par = f.parent ? fmap[f.parent] ?? null : null;
       if (fl.some(x => x.id === f.id || (x.name === f.name && (x.parent || null) === par && x.size === f.size))) continue;
       const e = ents.find(z => z.name === "files/" + f.id); if (!e) continue;
@@ -3072,9 +3002,10 @@ async function doImport(file) {
   if (m.winGeo) save("winGeo", isRep ? m.winGeo : { ...m.winGeo, ...LS("winGeo", {}) });
   if (m.pos) save("pos", isRep ? m.pos : { ...m.pos, ...LS("pos", {}) });
   if (m.settings) save("settings", isRep ? m.settings : { ...LS("settings", {}), ...m.settings });
-  const strs = l => Array.isArray(l) ? l.filter(x => typeof x === "string") : null, notes = [];
+  const strs = l => Array.isArray(l) ? l.filter(x => typeof x === "string") : null;
   if (strs(m.startPins)) save("startPins", isRep ? strs(m.startPins) : [...new Set([...startKeys(), ...strs(m.startPins)])]);
   if (strs(m.pinned)) save("pinned", isRep ? strs(m.pinned) : [...new Set([...pinnedKeys(), ...strs(m.pinned)])]);
+  P.set(tkS, 1);
   if (m.site && GUEST) notes.push("Saves from other pages were skipped in Guest mode.");
   else if (m.site) {
     const e = ents.find(z => z.name === "sitedata.json");
@@ -3083,7 +3014,7 @@ async function doImport(file) {
         const sd = JSON.parse(new TextDecoder().decode(await e.data())), skipped = [];
         restoreSiteKeys(sd.ls, isRep); restoreAppData(sd.app, isRep);
         for (const d of sd.idb || []) { try { if (!await restoreSiteDb(d, isRep)) skipped.push(d.name); } catch { skipped.push(d.name); } } // backups made before this version keep the databases inside sitedata.json
-        for (const en of ents.filter(z => /^sitedb\/\d+\.ndjson$/.test(z.name))) { let nm = en.name; try { const r = await restoreSiteDbStream(await en.blob(), isRep); nm = r.name || nm; if (!r.ok) skipped.push(nm); } catch { skipped.push(nm); } }
+        for (const en of ents.filter(z => /^sitedb\/\d+\.ndjson$/.test(z.name))) { let nm = en.name; try { const r = await restoreSiteDbStream(await en.blob(), isRep); nm = r.name || nm; if (!r.ok) skipped.push(nm); } catch { skipped.push(nm); } if (tkD) P.set(tkD, tkD.done + 1); }
         if (skipped.length) notes.push("Skipped databases that already exist with a different layout: " + skipped.join(", ") + ".");
       } catch { notes.push("The saves from other pages could not be read."); }
     }
@@ -3094,6 +3025,8 @@ async function doImport(file) {
   } else if (m.secure && !GUEST) notes.push("Passwords were not restored.");
   else if (m.secure) notes.push("Passwords were skipped in Guest mode.");
   renderIcons(); renderPins(); if ($("#start").classList.contains("open")) drawStart(); applyTheme(); tick();
+  await P.finish("import finished", 1500);
+  } finally { closeXP(); }
   notify("Import finished", parts.join(", ") + (notes.length ? ". " + notes.join(" ") : ""));
   if (await winDialog("Import finished. Restart VUS-OS now so everything takes effect (lock screen, windows, update settings)?\n\nThis keeps the page open.", [["Restart now", "y"], ["Later", false]]) === "y") softRestart();
 }
