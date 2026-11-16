@@ -347,7 +347,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.15.2026 8:00 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.16.2026 6:45 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -524,7 +524,7 @@ function openApp(app) {
   task.innerHTML = glyph(app, 20) + `<span>${esc(app.name)}</span>`;
   task.dataset.name = app.name; task.title = tipOn() ? app.name : "";
   task.onclick = () => toggle(id); task.onauxclick = e => { if (e.button === 1) closeWin(id); }; // middle-click closes
-  task.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [...(catalog.includes(app) ? [[pinnedKeys().includes(key(app)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(app)]] : []), [wins.get(id) && wins.get(id).onTop ? "Turn off always on top" : "Always on top", () => toggleOnTop(id)], ["Close window", () => closeWin(id)]]); };
+  task.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [...vmEditItems(app), ...(catalog.includes(app) ? [[pinnedKeys().includes(key(app)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(app)]] : []), [wins.get(id) && wins.get(id).onTop ? "Turn off always on top" : "Always on top", () => toggleOnTop(id)], ["Close window", () => closeWin(id)]]); };
   $("#tasks").appendChild(task);
   wins.set(id, { id, app, el, task });
 
@@ -578,7 +578,11 @@ const startKeys = () => { let l = LS("startPins", null); if (!l) { l = installed
 const pinnedKeys = () => LS("pinned", []);
 function toggleStartPin(a) { const k = key(a), l = startKeys(); save("startPins", l.includes(k) ? l.filter(x => x !== k) : [...l, k]); if ($("#start").classList.contains("open")) drawStart(); }
 function togglePin(a) { const k = key(a), l = pinnedKeys(); save("pinned", l.includes(k) ? l.filter(x => x !== k) : [...l, k]); renderPins(); }
-const appMenu = a => [[startKeys().includes(key(a)) ? "Remove from Start" : "Add to Start", () => toggleStartPin(a)], [pinnedKeys().includes(key(a)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(a)], ["Details", () => openApp(detailsApp("app", key(a), a, a.name))]];
+const vmEditItems = a => { // inside the VM every app can be edited from its right-click menu: apps with their own code open that file, built-in ones open the OS's index.html (C:\System)
+  if (!window.__VM) return [];
+  return vmApps().includes(a) ? [["Edit code (VM)", () => openApp(vmFileApp(vmAppPath(a)))]] : a.builtin ? [["Edit OS code (VM)", () => openApp(vmFileApp("index.html"))]] : [];
+};
+const appMenu = a => [...vmEditItems(a), [startKeys().includes(key(a)) ? "Remove from Start" : "Add to Start", () => toggleStartPin(a)], [pinnedKeys().includes(key(a)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(a)], ["Details", () => openApp(detailsApp("app", key(a), a, a.name))]];
 function renderPins() {
   const box = $("#pins"), pk = pinnedKeys(); box.innerHTML = "";
   pk.map(k => catalog.find(a => key(a) === k)).filter(Boolean).forEach(a => {
@@ -662,7 +666,7 @@ function makeOS(app, win) {
       launch: a => openApp(a),
       theme: t => { save("settings", { ...getSettings(), theme: t }); applyTheme(); },
       lock: () => lockNow(), sleep: () => sleepNow(),
-      version: () => OS_VERSION, latest: () => latestOs(true), update: f => updateOS(f),
+      version: () => OS_VERSION, latest: () => latestOs(true), update: f => updateOS(f), user: () => userName(),
       windows: () => [...wins.values()].map(w => ({ id: w.id, name: w.app.name })), kill: id => closeWin(id, true),
       copy: (kind, id, dir) => kind === "folder" ? copyFolder(id, dir) : copyFile(id, dir), move: (kind, id, dir) => moveTo(kind, id, dir), rename: (kind, id, name) => applyRename(kind, id, name),
       restart: () => softRestart(), run: id => runVsh(id),
@@ -695,7 +699,7 @@ const vmAppPath = a => { const u = String(a.url || "").split(/[?#]/)[0]; return 
 const vmAppText = a => { if (!window.__VM) return null; const p = vmAppPath(a); return Object.prototype.hasOwnProperty.call(window.__VM.overlay, p) ? window.__VM.overlay[p] : null; }; // the edited code of an app, or null
 const vmApps = () => catalog.filter(a => !a.builtin && a.url && (isNative(a) || /raw\.githubusercontent\.com/.test(a.url)));
 // inside the VM every nested frame gets its own sandbox origin, so a hub app can't be written into its frame from here (contentDocument is null). It is handed over as srcdoc instead, with in-memory localStorage / sessionStorage put in front (the sandbox has no real ones)
-const VM_APP_PRE = '<script>(function(){function mk(){const m=new Map(),api={getItem:k=>m.has(String(k))?m.get(String(k)):null,setItem:(k,v)=>{m.set(String(k),String(v))},removeItem:k=>{m.delete(String(k))},clear:()=>m.clear(),key:i=>[...m.keys()][i]??null};return new Proxy({},{get:(t,p)=>p==="length"?m.size:typeof p==="string"&&Object.prototype.hasOwnProperty.call(api,p)?api[p]:typeof p==="string"&&m.has(p)?m.get(p):undefined,set:(t,p,v)=>{if(typeof p==="string")m.set(p,String(v));return true},deleteProperty:(t,p)=>{m.delete(p);return true},has:(t,p)=>m.has(p),ownKeys:()=>[...m.keys()],getOwnPropertyDescriptor:(t,p)=>m.has(p)?{value:m.get(p),writable:true,enumerable:true,configurable:true}:undefined})}["localStorage","sessionStorage"].forEach(n=>{try{Object.defineProperty(window,n,{value:mk(),configurable:true,writable:true})}catch(e){}})})()<\/script>';
+const VM_APP_PRE = '<script>(function(){function mk(){const m=new Map(),api={getItem:k=>m.has(String(k))?m.get(String(k)):null,setItem:(k,v)=>{m.set(String(k),String(v))},removeItem:k=>{m.delete(String(k))},clear:()=>m.clear(),key:i=>[...m.keys()][i]??null};return new Proxy({},{get:(t,p)=>p==="length"?m.size:typeof p==="string"&&Object.prototype.hasOwnProperty.call(api,p)?api[p]:typeof p==="string"&&m.has(p)?m.get(p):undefined,set:(t,p,v)=>{if(typeof p==="string")m.set(p,String(v));return true},deleteProperty:(t,p)=>{m.delete(p);return true},has:(t,p)=>m.has(p),ownKeys:()=>[...m.keys()],getOwnPropertyDescriptor:(t,p)=>m.has(p)?{value:m.get(p),writable:true,enumerable:true,configurable:true}:undefined})}["localStorage","sessionStorage"].forEach(n=>{try{Object.defineProperty(window,n,{value:mk(),configurable:true,writable:true})}catch(e){}});try{var ck=new Map();Object.defineProperty(document,"cookie",{get:function(){return[...ck].map(function(e){return e[0]+"="+e[1]}).join("; ")},set:function(v){var p=String(v).split(";")[0],i=p.indexOf("=");if(i>0)ck.set(p.slice(0,i).trim(),p.slice(i+1).trim())},configurable:true})}catch(e){};["pushState","replaceState"].forEach(function(n){try{var o=history[n];history[n]=function(){try{return o.apply(history,arguments)}catch(e){}}}catch(e){}})})()<\/script>';
 const vmAppDoc = t => { t = String(t); const m = t.match(/<head[^>]*>|<html[^>]*>|<!doctype[^>]*>/i); return m ? t.slice(0, m.index + m[0].length) + VM_APP_PRE + t.slice(m.index + m[0].length) : VM_APP_PRE + t; };
 async function fetchCode(app) {
   const ed = vmAppText(app); if (ed !== null) return ed; // inside the VM an edited copy wins over GitHub
@@ -1217,6 +1221,7 @@ function fillItems(box, fl, fi, openFolder, list) {
   fl.forEach(f => {
     const n = fmeta().filter(x => x.parent === f.id).length + folders().filter(x => x.parent === f.id).length;
     box.appendChild(iconEl({ name: f.name, icon: "svg:folder", color: "amber" }, f.name, () => openFolder(f.id), [
+      ...(siteIndex(f.id) ? [["Open website (index.html)", () => openApp(fileApp(siteIndex(f.id)))]] : []),
       ...(f.saved === false ? [["Save", () => { markSaved("folder", f.id); renderIcons(); }]] : []),
       [isFav("folder", f.id) ? "Remove from Favorites" : "Add to Favorites", () => toggleFav("folder", f.id)], ["Rename", e => inlineRename(iconOf(e), "folder", f.id)], ["Move to...", e => moveMenu(e, "folder", f.id)],
       ["Delete", () => deleteFolder(f.id)],
@@ -1252,7 +1257,9 @@ async function thumbOf(f) { // a small picture of an image file, cached so big i
 }
 // ----- the made-up PC around the Explorer: C:\Users\<name>\Desktop / Downloads / Documents, and a read-only C:\System -----
 const HOME_FOLDERS = ["Downloads", "Documents"]; // real folders (they travel with export/import and backups) that are not shown on the Desktop
-const userName = () => GUEST ? "Guest" : "Owner";
+const cleanName = s => String(s || "").replace(/[\\\/:*?"<>|]/g, "").trim().slice(0, 24); // the name from Settings > User, without characters a folder path can't hold
+const userNameSet = () => cleanName(getSettings().userName); // "" when no name was set (the lock screen greeting reads this)
+const userName = () => GUEST ? "Guest" : (userNameSet() || "Owner"); // used in C:\Users\<name>, the Terminal prompt and whoami
 function ensureHome() { // makes Downloads and Documents the first time they are needed
   const have = folders(), miss = HOME_FOLDERS.filter(n => !have.some(f => f.home && f.name === n));
   if (miss.length) save("folders", [...have, ...miss.map(n => ({ id: newId(), name: n, parent: null, saved: true, home: true }))]);
@@ -1761,6 +1768,66 @@ function editApp(f) { // "Edit": open any text-based file (html, svg) in Notepad
   return { builtin: 1, name: f.name, icon: "svg:text", color: "blue", size: f.size, open: (root, os) => notepad(root, os, f.id) };
 }
 
+// ----- websites in a folder: an html file picks up the css, js, images and other files next to it (and in sub-folders), like a normal website. The player loads the page from a blob: URL, so relative links can't find their neighbours; every local file the page points to is turned into a blob: URL and the reference is rewritten before the page is shown -----
+const blobText = async b => b && b.text ? b.text() : new TextDecoder().decode(b);
+const LOCAL_REF = r => !!r && !/^\s*(?:[a-z][a-z0-9+.\-]*:|\/\/|#)/i.test(r); // not http:, data:, blob:, //host or #anchor
+const siteIndex = dir => fmeta().find(x => sameDir(x, dir) && /^index\.html?$/i.test(x.name)) || null; // the main page of a folder
+function resolveSibling(baseDir, ref) { // "img/a.png", "../b.css", "/c.js" -> the file's meta, or null when it isn't there
+  let r = String(ref).trim().split(/[?#]/)[0]; if (!r) return null;
+  try { r = decodeURIComponent(r); } catch { /* keep as typed */ }
+  let dir = r.startsWith("/") ? null : baseDir;
+  const parts = r.split("/").filter(s => s !== "" && s !== ".");
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i], low = p.toLowerCase();
+    if (p === "..") { const cur = folders().find(x => x.id === dir); dir = cur ? cur.parent || null : null; continue; }
+    if (i === parts.length - 1) return fmeta().find(x => sameDir(x, dir) && x.name === p) || fmeta().find(x => sameDir(x, dir) && x.name.toLowerCase() === low) || null;
+    const fo = folders().find(x => sameDir(x, dir) && x.name.toLowerCase() === low); if (!fo) return null; dir = fo.id;
+  }
+  return null;
+}
+async function bundleUrl(meta, ctx) { // a blob: URL for one file; css and html files get their own references rewritten first. null = leave the reference alone
+  if (ctx.map.has(meta.id)) return ctx.map.get(meta.id);
+  if (ctx.busy.has(meta.id)) return null; // two files pointing at each other
+  ctx.busy.add(meta.id); let url = null;
+  try {
+    const b = await dbGet(meta.id, "files");
+    if (b) {
+      const x = extOf(meta.name), dir = meta.parent || null;
+      const blob = x === "css" ? new Blob([await cssBundle(await blobText(b), dir, ctx)], { type: "text/css;charset=utf-8" })
+        : x === "html" || x === "htm" ? new Blob([await htmlBundle(await blobText(b), dir, ctx)], { type: "text/html;charset=utf-8" })
+        : new Blob([b], { type: mimeOf(meta.name) });
+      url = URL.createObjectURL(blob); ctx.urls.push(url);
+    }
+  } finally { ctx.busy.delete(meta.id); }
+  ctx.map.set(meta.id, url); return url;
+}
+async function cssBundle(css, dir, ctx) { // url(...) and @import "..." inside css
+  let out = "", last = 0;
+  for (const m of css.matchAll(/url\(\s*(['"]?)([^'")]+?)\1\s*\)|@import\s+(['"])([^'"]+)\3/gi)) {
+    const ref = m[2] !== undefined ? m[2] : m[4], meta = LOCAL_REF(ref) ? resolveSibling(dir, ref) : null, u = meta ? await bundleUrl(meta, ctx) : null;
+    out += css.slice(last, m.index) + (u ? (m[2] !== undefined ? `url("${u}")` : `@import "${u}"`) : m[0]); last = m.index + m[0].length;
+  }
+  return out + css.slice(last);
+}
+async function htmlBundle(text, dir, ctx) {
+  const doc = new DOMParser().parseFromString(text, "text/html");
+  const fix = async (el, attr) => { const v = el.getAttribute(attr); if (!LOCAL_REF(v)) return; const m = resolveSibling(dir, v), u = m ? await bundleUrl(m, ctx) : null; if (u) el.setAttribute(attr, u); };
+  for (const e of doc.querySelectorAll("script[src],img[src],source[src],audio[src],video[src],track[src],iframe[src],embed[src],input[src]")) await fix(e, "src");
+  for (const e of doc.querySelectorAll("link[href]")) await fix(e, "href");
+  for (const e of doc.querySelectorAll("[poster]")) await fix(e, "poster");
+  for (const e of doc.querySelectorAll("style")) e.textContent = await cssBundle(e.textContent, dir, ctx);
+  for (const e of doc.querySelectorAll("[style]")) e.setAttribute("style", await cssBundle(e.getAttribute("style"), dir, ctx));
+  return (/^\s*<!doctype/i.test(text) ? "<!DOCTYPE html>\n" : "") + doc.documentElement.outerHTML;
+}
+async function siteUrl(f, b0) { // the URL the player should show for an html file: the page with its neighbours wired in, or null when it points at no local files
+  const ctx = { map: new Map(), busy: new Set(), urls: [] };
+  try {
+    const out = await htmlBundle(await blobText(b0), f.parent || null, ctx);
+    if (![...ctx.map.values()].some(Boolean)) { ctx.urls.forEach(u => URL.revokeObjectURL(u)); return null; }
+    return URL.createObjectURL(new Blob([out], { type: "text/html;charset=utf-8" }));
+  } catch { ctx.urls.forEach(u => URL.revokeObjectURL(u)); return null; }
+}
+
 // Floating player for html / images / audio / video / pdf
 async function viewer(root, os, f) {
   if (kindOf(f.name) === "binary") {
@@ -1771,15 +1838,16 @@ async function viewer(root, os, f) {
   const b0 = await dbGet(f.id, "files");
   if (!b0) { root.innerHTML = '<div class="load err">File not found</div>'; return; }
   const k = kindOf(f.name), blob = new Blob([b0], { type: mimeOf(f.name) }), url = URL.createObjectURL(blob);
+  const shown = k === "html" && extOf(f.name) !== "svg" ? (await siteUrl(f, b0)) || url : url; // an html page gets the files next to it
   const media = k === "image" ? `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain">`
     : k === "audio" ? `<div class="vc"><div style="font-size:64px">🎵</div><div>${esc(f.name)}</div><audio controls autoplay src="${url}"></audio></div>`
     : k === "video" ? `<video controls autoplay src="${url}" style="width:100%;height:100%"></video>`
-    : `<iframe src="${url}" allow="autoplay; camera; microphone; fullscreen; clipboard-read; clipboard-write; geolocation; gamepad; midi; encrypted-media; picture-in-picture; display-capture; web-share" allowfullscreen style="width:100%;height:100%;border:0;background:#fff"></iframe>`;
+    : `<iframe src="${shown}" allow="autoplay; camera; microphone; fullscreen; clipboard-read; clipboard-write; geolocation; gamepad; midi; encrypted-media; picture-in-picture; display-capture; web-share" allowfullscreen style="width:100%;height:100%;border:0;background:#fff"></iframe>`;
   root.innerHTML = `<div class="vw"><div class="tabs vt"><button data-a="fs">⛶ Fullscreen</button><button data-a="tab">↗ Open in new tab</button><button data-a="dl">⬇ Download</button>${k === "html" || extOf(f.name) === "svg" ? '<button data-a="edit">✎ Edit</button>' : ""}</div><div class="vb">${media}</div></div>`;
   root.querySelector(".vt").onclick = e => {
     const a = e.target.dataset.a;
     if (a === "fs") root.querySelector(".vb").requestFullscreen?.();
-    if (a === "tab") window.open(url, "_blank");
+    if (a === "tab") window.open(shown, "_blank");
     if (a === "dl") dlBlob(f.name, blob);
     if (a === "edit") openApp(editApp(f));
   };
@@ -2067,7 +2135,7 @@ const STORE = { builtin: 1, single: 1, name: "App Store", icon: "svg:store", col
 const ICON_PX = { small: 36, medium: 42, large: 56 };
 const SWATCH = ["#0078d7", "#e81123", "#00b294", "#8764b8", "#ff8c00", "#107c10", "#e3008c", "#767676"];
 const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings", color: "cyan", open(root) {
-  const NAV = [["home", "🏠", "Home"], ["system", "💻", "System"], ["person", "🎨", "Personalization"], ["taskbar", "▬", "Taskbar"], ["apps", "🧩", "Apps"], ["time", "🕒", "Time & language"]];
+  const NAV = [["home", "🏠", "Home"], ["user", "👤", "User"], ["system", "💻", "System"], ["person", "🎨", "Personalization"], ["taskbar", "▬", "Taskbar"], ["apps", "🧩", "Apps"], ["time", "🕒", "Time & language"]];
   let page = settingsStart, bigAll = false; settingsStart = "home"; settingsNav = p => { page = p; draw(); };
   root.innerHTML = '<div class="st"><div class="stn"></div><div class="stc"></div></div>';
   const nav = root.querySelector(".stn"), box = root.querySelector(".stc");
@@ -2075,6 +2143,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
   const opts = (list, cur) => list.map(([v, l]) => `<option value="${esc(String(v))}" ${String(v) === String(cur) ? "selected" : ""}>${esc(l)}</option>`).join("");
   const pages = {
     home: () => `<h2>Settings</h2><div class="sth">${NAV.slice(1).map(([k, i, l]) => `<div class="stt" data-go="${k}"><span>${i}</span>${l}</div>`).join("")}</div>`,
+    user: () => { const s = getSettings(); return `<h2>User</h2><h3>Your name</h3><label>Display name<input type="text" data-k="userName" value="${esc(s.userName || "")}" maxlength="24" placeholder="Owner"></label><p>Shown in the lock screen greeting, in File Explorer (C:\\Users\\name) and in the Terminal. Leave it empty to be called Owner (the greeting then shows no name). Characters that can't be in a folder name, like \\ / : * ? " &lt; &gt; |, are removed.</p>`; },
     system: () => {
       const s = getSettings(), u = usage(), lim = limitBytes();
       const items = [...fmeta().map(f => ({ n: f.name, size: f.size || 0, act: "delf", id: f.id, b: "Delete" })),
@@ -2330,7 +2399,7 @@ function drawStart() {
     d.className = "tile"; d.style.background = bg; d.style.color = fg;
     d.innerHTML = `<span class="ti">${String(a.icon || "").startsWith("svg:") ? svgI(a.icon.slice(4), 32) : esc(a.icon || a.name.slice(0, 2).toUpperCase())}</span><span class="tn">${esc(a.name)}</span>`;
     d.onclick = () => { openApp(a); toggleStart(false); };
-    d.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [["Open", () => { openApp(a); toggleStart(false); }], ["Remove from Start", () => toggleStartPin(a)], [pinnedKeys().includes(key(a)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(a)]]); };
+    d.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); ctx(e, [["Open", () => { openApp(a); toggleStart(false); }], ...vmEditItems(a), ["Remove from Start", () => toggleStartPin(a)], [pinnedKeys().includes(key(a)) ? "Unpin from taskbar" : "Pin to taskbar", () => togglePin(a)]]); };
     tiles.appendChild(d);
   });
 }
@@ -2403,8 +2472,8 @@ async function lkWeather(nd, o, d) { // reads the saved location, refreshes from
   box.textContent = `${tmp}°${f ? "F" : "C"} · ${LK_WX[c.code] || "Weather"}`;
 }
 const LOCK_WIDGETS = [
-  { id: "greeting", name: "Greeting", opts: [["name", "text", "Your name", "optional"]], html: () => '<div class="lk-greet"></div>',
-    upd: (nd, o, S, d) => { const h = d.getHours(); lkSet(nd, ".lk-greet", (h >= 5 && h < 12 ? "Good morning" : h >= 12 && h < 17 ? "Good afternoon" : h >= 17 && h < 22 ? "Good evening" : "Good night") + (o.name ? ", " + o.name : "")); } },
+  { id: "greeting", name: "Greeting", opts: [], html: () => '<div class="lk-greet"></div>',
+    upd: (nd, o, S, d) => { const h = d.getHours(); lkSet(nd, ".lk-greet", (h >= 5 && h < 12 ? "Good morning" : h >= 12 && h < 17 ? "Good afternoon" : h >= 17 && h < 22 ? "Good evening" : "Good night") + (userNameSet() ? ", " + userNameSet() : "")); } }, // the name comes from Settings > User
   { id: "analog", name: "Analog clock", opts: [["sec", "bool", "Seconds hand"]],
     html: o => `<svg class="lk-an" viewBox="0 0 120 120" width="170" height="170"><circle cx="60" cy="60" r="56" fill="rgba(255,255,255,.06)" stroke="#fff" stroke-width="2" opacity=".85"/>${lkTicks}<line class="lk-hh" x1="60" y1="60" x2="60" y2="34" stroke="#fff" stroke-width="4" stroke-linecap="round"/><line class="lk-mh" x1="60" y1="60" x2="60" y2="20" stroke="#fff" stroke-width="3" stroke-linecap="round"/>${o.sec ? '<line class="lk-sh" x1="60" y1="68" x2="60" y2="14" style="stroke:var(--ac2,#4cc2ff)" stroke-width="1.5" stroke-linecap="round"/>' : ""}<circle cx="60" cy="60" r="3" fill="#fff"/></svg>`,
     upd: (nd, o, S, d) => { const sec = d.getSeconds(), min = d.getMinutes() + sec / 60; nd.querySelector(".lk-hh").setAttribute("transform", `rotate(${((d.getHours() % 12) + min / 60) * 30} 60 60)`); nd.querySelector(".lk-mh").setAttribute("transform", `rotate(${min * 6} 60 60)`); const sh = nd.querySelector(".lk-sh"); if (sh) sh.setAttribute("transform", `rotate(${sec * 6} 60 60)`); } },
@@ -2663,7 +2732,7 @@ const lockSection = () => {
 };
 
 // ===================== BACKUP: EXPORT / IMPORT =====================
-const SETTING_GROUPS = { appearance: ["site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize", "taskSearch", "taskLabels", "taskPos", "lockLayout", "lockDigital", "lockDate", "lockAnalog", "lockSeconds", "lockBattery", "lockW"], clock: ["hour24", "clockSeconds", "clockWeekday"], windows: ["snap", "rememberWin", "keys", "keysFile", "keysEdit"], system: ["autoUpdate", "limiter", "limitMB", "binDays"] };
+const SETTING_GROUPS = { appearance: ["site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize", "taskSearch", "taskLabels", "taskPos", "lockLayout", "lockDigital", "lockDate", "lockAnalog", "lockSeconds", "lockBattery", "lockW"], clock: ["hour24", "clockSeconds", "clockWeekday"], windows: ["snap", "rememberWin", "keys", "keysFile", "keysEdit"], system: ["autoUpdate", "limiter", "limitMB", "binDays", "userName"] };
 // ----- save data from other pages (games etc.) and encrypted passwords -----
 const bytesToB64 = u8 => { let t = ""; for (let i = 0; i < u8.length; i += 0x8000) t += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(t); };
 const b64ToBytes = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
@@ -3411,7 +3480,7 @@ async function runCmd(line, ctx) { // returns the command's output as text. ctx 
       return rows.join("\n");
     }
     case "date": case "time": { const d = new Date(); return d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }) + "  " + d.toLocaleTimeString(); }
-    case "whoami": return (GUEST ? "Guest (temporary, nothing is kept)" : "Owner") + " \u00b7 VUS-OS " + OS_VERSION;
+    case "whoami": return (GUEST ? "Guest (temporary, nothing is kept)" : userName()) + " \u00b7 VUS-OS " + OS_VERSION;
     default: return `'${c}' is not a command.`;
   }
 }

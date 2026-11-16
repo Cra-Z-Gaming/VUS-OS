@@ -22,7 +22,9 @@ export default {
     const folders = () => sys.folders(), files = () => sys.files();
     const here = () => ({ f: folders().filter(x => (x.parent || null) === cwd), n: files().filter(x => (x.parent || null) === cwd) });
     const pathOf = id => { const p = []; for (let d = id; d;) { const f = folders().find(x => x.id === d); if (!f) break; p.unshift(f.name); d = f.parent; } return ["Desktop", ...p].join("/"); };
-    const prompt = () => { $(".tln .pr").textContent = pathOf(cwd) + ">"; };
+    const userN = () => (sys.user ? sys.user() : "Owner"); // the name from Settings > User (older index.html has no sys.user)
+    const winPath = id => { const p = []; for (let d = id; d;) { const f = folders().find(x => x.id === d); if (!f) break; p.unshift(f); d = f.parent; } return "C:\\Users\\" + userN() + "\\" + (p.length && p[0].home ? "" : "Desktop" + (p.length ? "\\" : "")) + p.map(f => f.name).join("\\"); }; // like C:\Users\Owner\Desktop\sub; Downloads and Documents sit next to Desktop
+    const prompt = () => { $(".tln .pr").textContent = winPath(cwd) + ">"; };
     const mount = () => cur ? cur.el : out;
     const print = (t, cls = "", rec = true) => { const d = document.createElement("div"); d.className = cls; d.textContent = t; mount().appendChild(d); if (cur && rec) cur.text.push(t); out.scrollTop = out.scrollHeight; return d; };
     const find = (n, pool) => pool.find(x => x.name.toLowerCase() === n.toLowerCase());
@@ -184,7 +186,7 @@ export default {
       help: () => print("commands           open a window with every command and an example\nls                 list this folder\ncd <folder|..|/>   change folder\ncat <file>         show a file in a code bubble\nedit <file>        open a file in Notepad\nmkdir <name>       new folder\nrm <name>          move to the Recycle Bin\nexecute <name>     open an app, file or folder here (\\name searches everywhere)\nkill <name>        force-close an open program\nfetch <link>       show text from a link (raw GitHub works)\nsave <name>        save the last fetched text as a file here\ncopy / paste       copy the latest output / paste the clipboard into the input\nver                show the version and the latest one\nsys-upd            update VUS-OS in this tab\ncmd1 | cmd2        run several commands in one line\ncp / mv / rename   copy, move or rename a file or folder here\nfind <text>        search names in every folder\nrun <path>         run a .vsh shortcut and show its output\necho / wait / history / restart\npwd / touch / tree      where you are, new empty file, folder outline\ngrep <text> [file] search inside files\ndate / whoami      date and time, who and which version\nalias <name> <cmd> your own short command\npy <file> / js <file>  run a Python or JavaScript file (after install)\ninstall / languages  add a language like Python or JavaScript\ntheme dark|light   lock   sleep   notify <text>   clear   exit"),
       commands: () => { sys.launch(listApp); },
       clear: () => { out.innerHTML = ""; if (cur) { cur.el = document.createElement("div"); out.appendChild(cur.el); } },
-      ls: () => { const h = here(); if (!h.f.length && !h.n.length) return print("(empty)", "dim"); h.f.forEach(f => print(f.name + "/", "dir")); h.n.forEach(f => print(f.name)); },
+      ls: () => { const h = here(), fo = cwd ? h.f : h.f.filter(f => !f.home); if (!fo.length && !h.n.length) return print("(empty)", "dim"); fo.forEach(f => print(f.name + "/", "dir")); h.n.forEach(f => print(f.name)); }, // Downloads and Documents are not listed on the Desktop; cd Downloads still works
       cd: a => { if (!a || a === "/") cwd = null; else if (a === "..") { const f = folders().find(x => x.id === cwd); cwd = f ? f.parent || null : null; } else { const f = find(a, here().f); if (!f) return print(`No folder named "${a}" here.`, "err"); cwd = f.id; } prompt(); },
       cat: async a => { const f = find(a, here().n); if (!f) return print(`No file named "${a}" here.`, "err"); bubble(f.name, (await sys.read(f.id)) ?? ""); },
       edit: a => { const f = find(a, here().n); if (!f) return print(`No file named "${a}" here.`, "err"); sys.edit(f.id); },
@@ -265,7 +267,7 @@ export default {
         const o = await sys.run(f.id);
         if (typeof o !== "string") print("That shortcut is already running.", "err"); else if (o) print(o); else print("Done.", "dim", false);
       },
-      pwd: () => print(pathOf(cwd)),
+      pwd: () => print(winPath(cwd)),
       touch: async a => {
         const n = parseArgs(a)[0]; if (!n) return print('Usage: touch <name>   (use "quotes" for names with spaces)', "err");
         if (find(n, here().n)) return print(`${n} already exists.`, "dim");
@@ -308,7 +310,7 @@ export default {
         if (skipped) print(`Skipped ${skipped} file${skipped === 1 ? "" : "s"} over 2 MB.`, "dim");
       },
       date: () => { const d = new Date(); print(d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }) + "  " + d.toLocaleTimeString()); },
-      whoami: () => print((sessionStorage.getItem("vos_guest") === "1" ? "Guest (temporary, nothing is kept)" : "Owner") + " · VUS-OS " + sys.version()),
+      whoami: () => print((sessionStorage.getItem("vos_guest") === "1" ? "Guest (temporary, nothing is kept)" : userN()) + " · VUS-OS " + sys.version()),
       alias: a => {
         if (!a) { const k = Object.keys(aliases); return k.length ? k.forEach(n => print(`${n} = ${aliases[n]}`)) : print("(no aliases yet. Try: alias ll ls)", "dim"); }
         const p = a.split(/\s+/);

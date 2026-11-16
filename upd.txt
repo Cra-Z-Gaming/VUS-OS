@@ -1,3 +1,11 @@
+11.16.2026 6:45 AM
+- New User page in Settings: set your display name. The lock screen Greeting widget now uses it (no more typing the name into the widget), and File Explorer (C:\Users\name), the Terminal prompt and whoami show it too.
+- The Terminal prompt now looks like C:\Users\Owner\Desktop>, and pwd shows the same path. ls on the Desktop no longer lists Downloads and Documents (cd Downloads still works).
+- Settings > System and the lock screen Storage widget now show the whole-site storage next to the OS number, with a button to measure saved data from other pages.
+- File Explorer: the address bar works again.
+- Virtual Machine: apps open inside it and can be edited from their right-click menu.
+- Opening an html file from your files now loads the css, js, images and fonts that sit next to it, like a normal website. Right-click a folder > Open website (index.html) also works.
+
 11.15.2026 8:00 PM
 - New Virtual Machine app (Start menu, or right-click the taskbar): runs a safe copy of VUS-OS in a sandbox with its own empty storage. Nothing you do inside it can change your real files. A red VM badge in its taskbar shows you are inside it. Close the window to shut it down.
 - Windows are easier to resize: bigger edge and corner grab areas, and a drag now keeps going until you let go of the mouse button, even if you move fast or leave the window or screen. Esc cancels it.
