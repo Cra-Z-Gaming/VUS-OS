@@ -1,3 +1,8 @@
+11.16.2026 7:30 AM
+- User page in Settings: profile picture (shown on the lock screen and at the top of the Start menu; click it to open the User page), display name and birthday. The lock screen and password settings moved there from System.
+- Lock screen: the Greeting says Happy birthday on your birthday, and there is a new Birthday widget that counts down to it.
+- Guest mode keeps its own name, picture and birthday, separate from the main user's.
+
 11.16.2026 6:45 AM
 - New User page in Settings: set your display name. The lock screen Greeting widget now uses it (no more typing the name into the widget), and File Explorer (C:\Users\name), the Terminal prompt and whoami show it too.
 - The Terminal prompt now looks like C:\Users\Owner\Desktop>, and pwd shows the same path. ls on the Desktop no longer lists Downloads and Documents (cd Downloads still works).

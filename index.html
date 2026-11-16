@@ -63,6 +63,7 @@ input,select,button{font-family:var(--font)}
 .lk-pad{display:grid;grid-template-columns:repeat(3,64px);gap:8px}.lk-pad button{height:52px;font-size:20px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:2px;cursor:pointer}.lk-pad button:hover{background:rgba(255,255,255,.22)}
 .lk-foot{display:flex;gap:20px;font-size:13px;margin-top:6px}.lk-foot a{color:#fff;opacity:.8;text-decoration:underline;cursor:pointer}
 .shake{animation:shk .3s}@keyframes shk{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.lk-av{width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.6)}
 .lk-in{width:240px;height:36px;padding:0 10px;font-size:15px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:2px;outline:0}
 .lk-ok{height:32px;padding:0 24px;background:var(--ac);border:0;color:#fff;border-radius:2px;cursor:pointer}
 .dlg .dlgb{padding:0;min-width:340px;max-width:440px}
@@ -222,6 +223,7 @@ input,select,button{font-family:var(--font)}
 .st-rail{width:48px;display:flex;flex-direction:column;justify-content:flex-end;background:rgba(0,0,0,.3);flex-shrink:0}
 .st-rail div{height:48px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:default}
 .st-rail div:hover{background:rgba(255,255,255,.14)}
+.st-rail .st-av{margin-bottom:auto;cursor:pointer}.st-av img{width:30px;height:30px;border-radius:50%;object-fit:cover}
 #snap{position:absolute;display:none;pointer-events:none;z-index:2147483000;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.5)}
 .dlg{position:fixed;inset:0;z-index:995;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px}
 .dlgb{background:#2b2b2b;border:1px solid var(--ac);max-width:440px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
@@ -347,7 +349,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.16.2026 6:45 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.16.2026 7:30 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -1259,6 +1261,8 @@ async function thumbOf(f) { // a small picture of an image file, cached so big i
 const HOME_FOLDERS = ["Downloads", "Documents"]; // real folders (they travel with export/import and backups) that are not shown on the Desktop
 const cleanName = s => String(s || "").replace(/[\\\/:*?"<>|]/g, "").trim().slice(0, 24); // the name from Settings > User, without characters a folder path can't hold
 const userNameSet = () => cleanName(getSettings().userName); // "" when no name was set (the lock screen greeting reads this)
+const userBirthday = () => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(getSettings().userBirthday || "")); return m ? { m: +m[2], d: +m[3] } : null; };
+const birthdayIn = (now = new Date()) => { const b = userBirthday(); if (!b) return null; const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()); let n = new Date(now.getFullYear(), b.m - 1, b.d); if (n < t0) n = new Date(now.getFullYear() + 1, b.m - 1, b.d); return Math.round((n - t0) / 864e5); }; // days until the next birthday (0 = today), null when none is set
 const userName = () => GUEST ? "Guest" : (userNameSet() || "Owner"); // used in C:\Users\<name>, the Terminal prompt and whoami
 function ensureHome() { // makes Downloads and Documents the first time they are needed
   const have = folders(), miss = HOME_FOLDERS.filter(n => !have.some(f => f.home && f.name === n));
@@ -2139,11 +2143,16 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
   let page = settingsStart, bigAll = false; settingsStart = "home"; settingsNav = p => { page = p; draw(); };
   root.innerHTML = '<div class="st"><div class="stn"></div><div class="stc"></div></div>';
   const nav = root.querySelector(".stn"), box = root.querySelector(".stc");
-  const set = p => { save("settings", { ...getSettings(), ...p }); applyTheme(); tick(); if (p.autoUpdate === true) autoUpdate(true); if ("binDays" in p) { purgeBin(); renderIcons(); } };
+  const set = p => { save("settings", { ...getSettings(), ...p }); applyTheme(); tick(); drawAvatar(); if (p.autoUpdate === true) autoUpdate(true); if ("binDays" in p) { purgeBin(); renderIcons(); } };
   const opts = (list, cur) => list.map(([v, l]) => `<option value="${esc(String(v))}" ${String(v) === String(cur) ? "selected" : ""}>${esc(l)}</option>`).join("");
   const pages = {
     home: () => `<h2>Settings</h2><div class="sth">${NAV.slice(1).map(([k, i, l]) => `<div class="stt" data-go="${k}"><span>${i}</span>${l}</div>`).join("")}</div>`,
-    user: () => { const s = getSettings(); return `<h2>User</h2><h3>Your name</h3><label>Display name<input type="text" data-k="userName" value="${esc(s.userName || "")}" maxlength="24" placeholder="Owner"></label><p>Shown in the lock screen greeting, in File Explorer (C:\\Users\\name) and in the Terminal. Leave it empty to be called Owner (the greeting then shows no name). Characters that can't be in a folder name, like \\ / : * ? " &lt; &gt; |, are removed.</p>`; },
+    user: () => { const s = getSettings();
+      if (GUEST) return `<h2>User</h2><p>You are in Guest mode. Your name, picture and birthday are separate from the main user's, and nothing here is kept.</p>${lockSection()}`;
+      return `<h2>User</h2><h3>Profile</h3><div class="item row"><div style="width:64px;height:64px;border-radius:50%;overflow:hidden;background:rgba(128,128,128,.25);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">${s.userPic ? `<img src="${esc(s.userPic)}" alt="" style="width:100%;height:100%;object-fit:cover">` : "\ud83d\udc64"}</div><div style="flex:1"><b>Profile picture</b><small>Shown on the lock screen and at the top of the Start menu.</small></div><button data-act="avup">${s.userPic ? "Change..." : "Choose..."}</button>${s.userPic ? ` <button data-act="avrm">Remove</button>` : ""}</div>
+        <label>Display name<input type="text" data-k="userName" value="${esc(s.userName || "")}" maxlength="24" placeholder="Owner"></label><p>Shown in the lock screen greeting, in File Explorer (C:\\Users\\name) and in the Terminal. Leave it empty to be called Owner (the greeting then shows no name). Characters that can't be in a folder name, like \\ / : * ? " &lt; &gt; |, are removed.</p>
+        <label>Birthday<input type="date" data-k="userBirthday" value="${esc(s.userBirthday || "")}"></label><p>The lock screen Greeting says Happy birthday on the day, and the Birthday widget counts down to it.</p>
+        ${lockSection()}`; },
     system: () => {
       const s = getSettings(), u = usage(), lim = limitBytes();
       const items = [...fmeta().map(f => ({ n: f.name, size: f.size || 0, act: "delf", id: f.id, b: "Delete" })),
@@ -2158,7 +2167,6 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
         <label>Remember each app's window size and position<input type="checkbox" data-k="rememberWin" ${s.rememberWin ? "checked" : ""}></label>
         <h3>Keyboard shortcuts</h3><label>Enable keyboard shortcuts<input type="checkbox" data-k="keys" ${s.keys ? "checked" : ""}></label><label>File shortcuts (Ctrl+C/X/V/A, Delete or Alt+Backspace, F2)<input type="checkbox" data-k="keysFile" ${s.keysFile ? "checked" : ""}></label><label>Editor shortcuts (Ctrl+S and Ctrl+O in Notepad, Ctrl+S in the shortcut editor)<input type="checkbox" data-k="keysEdit" ${s.keysEdit ? "checked" : ""}></label><p>The master switch turns all of these off, plus the lock key. Basic keys like Esc and Enter in dialogs always work.</p>
         <h3>Backup</h3><p>Save your apps, files, Start menu, settings and saves from games to one file, or restore them from one. Passwords are optional and encrypted.</p><button data-act="bkexp">Export...</button> <button data-act="bkimp">Import...</button>
-        ${lockSection()}
         <h3>About</h3><label>Site name<input type="text" data-k="site" value="${esc(s.site)}" maxlength="40"></label><button data-act="diag">Copy diagnostic info</button> <button data-act="rstset">Reset settings</button><p>Diagnostic info (version, browser, storage, settings and recent errors, but no files or passwords) is copied so you can paste it when reporting a problem. Reset settings keeps your files and apps.</p>`;
     },
     person: () => {
@@ -2206,13 +2214,15 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
     else if (d.act === "gsign") guestSignIn();
     else if (d.act === "gdel") deleteGuest();
     else if (d.act === "favup") pickFavicon(u => { set({ favData: u }); draw(); });
+    else if (d.act === "avup") pickAvatar(u => { set({ userPic: u }); draw(); });
+    else if (d.act === "avrm") { set({ userPic: "" }); draw(); }
     else if (d.act === "lkkey") { t.textContent = "Press a key..."; captureKey(k => { if (k) set({ lockKey: k }); draw(); }); }
     else if (d.act === "lknow") lockNow();
     else if (d.act === "lkedit") lockEditor();
     else if (d.act === "wxloc") navigator.geolocation.getCurrentPosition(p => { save("lockWxLoc", { lat: +p.coords.latitude.toFixed(2), lon: +p.coords.longitude.toFixed(2) }); save("lockWx", null); notify("Weather location saved", "The lock screen weather widget will use this location."); }, () => notify("Location not allowed", "Allow location for this site in Chrome to use the weather widget."));
     else if (d.act === "bkexp") doExport().catch(err => { closeXP(); if (err && err.message === "Export cancelled") notify("Export cancelled", "No backup file was made."); else return winAlert("Export failed: " + ((err && err.message) || err)); }).finally(closeXP);
     else if (d.act === "diag") copyDiag();
-    else if (d.act === "rstset") winConfirm("Reset all settings to their defaults? Your files and apps are not touched.", "Reset").then(ok => { if (ok) { save("settings", {}); applyTheme(); tick(); draw(); } });
+    else if (d.act === "rstset") winConfirm("Reset all settings to their defaults? Your files and apps are not touched.", "Reset").then(ok => { if (ok) { save("settings", {}); applyTheme(); tick(); drawAvatar(); draw(); } });
     else if (d.act === "bkimp") pickBackup();
     else if (d.act === "rm") { toggleInstall(catalog.find(a => key(a) === d.i)); draw(); }
   };
@@ -2363,6 +2373,13 @@ $("#startQ").oninput = drawStart;
   d.onclick = e => { e.stopPropagation(); if (t === "Power") fn(e); else { fn(); toggleStart(false); } };
   $(".st-rail").appendChild(d);
 });
+function drawAvatar() { // the round picture at the top of the Start rail (Settings > User); click opens the User page
+  const rail = $(".st-rail"); if (!rail) return; let a = rail.querySelector(".st-av");
+  if (!a) { a = document.createElement("div"); a.className = "st-av"; a.onclick = e => { e.stopPropagation(); toggleStart(false); openSettings("user"); }; rail.prepend(a); }
+  const pic = getSettings().userPic; a.title = userName();
+  const h = pic ? `<img src="${esc(pic)}" alt="">` : "\ud83d\udc64"; if (a.dataset.h !== h) { a.dataset.h = h; a.innerHTML = h; }
+}
+drawAvatar();
 function drawStart() {
   const t = $("#startQ").value.toLowerCase().trim();
   const list = catalog.filter(a => !t || a.name.toLowerCase().includes(t)).sort((a, b) => a.name.localeCompare(b.name));
@@ -2473,7 +2490,8 @@ async function lkWeather(nd, o, d) { // reads the saved location, refreshes from
 }
 const LOCK_WIDGETS = [
   { id: "greeting", name: "Greeting", opts: [], html: () => '<div class="lk-greet"></div>',
-    upd: (nd, o, S, d) => { const h = d.getHours(); lkSet(nd, ".lk-greet", (h >= 5 && h < 12 ? "Good morning" : h >= 12 && h < 17 ? "Good afternoon" : h >= 17 && h < 22 ? "Good evening" : "Good night") + (userNameSet() ? ", " + userNameSet() : "")); } }, // the name comes from Settings > User
+    upd: (nd, o, S, d) => { const h = d.getHours(); lkSet(nd, ".lk-greet", (birthdayIn(d) === 0 ? "Happy birthday" : h >= 5 && h < 12 ? "Good morning" : h >= 12 && h < 17 ? "Good afternoon" : h >= 17 && h < 22 ? "Good evening" : "Good night") + (userNameSet() ? ", " + userNameSet() : "")); } }, // the name and birthday come from Settings > User
+  { id: "birthday", name: "Birthday", opts: [], html: () => '<div class="lk-sm lk-bd"></div>', upd: (nd, o, S, d) => { const n = birthdayIn(d); lkSet(nd, ".lk-bd", n === null ? "Set your birthday in Settings > User" : n === 0 ? "Happy birthday! \ud83c\udf82" : n === 1 ? "Your birthday is tomorrow" : `Your birthday is in ${n} days`); } },
   { id: "analog", name: "Analog clock", opts: [["sec", "bool", "Seconds hand"]],
     html: o => `<svg class="lk-an" viewBox="0 0 120 120" width="170" height="170"><circle cx="60" cy="60" r="56" fill="rgba(255,255,255,.06)" stroke="#fff" stroke-width="2" opacity=".85"/>${lkTicks}<line class="lk-hh" x1="60" y1="60" x2="60" y2="34" stroke="#fff" stroke-width="4" stroke-linecap="round"/><line class="lk-mh" x1="60" y1="60" x2="60" y2="20" stroke="#fff" stroke-width="3" stroke-linecap="round"/>${o.sec ? '<line class="lk-sh" x1="60" y1="68" x2="60" y2="14" style="stroke:var(--ac2,#4cc2ff)" stroke-width="1.5" stroke-linecap="round"/>' : ""}<circle cx="60" cy="60" r="3" fill="#fff"/></svg>`,
     upd: (nd, o, S, d) => { const sec = d.getSeconds(), min = d.getMinutes() + sec / 60; nd.querySelector(".lk-hh").setAttribute("transform", `rotate(${((d.getHours() % 12) + min / 60) * 30} 60 60)`); nd.querySelector(".lk-mh").setAttribute("transform", `rotate(${min * 6} 60 60)`); const sh = nd.querySelector(".lk-sh"); if (sh) sh.setAttribute("transform", `rotate(${sec * 6} 60 60)`); } },
@@ -2528,9 +2546,9 @@ function lockWidgetUi() { // the Settings list: every widget with its switch, op
   }).join("")}</div>` : ""}</div>`; }).join("");
 }
 // Widgets without a saved spot get an automatic one: clock on top, columns at the sides, small info along the bottom (one spread-out column on narrow screens).
-const LK_ZONE = { greeting: "L", worldclock: "L", countdown: "L", progress: "L", note: "L", fact: "L", analog: "R", calendar: "R", weather: "R", moon: "R", digital: "H", date: "H" }; // anything else goes to the bottom row
-const LK_H = { greeting: 40, analog: 180, digital: 80, date: 28, worldclock: 110, calendar: 250, countdown: 70, progress: 90, weather: 36, moon: 22, battery: 22, network: 22, device: 22, storage: 50, uptime: 22, lockedfor: 22, recent: 22, notifications: 22, note: 70, fact: 60 }; // rough heights in px
-const LK_W = { greeting: 340, analog: 170, digital: 300, date: 260, worldclock: 240, calendar: 220, countdown: 240, progress: 240, weather: 280, moon: 240, battery: 190, network: 220, device: 240, storage: 250, uptime: 180, lockedfor: 180, recent: 320, notifications: 180, note: 320, fact: 320 }; // rough widths in px
+const LK_ZONE = { greeting: "L", birthday: "L", worldclock: "L", countdown: "L", progress: "L", note: "L", fact: "L", analog: "R", calendar: "R", weather: "R", moon: "R", digital: "H", date: "H" }; // anything else goes to the bottom row
+const LK_H = { greeting: 40, birthday: 22, analog: 180, digital: 80, date: 28, worldclock: 110, calendar: 250, countdown: 70, progress: 90, weather: 36, moon: 22, battery: 22, network: 22, device: 22, storage: 50, uptime: 22, lockedfor: 22, recent: 22, notifications: 22, note: 70, fact: 60 }; // rough heights in px
+const LK_W = { greeting: 340, birthday: 240, analog: 170, digital: 300, date: 260, worldclock: 240, calendar: 220, countdown: 240, progress: 240, weather: 280, moon: 240, battery: 190, network: 220, device: 240, storage: 250, uptime: 180, lockedfor: 180, recent: 320, notifications: 180, note: 320, fact: 320 }; // rough widths in px
 function lkAuto(ids, W, H, layout) { // -> { id: { x, y, s? } } as percent of the screen (centre points)
   const pad = 40, gap = 26, gx = 24, out = {}, low = layout === "two" ? 64 : 36; // low = room kept free at the bottom (the "click to unlock" hint)
   let k = 1; const hh = id => (LK_H[id] || 24) * k, ww = id => (LK_W[id] || 230) * k, put = (id, cx, cy) => { out[id] = { x: +(cx / W * 100).toFixed(2), y: +(cy / H * 100).toFixed(2), ...(k < 1 ? { s: +k.toFixed(2) } : {}) }; };
@@ -2628,7 +2646,7 @@ function askPw(title, o = {}) { // resolves with the typed password, or null if 
     const place = () => lkPlace(on, list, layout), pl = place();
     const freeW = list.map(w => `<div class="lkw lkf lkw-${w.id}" data-wid="${w.id}" style="${lkCss(pl[w.id])}">${w.html(on[w.id], S)}</div>`).join("");
     const el = document.createElement("div"); el.className = "lock" + (o.full ? " full" : "");
-    el.innerHTML = `${o.full && freeW ? `<div class="lk-f">${freeW}</div>` : ""}${o.full && two ? '<div class="lk-hint">Click or press any key to unlock</div>' : ""}<div class="lk-p"><div class="lk-t">${esc(title)}</div><input class="lk-in" type="password" autocomplete="off" autocapitalize="off"><div class="lk-msg"></div><button class="lk-ok">OK</button><div class="lk-foot">${o.full ? '<a data-g="1">Enter as Guest</a>' : ""}${o.cancel ? '<a data-c="1">Cancel</a>' : ""}</div></div>`;
+    el.innerHTML = `${o.full && freeW ? `<div class="lk-f">${freeW}</div>` : ""}${o.full && two ? '<div class="lk-hint">Click or press any key to unlock</div>' : ""}<div class="lk-p">${o.full && S.userPic ? `<img class="lk-av" src="${esc(S.userPic)}" alt="">` : ""}<div class="lk-t">${esc(title)}</div><input class="lk-in" type="password" autocomplete="off" autocapitalize="off"><div class="lk-msg"></div><button class="lk-ok">OK</button><div class="lk-foot">${o.full ? '<a data-g="1">Enter as Guest</a>' : ""}${o.cancel ? '<a data-c="1">Cancel</a>' : ""}</div></div>`;
     const inp = el.querySelector(".lk-in"), msg = el.querySelector(".lk-msg"), wEls = [".lk-f", ".lk-w", ".lk-hint"].map(c => el.querySelector(c)).filter(Boolean), pEl = el.querySelector(".lk-p");
     let busy = false, stage = two ? "w" : "p", last = Date.now(); const born = last, nodes = list.map(w => [w, el.querySelector(`[data-wid="${w.id}"]`), on[w.id]]);
     const setStage = st => { // two-screen mode: "w" = widgets only, "p" = password box
@@ -2732,7 +2750,7 @@ const lockSection = () => {
 };
 
 // ===================== BACKUP: EXPORT / IMPORT =====================
-const SETTING_GROUPS = { appearance: ["site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize", "taskSearch", "taskLabels", "taskPos", "lockLayout", "lockDigital", "lockDate", "lockAnalog", "lockSeconds", "lockBattery", "lockW"], clock: ["hour24", "clockSeconds", "clockWeekday"], windows: ["snap", "rememberWin", "keys", "keysFile", "keysEdit"], system: ["autoUpdate", "limiter", "limitMB", "binDays", "userName"] };
+const SETTING_GROUPS = { appearance: ["site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize", "taskSearch", "taskLabels", "taskPos", "lockLayout", "lockDigital", "lockDate", "lockAnalog", "lockSeconds", "lockBattery", "lockW"], clock: ["hour24", "clockSeconds", "clockWeekday"], windows: ["snap", "rememberWin", "keys", "keysFile", "keysEdit"], system: ["autoUpdate", "limiter", "limitMB", "binDays", "userName", "userPic", "userBirthday"] };
 // ----- save data from other pages (games etc.) and encrypted passwords -----
 const bytesToB64 = u8 => { let t = ""; for (let i = 0; i < u8.length; i += 0x8000) t += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(t); };
 const b64ToBytes = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
@@ -3275,6 +3293,17 @@ function applyFavicon() {
   const s = getSettings(), D = tabDoc(); let l = D.querySelector("link[rel~=icon]");
   if (!l) { l = D.createElement("link"); l.rel = "icon"; D.head.appendChild(l); }
   l.href = s.favMode === "link" && s.favLink ? s.favLink : s.favMode === "file" && s.favData ? s.favData : DEFAULT_FAV;
+}
+function pickAvatar(cb) { // a profile picture: cropped to a centered square, shrunk to 128x128 and stored as text
+  const i = document.createElement("input"); i.type = "file"; i.accept = "image/*";
+  i.onchange = () => {
+    const f = i.files[0]; if (!f) return;
+    const u = URL.createObjectURL(f), im = new Image();
+    im.onload = () => { const s = Math.min(im.width, im.height), c = document.createElement("canvas"); c.width = c.height = 128; c.getContext("2d").drawImage(im, (im.width - s) / 2, (im.height - s) / 2, s, s, 0, 0, 128, 128); URL.revokeObjectURL(u); cb(c.toDataURL("image/jpeg", 0.85)); };
+    im.onerror = () => { URL.revokeObjectURL(u); winAlert("Couldn't read that image."); };
+    im.src = u;
+  };
+  i.click();
 }
 function pickFavicon(cb) { // uploaded images are shrunk to 64x64 and stored as text, so they survive closing the tab
   const i = document.createElement("input"); i.type = "file"; i.accept = "image/*";
