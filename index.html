@@ -349,7 +349,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.16.2026 7:31 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.16.2026 7:39 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -464,7 +464,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "F2" && sel.length === 1 && sel[0].dataset.kind !== "app") inlineRename(sel[0], sel[0].dataset.kind, sel[0].dataset.id);
 });
 let clip = null; // { mode: "copy" | "cut", items: [{ kind, id }] }
-const newMenu = (dir, box) => [...(clip ? [["Paste", () => pasteTo(dir)]] : []), ["New folder", () => newFolder(dir, box)], ["New text document", () => newFile("txt", dir, box)], ["New shortcut (.vsh)", () => newVsh(dir, box)], ["Upload files...", () => pickUpload(dir, false)], ["Refresh", renderIcons]];
+const newMenu = (dir, box) => [...(clip ? [["Paste", () => pasteTo(dir)]] : []), ["New folder", () => newFolder(dir, box)], ["New text document", () => newFile("txt", dir, box)], ["New shortcut (.vsh)", () => newVsh(dir, box)], ["Upload files...", () => pickUpload(dir, false)], ["Open in Terminal", () => openTerminalAt(dir)], ["Refresh", renderIcons]];
 let upDir = null;
 const pickUpload = (dir, mode) => { upDir = dir; $(mode === "zip" ? "#upz" : mode ? "#upd" : "#up").click(); };
 $("#desktop").addEventListener("contextmenu", e => { if (e.target.closest(".icon,.win")) return; e.preventDefault(); ctx(e, [...newMenu(null, $("#icons")), ["Sort by...", e2 => ctx(e2, [["Name", () => sortDesktop("name")], ["Type", () => sortDesktop("type")], ["Date modified (newest first)", () => sortDesktop("mod")], ["Size (largest first)", () => sortDesktop("size")]])], [getSettings().showIcons === false ? "Show desktop icons" : "Hide desktop icons", () => { save("settings", { ...getSettings(), showIcons: getSettings().showIcons === false }); applyTheme(); }]]); });
@@ -1224,6 +1224,7 @@ function fillItems(box, fl, fi, openFolder, list) {
     const n = fmeta().filter(x => x.parent === f.id).length + folders().filter(x => x.parent === f.id).length;
     box.appendChild(iconEl({ name: f.name, icon: "svg:folder", color: "amber" }, f.name, () => openFolder(f.id), [
       ...(siteIndex(f.id) ? [["Open website (index.html)", () => openApp(fileApp(siteIndex(f.id)))]] : []),
+      ["Open in Terminal", () => openTerminalAt(f.id)],
       ...(f.saved === false ? [["Save", () => { markSaved("folder", f.id); renderIcons(); }]] : []),
       [isFav("folder", f.id) ? "Remove from Favorites" : "Add to Favorites", () => toggleFav("folder", f.id)], ["Rename", e => inlineRename(iconOf(e), "folder", f.id)], ["Move to...", e => moveMenu(e, "folder", f.id)],
       ["Delete", () => deleteFolder(f.id)],
@@ -1320,10 +1321,10 @@ function vmList() { // what C:\System shows inside the VM: the repo's files with
 }
 function vmCheck(path, text) { // null = fine, otherwise the reason it can't be kept
   if (!vmPathOk(path) || path === VM_DEL) return "That name isn't allowed. Use letters, numbers, spaces and . _ - (and / to put it in a folder).";
-  if (text.length > VM_LIMITS.one) return "That file is too big for the VM (3 MB at most).";
+  if (text.length > VM_LIMITS.one) return "That file is too big for the VM (1.5 MB at most).";
   const ov = window.__VM.overlay, keys = Object.keys(ov).filter(k => k !== path);
   if (keys.length + 1 > VM_LIMITS.files) return "The VM keeps up to " + VM_LIMITS.files + " edited files.";
-  if (keys.reduce((n, k) => n + ov[k].length, text.length) > VM_LIMITS.all) return "The VM's edits are over 8 MB in total.";
+  if (keys.reduce((n, k) => n + ov[k].length, text.length) > VM_LIMITS.all) return "The VM's edits are over 2 MB in total.";
   return null;
 }
 async function vmRead(path) {
@@ -1668,7 +1669,7 @@ const EXPLORER = { builtin: 1, single: 1, name: "File Explorer", icon: "svg:fold
 
 // ----- Virtual Machine, step 2b: builds the page that runs a COPY of the OS inside a sandboxed iframe -----
 // overlay = { "apps/notes.js": "text", "index.html": "text", ... }: the user's edited system files. Anything not in it comes from the repo.
-const VM_LIMITS = { files: 200, one: 3 * 1048576, all: 8 * 1048576 };
+const VM_LIMITS = { files: 200, one: 1.5 * 1048576, all: 2 * 1048576 }; // the edits are kept in localStorage (about 5 MB for the whole OS), so the total stays small; an imported or hostile VM must not be able to fill it
 function cleanOverlay(o) { // keeps only safe text entries (used for saved edits now, and for imported OS files later)
   const out = {}; let n = 0, total = 0;
   if (!o || typeof o !== "object") return out;
@@ -1720,10 +1721,54 @@ async function vmBuild(overlay) { // fetches the repo's index.html and builds th
   if (!r.ok) throw new Error("Couldn't download the OS (" + r.status + ")");
   return URL.createObjectURL(new Blob([buildVmHtml(await r.text(), overlay)], { type: "text/html" }));
 }
+// ----- Virtual Machine, steps 2e + 2f: Export / Import of an OS file, with checks. An imported OS is untrusted: it is only ever text, nothing in it is run outside the sandboxed iframe, and the sandbox (no allow-same-origin) is what keeps it away from the real data, not these checks -----
+const VM_FORMAT = "vus-os-vm", VM_EXTS = [".js", ".html", ".css", ".json", ".txt", ".md"], VM_FILE_MAX = 16 * 1048576; // text file types only
+const vmDelOk = t => { try { const l = JSON.parse(t); return Array.isArray(l) && l.length <= 500 && l.every(s => typeof s === "string" && vmPathOk(s)); } catch { return false; } }; // the reserved ".vm-deleted" entry must be a plain list of paths
+function vmExport(overlay) { // the edited system files as one .json text (only what differs from the default OS; everything else always comes from the repo)
+  return JSON.stringify({ format: VM_FORMAT, version: 1, saved: new Date().toISOString(), files: cleanOverlay(overlay) }, null, 1);
+}
+function vmCheckImport(text) { // reads an OS file. Returns { files, skipped: [[path, why]] } or { error }. Nothing is saved or run here
+  if (typeof text !== "string" || text.length > VM_FILE_MAX) return { error: "That file is too big to be an OS file (16 MB at most)." };
+  let d; try { d = JSON.parse(text); } catch { return { error: "That isn't an OS file (it isn't valid JSON)." }; }
+  if (!d || typeof d !== "object" || Array.isArray(d) || d.format !== VM_FORMAT) return { error: "That isn't an OS file made by Export in the Virtual Machine window." };
+  if (d.version !== 1) return { error: "That OS file is from a different version of VUS-OS, so it can't be imported." };
+  if (!d.files || typeof d.files !== "object" || Array.isArray(d.files)) return { error: "That OS file has no list of files in it." };
+  const files = {}, skipped = []; let n = 0, total = 0;
+  for (const p of Object.keys(d.files)) { // own keys only; "__proto__" and other odd names fail the name / file type checks below
+    const t = d.files[p], low = String(p).toLowerCase(), no = why => skipped.push([String(p).slice(0, 60), why]);
+    if (typeof t !== "string" || t.indexOf("\u0000") >= 0) no("not text");
+    else if (!vmPathOk(p) || p.split("/").length > 6) no("name not allowed");
+    else if (p !== VM_DEL && !VM_EXTS.some(x => low.endsWith(x))) no("file type not allowed");
+    else if (t.length > VM_LIMITS.one) no("too big");
+    else if (p === VM_DEL && !vmDelOk(t)) no("bad list of deleted files");
+    else if (n + 1 > VM_LIMITS.files || total + t.length > VM_LIMITS.all) no("over the size limit in total");
+    else { files[p] = t; n++; total += t.length; }
+  }
+  return { files: cleanOverlay(files), skipped }; // cleanOverlay is the same filter the saved edits go through
+}
+async function vmImportDialog(file, current) { // shows what is in the file and asks before anything is replaced; resolves with the new overlay, or null
+  if (file.size > VM_FILE_MAX) { await winAlert("That file is too big to be an OS file (16 MB at most)."); return null; }
+  let text; try { text = await file.text(); } catch { await winAlert("Couldn't read that file."); return null; }
+  const r = vmCheckImport(text), why = l => l.map(([p, w]) => p + " (" + w + ")").join("\n");
+  if (r.error) { await winAlert(r.error); return null; }
+  const names = Object.keys(r.files).filter(p => p !== VM_DEL), count = Object.keys(r.files).length, nSkip = r.skipped.length, had = Object.keys(cleanOverlay(current)).length;
+  if (!count && nSkip) { await winAlert("Nothing in that file could be imported:\n" + why(r.skipped.slice(0, 5))); return null; }
+  const kb = Math.round(Object.values(r.files).reduce((s, t) => s + t.length, 0) / 1024);
+  const msg = (count ? "Import " + count + " file" + (count === 1 ? "" : "s") + " (" + kb + " KB) into the VM?" + (names.length ? "\n" + names.slice(0, 8).join("\n") + (names.length > 8 ? "\n...and " + (names.length - 8) + " more" : "") : "") : "This OS file has no edits, so importing it puts the VM back to the default OS.")
+    + (nSkip ? "\n\nSkipped " + nSkip + ":\n" + why(r.skipped.slice(0, 4)) + (nSkip > 4 ? "\n...and " + (nSkip - 4) + " more" : "") : "")
+    + (had ? "\n\nYour current VM edits (" + had + " file" + (had === 1 ? "" : "s") + ") are replaced." : "")
+    + "\n\nOnly import OS files you trust. They are only text and only run inside the VM, which can't see your real files, but an imported OS can still open new tabs and make network requests.";
+  return (await winDialog(msg, [["Import", true, "danger"], ["Cancel", false]], "Import OS file")) ? r.files : null; // "danger" so Enter lands on Cancel
+}
+function vmExportNow() { // downloads the saved VM edits as an OS file
+  const ov = LS("vmOverlay", {});
+  if (!Object.keys(cleanOverlay(ov)).length) return winAlert("There are no VM edits to export yet: the VM is the same as the default OS.");
+  dlBlob("vus-os-" + new Date().toLocaleDateString("sv-SE") + ".json", new Blob([vmExport(ov)], { type: "application/json" }));
+}
 // ----- Virtual Machine, step 2c: the manager window (real OS side) and the red VM badge (inside the VM) -----
 const VMAPP = { builtin: 1, single: 1, name: "Virtual Machine", icon: "svg:vm", color: "blue", w: 780, h: 540, open(root) {
   if (window.__VM) { root.innerHTML = '<div style="padding:20px">You are already inside a virtual machine. Open this app in the real VUS-OS.</div>'; return; }
-  root.innerHTML = '<div style="display:flex;flex-direction:column;height:100%"><div style="display:flex;gap:8px;align-items:center;padding:8px 10px;flex-wrap:wrap"><button data-a="start">Start</button><button data-a="restart">Restart</button><button data-a="stop">Stop</button><button data-a="full">Full screen</button><button data-a="reset">Reset to default</button><span class="vms" style="color:var(--mute);font-size:12px">Stopped</span></div><div class="vmb" style="flex:1;position:relative;background:#000;min-height:0"><div class="vmn" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#aaa;font-size:13px">A copy of VUS-OS runs here in a sandbox with its own empty storage.<br>Nothing you do inside it can change your real files. Press Start.</div></div></div>';
+  root.innerHTML = '<div style="display:flex;flex-direction:column;height:100%"><div style="display:flex;gap:8px;align-items:center;padding:8px 10px;flex-wrap:wrap"><button data-a="start">Start</button><button data-a="restart">Restart</button><button data-a="stop">Stop</button><button data-a="full">Full screen</button><button data-a="reset">Reset to default</button><button data-a="export">Export OS</button><button data-a="import">Import OS</button><span class="vms" style="color:var(--mute);font-size:12px">Stopped</span></div><div class="vmb" style="flex:1;position:relative;background:#000;min-height:0"><div class="vmn" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#aaa;font-size:13px">A copy of VUS-OS runs here in a sandbox with its own empty storage.<br>Nothing you do inside it can change your real files. Press Start.</div></div></div>';
   const q = s => root.querySelector(s), box = q(".vmb"), st = q(".vms"), note = q(".vmn");
   let frame = null, url = null, busy = false, token = 0, wait = 0;
   const say = t => { st.textContent = t; };
@@ -1748,7 +1793,17 @@ const VMAPP = { builtin: 1, single: 1, name: "Virtual Machine", icon: "svg:vm", 
     else if (e.data.vus === "vm-restart") start();
   };
   window.addEventListener("message", onMsg);
-  root.onclick = e => { const b = e.target.closest("button[data-a]"); if (!b) return; const a = b.dataset.a; if (a === "start" || a === "restart") start(); else if (a === "stop") stop(); else if (a === "reset") winConfirm("Throw away all edits made in the VM and go back to the default OS?", "Reset").then(ok => { if (!ok) return; save("vmOverlay", {}); if (frame) start(); else say("Edits cleared."); }); else if (a === "full" && frame && frame.requestFullscreen) frame.requestFullscreen().catch(() => {}); };
+  const pickOs = () => { // Import OS: choose a file, check it, ask, then keep it and restart the VM if it is running
+    const i = document.createElement("input"); i.type = "file"; i.accept = ".json,application/json";
+    i.onchange = async () => {
+      const f = i.files[0]; if (!f) return;
+      const ov = await vmImportDialog(f, LS("vmOverlay", {})); if (!ov) return;
+      try { save("vmOverlay", ov); } catch { say("Couldn't keep the imported files (storage is full)."); return; }
+      if (frame) start(); else say("Imported " + Object.keys(ov).length + " file(s). Press Start.");
+    };
+    i.click();
+  };
+  root.onclick = e => { const b = e.target.closest("button[data-a]"); if (!b) return; const a = b.dataset.a; if (a === "start" || a === "restart") start(); else if (a === "stop") stop(); else if (a === "reset") winConfirm("Throw away all edits made in the VM and go back to the default OS?", "Reset").then(ok => { if (!ok) return; save("vmOverlay", {}); if (frame) start(); else say("Edits cleared."); }); else if (a === "export") vmExportNow(); else if (a === "import") pickOs(); else if (a === "full" && frame && frame.requestFullscreen) frame.requestFullscreen().catch(() => {}); };
   const iv = setInterval(() => { if (!root.isConnected) { clearInterval(iv); window.removeEventListener("message", onMsg); stop(); } }, 1500); // closing the window shuts the VM down
 } };
 if (window.__VM) { // inside the VM: a red badge in the taskbar so nobody mixes it up with the real OS, and tell the manager window we are up
@@ -1756,6 +1811,12 @@ if (window.__VM) { // inside the VM: a red badge in the taskbar so nobody mixes 
   const vb = document.createElement("div"); vb.className = "vmbadge"; vb.textContent = "VM"; vb.title = "This is a virtual machine. Nothing here touches your real VUS-OS.";
   $("#taskbar").insertBefore(vb, $("#tray"));
   try { parent.postMessage({ vus: "vm-ready" }, "*"); } catch {}
+}
+function openTerminalAt(dir) { // right-click > Open in Terminal (desktop, Explorer empty space, folder icons): the Terminal starts in that folder (dir null = Desktop)
+  const t = catalog.find(a => a.name === "Terminal");
+  if (!t) return winAlert("The Terminal app isn't available.");
+  (window.__vusTermQ = window.__vusTermQ || []).push({ dir: dir || null }); // no cmd: terminal.js only changes folder
+  openApp(t); window.dispatchEvent(new Event("vus-term-run"));
 }
 function runInTerminal(f) { // right-click > Run in Terminal for .py and .js files
   const t = catalog.find(a => a.name === "Terminal");

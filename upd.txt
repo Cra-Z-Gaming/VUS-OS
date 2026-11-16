@@ -1,3 +1,11 @@
+11.16.2026 7:39 AM
+- Virtual Machine: new Export OS and Import OS buttons. Export saves your VM edits (the system files you changed) as one .json file. Import OS reads such a file, checks it, shows what is in it and asks before it replaces your VM edits. Only text files are accepted, and an imported OS only ever runs inside the VM sandbox.
+- Virtual Machine: your edits are now kept up to 2 MB in total (a single file up to 1.5 MB), so they can't fill the space the real OS needs.
+
+11.16.2026 7:34 AM
+- Right-click the desktop, empty space in File Explorer (any folder or sub-folder) or a folder icon and choose Open in Terminal. The Terminal opens in that folder (or goes there if it is already open).
+- Terminal: new site command (also website). Type site myfolder to open that folder's index.html as a website with its css, js and images, or just site inside the folder. (open myfolder still opens the folder in File Explorer.)
+
 11.16.2026 7:31 AM
 - Lock screen: the Greeting widget now has a holiday line under it. It says things like Happy Thanksgiving, Merry Christmas Eve, Thank you to all our veterans today, Happy Hanukkah, Eid Mubarak, Diwali, Lunar New Year, and fun days like Pi Day. Up to two show when days overlap.
 - In the Greeting widget's options (Settings > User > Widgets, or Customize lock screen) you can turn the holiday line off, or skip the religious and cultural holidays or the fun days.

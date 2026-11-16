@@ -98,6 +98,7 @@ export default {
       { n: ["history"], d: "Show the commands you typed in this window.", ex: "history" },
       { n: ["restart"], d: "Close everything and restart VUS-OS without reloading the page.", ex: "restart" },
       { n: ["pwd"], d: "Show which folder you are in.", ex: "pwd" },
+      { n: ["site", "website"], d: "Open a folder as a website: its index.html is shown with the css, js and images that sit next to it. Without a name it uses the current folder. (open <folder> opens a folder in File Explorer instead.)", ex: "site mysite" },
       { n: ["touch"], d: "Make an empty file here. Does nothing if it already exists.", ex: "touch notes.txt" },
       { n: ["tree"], d: "Show a folder and everything inside it as an indented list. Without a name it shows the current folder.", ex: "tree Projects" },
       { n: ["grep"], d: "Search the text inside files for a word. Give a file name to search just that file, or leave it out to search every file here.", ex: "grep hello notes.txt" },
@@ -183,7 +184,7 @@ export default {
     };
 
     const cmds = {
-      help: () => print("commands           open a window with every command and an example\nls                 list this folder\ncd <folder|..|/>   change folder\ncat <file>         show a file in a code bubble\nedit <file>        open a file in Notepad\nmkdir <name>       new folder\nrm <name>          move to the Recycle Bin\nexecute <name>     open an app, file or folder here (\\name searches everywhere)\nkill <name>        force-close an open program\nfetch <link>       show text from a link (raw GitHub works)\nsave <name>        save the last fetched text as a file here\ncopy / paste       copy the latest output / paste the clipboard into the input\nver                show the version and the latest one\nsys-upd            update VUS-OS in this tab\ncmd1 | cmd2        run several commands in one line\ncp / mv / rename   copy, move or rename a file or folder here\nfind <text>        search names in every folder\nrun <path>         run a .vsh shortcut and show its output\necho / wait / history / restart\npwd / touch / tree      where you are, new empty file, folder outline\ngrep <text> [file] search inside files\ndate / whoami      date and time, who and which version\nalias <name> <cmd> your own short command\npy <file> / js <file>  run a Python or JavaScript file (after install)\ninstall / languages  add a language like Python or JavaScript\ntheme dark|light   lock   sleep   notify <text>   clear   exit"),
+      help: () => print("commands           open a window with every command and an example\nls                 list this folder\ncd <folder|..|/>   change folder\ncat <file>         show a file in a code bubble\nedit <file>        open a file in Notepad\nmkdir <name>       new folder\nrm <name>          move to the Recycle Bin\nexecute <name>     open an app, file or folder here (\\name searches everywhere)\nkill <name>        force-close an open program\nfetch <link>       show text from a link (raw GitHub works)\nsave <name>        save the last fetched text as a file here\ncopy / paste       copy the latest output / paste the clipboard into the input\nver                show the version and the latest one\nsys-upd            update VUS-OS in this tab\ncmd1 | cmd2        run several commands in one line\ncp / mv / rename   copy, move or rename a file or folder here\nfind <text>        search names in every folder\nrun <path>         run a .vsh shortcut and show its output\necho / wait / history / restart\npwd / touch / tree      where you are, new empty file, folder outline\nsite [folder]      open a folder as a website (its index.html)\ngrep <text> [file] search inside files\ndate / whoami      date and time, who and which version\nalias <name> <cmd> your own short command\npy <file> / js <file>  run a Python or JavaScript file (after install)\ninstall / languages  add a language like Python or JavaScript\ntheme dark|light   lock   sleep   notify <text>   clear   exit"),
       commands: () => { sys.launch(listApp); },
       clear: () => { out.innerHTML = ""; if (cur) { cur.el = document.createElement("div"); out.appendChild(cur.el); } },
       ls: () => { const h = here(), fo = cwd ? h.f : h.f.filter(f => !f.home); if (!fo.length && !h.n.length) return print("(empty)", "dim"); fo.forEach(f => print(f.name + "/", "dir")); h.n.forEach(f => print(f.name)); }, // Downloads and Documents are not listed on the Desktop; cd Downloads still works
@@ -268,6 +269,13 @@ export default {
         if (typeof o !== "string") print("That shortcut is already running.", "err"); else if (o) print(o); else print("Done.", "dim", false);
       },
       pwd: () => print(winPath(cwd)),
+      site: a => { // opens a folder's index.html; the OS wires in the css, js and images next to it
+        const n = parseArgs(a)[0], d = n ? resolveDir(n) : cwd;
+        if (d === undefined) return print(`No folder "${n}".`, "err");
+        const f = files().find(x => (x.parent || null) === d && /^index\.html?$/i.test(x.name));
+        if (!f) return print(`No index.html in ${n ? '"' + n + '"' : "this folder"}. Name the main page index.html, or use: execute <file.html>`, "err");
+        sys.open("file", f.id); print(`Opened the website in ${pathOf(d)}`);
+      },
       touch: async a => {
         const n = parseArgs(a)[0]; if (!n) return print('Usage: touch <name>   (use "quotes" for names with spaces)', "err");
         if (find(n, here().n)) return print(`${n} already exists.`, "dim");
@@ -358,7 +366,7 @@ export default {
     pool.js = pool.javascript = () => here().n.filter(x => /\.js$/i.test(x.name)).map(x => ({ name: x.name, kind: "javascript" }));
     pool.install = () => Object.keys(langList || {}).map(name => ({ name, kind: "language" }));
     pool.uninstall = () => Object.keys(installedLangs()).map(name => ({ name, kind: "installed" }));
-    cmds.lang = cmds.languages;
+    cmds.lang = cmds.languages; cmds.website = cmds.site; pool.site = pool.website = () => here().f.map(x => ({ name: x.name, kind: "folder" }));
     const segOf = v => v.slice(v.lastIndexOf("|") + 1).trim();
     const suggest = () => { // works on the part after the last |; ghost text for the best match (Tab accepts it); the others are clickable
       if (inputWait) { gh.innerHTML = ""; sg.innerHTML = ""; cands = []; return; } // no command suggestions while a program is asking for input
@@ -410,13 +418,14 @@ export default {
     };
     $(".tb").onclick = e => { const a = e.target.dataset.a; if (a === "out") { const h = $(".trm").classList.toggle("noout"); e.target.textContent = h ? "Show output" : "Hide output"; } else if (a === "clr") out.innerHTML = ""; else if (a === "stop") stopRun(); };
     $(".trm").onclick = e => { if (!e.target.closest("button,.cb,.sg") && !getSelection().toString()) inp.focus(); };
-    // "Run in Terminal" (right-click on a .py or .js file) sends jobs here: { dir, cmd, lang }
+    // "Run in Terminal" (right-click on a .py or .js file) sends jobs here: { dir, cmd, lang }. "Open in Terminal" sends { dir } only.
     const takeQueue = async () => {
       if (!root.isConnected) return window.removeEventListener("vus-term-run", takeQueue); // this Terminal was closed
       const q = window.__vusTermQ || [];
       while (q.length) {
         const j = q.shift();
         if (runH || busy) { print("Busy. Stop the running program first.", "err", false); continue; }
+        if (!j.cmd) { cwd = j.dir && folders().find(f => f.id === j.dir) ? j.dir : null; prompt(); print("Opened in " + winPath(cwd), "dim", false); inp.focus(); continue; } // right-click > Open in Terminal: just go to that folder
         if (!LANG_OK || !installedLangs()[j.lang]) { print(`${j.lang === "python" ? "Python" : "JavaScript"} isn't installed yet. Run: install ${j.lang}`, "err", false); continue; }
         cwd = j.dir && folders().find(f => f.id === j.dir) ? j.dir : null; prompt();
         inp.value = j.cmd; suggest();
