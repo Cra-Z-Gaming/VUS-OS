@@ -349,7 +349,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.16.2026 7:35 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.16.2026 7:55 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -464,7 +464,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "F2" && sel.length === 1 && sel[0].dataset.kind !== "app") inlineRename(sel[0], sel[0].dataset.kind, sel[0].dataset.id);
 });
 let clip = null; // { mode: "copy" | "cut", items: [{ kind, id }] }
-const newMenu = (dir, box) => [...(clip ? [["Paste", () => pasteTo(dir)]] : []), ["New folder", () => newFolder(dir, box)], ["New text document", () => newFile("txt", dir, box)], ["New shortcut (.vsh)", () => newVsh(dir, box)], ["Upload files...", () => pickUpload(dir, false)], ["Open in Terminal", () => openTerminalAt(dir)], ["Refresh", renderIcons]];
+const newMenu = (dir, box) => [...(clip ? [["Paste", () => pasteTo(dir)]] : []), ...(dir && siteHas(dir) ? [["Run file contents", () => siteRun(dir)]] : []), ["New folder", () => newFolder(dir, box)], ["New text document", () => newFile("txt", dir, box)], ["New shortcut (.vsh)", () => newVsh(dir, box)], ["Upload files...", () => pickUpload(dir, false)], ["Open in Terminal", () => openTerminalAt(dir)], ["Refresh", renderIcons]];
 let upDir = null;
 const pickUpload = (dir, mode) => { upDir = dir; $(mode === "zip" ? "#upz" : mode ? "#upd" : "#up").click(); };
 $("#desktop").addEventListener("contextmenu", e => { if (e.target.closest(".icon,.win")) return; e.preventDefault(); ctx(e, [...newMenu(null, $("#icons")), ["Sort by...", e2 => ctx(e2, [["Name", () => sortDesktop("name")], ["Type", () => sortDesktop("type")], ["Date modified (newest first)", () => sortDesktop("mod")], ["Size (largest first)", () => sortDesktop("size")]])], [getSettings().showIcons === false ? "Show desktop icons" : "Hide desktop icons", () => { save("settings", { ...getSettings(), showIcons: getSettings().showIcons === false }); applyTheme(); }]]); });
@@ -671,7 +671,7 @@ function makeOS(app, win) {
       version: () => OS_VERSION, latest: () => latestOs(true), update: f => updateOS(f), user: () => userName(),
       windows: () => [...wins.values()].map(w => ({ id: w.id, name: w.app.name })), kill: id => closeWin(id, true),
       copy: (kind, id, dir) => kind === "folder" ? copyFolder(id, dir) : copyFile(id, dir), move: (kind, id, dir) => moveTo(kind, id, dir), rename: (kind, id, name) => applyRename(kind, id, name),
-      restart: () => softRestart(), run: id => runVsh(id),
+      restart: () => softRestart(), run: id => runVsh(id), runSite: dir => siteRun(dir || null), // runSite = what right-click > Run file contents does for a folder
       overwrite: (id, text) => { const f = fmeta().find(x => x.id === id); return f ? putFile(id, f.name, new Blob([text]), undefined, true) : false; }, // replaces a file's text, keeping its name and folder
       // languages (Python etc.): the language file is kept in the same "code" store as app code, under the key lang|<id>; small info lives in localStorage
       langBase: () => OS_REPO + "languages/",
@@ -868,7 +868,7 @@ async function loadNow(app, body, win) {
 const EXT = {};
 const reg = (kind, mime, list) => list.split(" ").forEach(e => EXT[e] = [kind, mime]);
 reg("html", "text/html", "html htm xhtml");
-reg("image", "image/png", "png"); reg("image", "image/jpeg", "jpg jpeg jfif pjpeg"); reg("image", "image/gif", "gif"); reg("image", "image/webp", "webp");
+reg("image", "image/png", "png"); reg("image", "image/apng", "apng"); reg("image", "image/jpeg", "jpg jpeg jfif pjpeg"); reg("image", "image/gif", "gif"); reg("image", "image/webp", "webp");
 reg("image", "image/svg+xml", "svg"); reg("image", "image/bmp", "bmp"); reg("image", "image/x-icon", "ico cur"); reg("image", "image/avif", "avif");
 reg("audio", "audio/mpeg", "mp3"); reg("audio", "audio/wav", "wav"); reg("audio", "audio/ogg", "ogg oga opus"); reg("audio", "audio/mp4", "m4a"); reg("audio", "audio/flac", "flac"); reg("audio", "audio/aac", "aac"); reg("audio", "audio/webm", "weba");
 reg("video", "video/mp4", "mp4 m4v"); reg("video", "video/webm", "webm"); reg("video", "video/ogg", "ogv"); reg("video", "video/quicktime", "mov");
@@ -1222,6 +1222,7 @@ function marquee(box) { // blue drag-select rectangle on empty space
 
 // appends folder + file icons (or details rows when list is true) into box
 function fillItems(box, fl, fi, openFolder, list) {
+  const sc = fl.length ? siteScan() : null; // one look at all files, so each folder icon can tell cheaply whether it has a website to run
   const short = t => t ? new Date(t).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "";
   const fs = LS("fxsort", { k: "name", dir: 1 });
   if (list) {
@@ -1233,7 +1234,7 @@ function fillItems(box, fl, fi, openFolder, list) {
   fl.forEach(f => {
     const n = fmeta().filter(x => x.parent === f.id).length + folders().filter(x => x.parent === f.id).length;
     box.appendChild(iconEl({ name: f.name, icon: "svg:folder", color: "amber" }, f.name, () => openFolder(f.id), [
-      ...(siteIndex(f.id) ? [["Open website (index.html)", () => openApp(fileApp(siteIndex(f.id)))]] : []),
+      ...(sc && siteHas(f.id, sc) ? [["Run file contents", () => siteRun(f.id)]] : []),
       ["Open in Terminal", () => openTerminalAt(f.id)],
       ...(f.saved === false ? [["Save", () => { markSaved("folder", f.id); renderIcons(); }]] : []),
       [isFav("folder", f.id) ? "Remove from Favorites" : "Add to Favorites", () => toggleFav("folder", f.id)], ["Rename", e => inlineRename(iconOf(e), "folder", f.id)], ["Move to...", e => moveMenu(e, "folder", f.id)],
@@ -1242,6 +1243,7 @@ function fillItems(box, fl, fi, openFolder, list) {
   });
   fi.forEach(f => box.appendChild(iconEl(fileApp(f), f.name, () => openApp(fileApp(f)), [
     ...(/\.(py|js)$/i.test(f.name) ? [["Run in Terminal", () => runInTerminal(f)]] : []),
+    ...(/\.(md|markdown)$/i.test(f.name) ? [["Preview", () => openApp(mdApp(f))]] : []),
     ["Download", () => downloadFile(f.id)],
     ...(kindOf(f.name) === "vsh" ? [["Edit", () => openApp(vshEditor(f))]] : []),
     ...(kindOf(f.name) === "html" || extOf(f.name) === "svg" ? [["Edit", () => openApp(editApp(f))]] : []),
@@ -1837,7 +1839,7 @@ function runInTerminal(f) { // right-click > Run in Terminal for .py and .js fil
 }
 function fileApp(f) {
   const k = kindOf(f.name), [icon, color] = fileIcon(f.name);
-  return { builtin: 1, name: f.name, icon, color, size: f.size, fid: f.id, ...(k === "vsh" ? { exec: () => runVsh(f.id) } : {}), open: (root, os) => k === "text" ? notepad(root, os, f.id) : viewer(root, os, f) };
+  return { builtin: 1, name: f.title || f.name, icon, color, size: f.size, fid: f.id, ...(k === "vsh" ? { exec: () => runVsh(f.id) } : {}), open: (root, os) => k === "text" ? notepad(root, os, f.id) : viewer(root, os, f) };
 }
 function editApp(f) { // "Edit": open any text-based file (html, svg) in Notepad
   return { builtin: 1, name: f.name, icon: "svg:text", color: "blue", size: f.size, open: (root, os) => notepad(root, os, f.id) };
@@ -1848,6 +1850,9 @@ const OPAQUE_ORIGIN = location.origin === "null" || location.protocol === "file:
 const blobText = async b => b && b.text ? b.text() : new TextDecoder().decode(b);
 const LOCAL_REF = r => !!r && !/^\s*(?:[a-z][a-z0-9+.\-]*:|\/\/|#)/i.test(r); // not http:, data:, blob:, //host or #anchor
 const siteIndex = dir => fmeta().find(x => sameDir(x, dir) && /^index\.html?$/i.test(x.name)) || null; // the main page of a folder
+const SITE_SKIP = /^(node_modules|\.git|\.github|\.vscode|\.idea|__macosx)$/i; // folders that never hold the page to run (and are left out of a website's files)
+const SITE_PREF = ["dist", "build", "docs", "public", "www", "web", "out", "static", "release", "game", "app", "src"]; // where projects keep the page that runs; earlier = better
+const SITE_MAINNAME = /^(main|home|app|game|play|start|launch|run|menu)\b/i; // page names that look like the main page when there is no index.html
 function resolveSibling(baseDir, ref, rootDir) { // "img/a.png", "../b.css", "/c.js" -> the file's meta, or null when it isn't there. A leading / means the website's own folder (rootDir), like the top of a web server
   let r = String(ref).trim().split(/[?#]/)[0]; if (!r) return null;
   try { r = decodeURIComponent(r); } catch { /* keep as typed */ }
@@ -1888,7 +1893,7 @@ async function cssBundle(css, dir, ctx) { // url(...) and @import "..." inside c
   }
   return out + css.slice(last);
 }
-const SITE_MIME = { woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf", wasm: "application/wasm", webmanifest: "application/manifest+json", map: "application/json" };
+const SITE_MIME = { woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf", ttc: "font/collection", eot: "application/vnd.ms-fontobject", wasm: "application/wasm", webmanifest: "application/manifest+json", map: "application/json", cjs: "text/javascript", jsonc: "application/json", ndjson: "application/x-ndjson", geojson: "application/geo+json", gltf: "model/gltf+json", glb: "model/gltf-binary", obj: "text/plain", mtl: "text/plain", vert: "text/plain", frag: "text/plain", glsl: "text/plain", wgsl: "text/plain", atlas: "text/plain", fnt: "text/plain", tmx: "text/xml", tsv: "text/tab-separated-values", rss: "application/xml", atom: "application/xml", ics: "text/calendar", m3u8: "application/vnd.apple.mpegurl", mid: "audio/midi", midi: "audio/midi", mkv: "video/x-matroska", apng: "image/apng", tif: "image/tiff", tiff: "image/tiff", jxl: "image/jxl" }; // data, pck, unityweb and other game files fall through to application/octet-stream
 const siteMime = n => EXT[extOf(n)] ? mimeOf(n) : SITE_MIME[extOf(n)] || "application/octet-stream"; // fonts and wasm have no entry in EXT
 const JS_REF = /(\bimport\s*(?:[\w$*{}\s,]{1,400}?\s*from\s*)?|\bexport\s*(?:\*|\{[^}]*\})\s*(?:as\s+[\w$]+\s*)?from\s*|\bimport\s*\(\s*)(["'])([^"'\n]+)\2/g;
 async function jsBundle(js, dir, ctx) { // import "./x.js", export ... from "./x.js" and import("./x.js") with a plain text path: point them at the neighbour's blob: URL (modules load relative to their own blob: URL, so they can't find neighbours)
@@ -1925,7 +1930,7 @@ async function htmlBundle(text, dir, ctx, shim) {
   if (shim) { const s = doc.createElement("script"); s.textContent = "(" + siteShim.toString() + ")(" + JSON.stringify(shim).replace(/</g, "\\u003c") + ");"; const h = doc.head || doc.documentElement; h.insertBefore(s, h.firstChild); } // the helper that makes the page's own code (fetch, new Image, links...) find its neighbours
   return (/^\s*<!doctype/i.test(text) ? "<!DOCTYPE html>\n" : "") + doc.documentElement.outerHTML;
 }
-const SITE_MAX = 300; // most files wired into one page (nearest folders first)
+const SITE_MAX = 1500; // most files wired into one page (nearest folders first). Games can have hundreds of sprites and sounds; this is still every file made into a link up front, so a huge project can open slowly
 function siteList(root) { // every file under the website's folder, with its path from that folder in lower case ("img/a.png"); html pages are kept apart because they open through links
   const files = [], pages = {}, q = [{ id: root || null, path: "" }]; let n = 0;
   while (q.length && n < SITE_MAX) {
@@ -1935,7 +1940,7 @@ function siteList(root) { // every file under the website's folder, with its pat
       const key = (path + m.name).toLowerCase();
       if (/^(html?|xhtml)$/.test(extOf(m.name))) pages[key] = m.id; else files.push({ m, key });
     }
-    for (const fo of folders().filter(x => sameDir(x, id))) q.push({ id: fo.id, path: path + fo.name + "/" });
+    for (const fo of folders().filter(x => sameDir(x, id) && !SITE_SKIP.test(x.name))) q.push({ id: fo.id, path: path + fo.name + "/" });
   }
   return { files, pages };
 }
@@ -2005,6 +2010,102 @@ async function siteBuild(meta, b0, rootDir) { // the website around one html fil
   } catch (e) { console.error(e); free(); return null; }
 }
 
+// ----- "Run file contents": right-click a folder (or the empty space inside one) to run the website in it. Made for projects downloaded from GitHub as a zip and unzipped: the page can sit in a sub-folder (game-main/dist/index.html) and the OS finds it. A folder can also hold a site.json like { "main": "pages/home.html" } to say which page runs -----
+function siteScan() { // one pass over all files and folders, so every folder icon can ask cheaply whether it holds a website
+  const kids = new Map(), files = new Map(), pages = new Map(), cfg = new Map();
+  const add = (mp, k, v) => { const l = mp.get(k); if (l) l.push(v); else mp.set(k, [v]); };
+  for (const x of folders()) add(kids, x.parent || null, x);
+  for (const m of fmeta()) { const p = m.parent || null; add(files, p, m); if (/^html?$/.test(extOf(m.name))) add(pages, p, m); if (/^site\.json$/i.test(m.name)) cfg.set(p, m); }
+  return { kids, files, pages, cfg };
+}
+function siteWrap(dir, sc) { // an unzipped GitHub project sits in one folder that holds nothing else (game-main/): step inside it, up to 3 times
+  let d = dir || null;
+  for (let i = 0; i < 3; i++) {
+    const k = (sc.kids.get(d) || []).filter(x => !SITE_SKIP.test(x.name));
+    if ((sc.files.get(d) || []).length || k.length !== 1) break;
+    d = k[0].id;
+  }
+  return d;
+}
+function siteFind(dir, sc) { // the html pages that could run this folder, best first. Looks 4 levels down. An index page beats any other page, a shallower page beats a deeper one, then dist / build / docs... beat other folders
+  sc = sc || siteScan();
+  const root = siteWrap(dir, sc), out = [];
+  let level = [{ id: root, pref: -1 }];
+  for (let depth = 0; depth < 4 && level.length; depth++) {
+    const next = [];
+    for (const { id, pref } of level) {
+      for (const m of sc.pages.get(id) || []) out.push({ m, depth, rank: /^index\.html?$/i.test(m.name) ? 0 : SITE_MAINNAME.test(m.name) ? 1 : 2, pref });
+      for (const k of sc.kids.get(id) || []) if (!SITE_SKIP.test(k.name)) { const i = SITE_PREF.indexOf(k.name.toLowerCase()); next.push({ id: k.id, pref: id === root ? (i < 0 ? 99 : i) : pref }); }
+    }
+    level = next;
+  }
+  return out.sort((a, b) => (a.rank === 0 ? 0 : 1) - (b.rank === 0 ? 0 : 1) || a.depth - b.depth || a.rank - b.rank || a.pref - b.pref || a.m.name.localeCompare(b.m.name));
+}
+function siteHas(id, sc) { // does this folder have something to run? (Downloads and Documents are never treated as websites)
+  const fo = folders().find(x => x.id === id); if (!fo || fo.home) return false;
+  sc = sc || siteScan();
+  return sc.cfg.has(id) || sc.cfg.has(siteWrap(id, sc)) || siteFind(id, sc).length > 0;
+}
+const siteKey = c => [c.rank === 0 ? 0 : 1, c.depth, c.rank, c.pref].join(); // two pages with the same key are equally good, so the OS asks which one
+const needsBuild = t => /<script\b[^>]*\bsrc\s*=\s*["'][^"']+\.(?:jsx|tsx|ts|vue|svelte)(?:\?[^"']*)?["']/i.test(t); // a page of a source project (React / Vue / TypeScript) that has to be built with npm before a browser can run it
+async function siteRun(dir) { // runs the website in a folder (dir null = Desktop)
+  dir = dir || null;
+  const sc = siteScan(), fo = folders().find(x => x.id === dir);
+  let meta = null;
+  const cj = sc.cfg.get(dir) || sc.cfg.get(siteWrap(dir, sc));
+  if (cj) { // site.json: { "main": "pages/home.html" } (the path starts at the folder that holds site.json)
+    try {
+      const j = JSON.parse(await blobText(await dbGet(cj.id, "files")));
+      if (j && typeof j.main === "string") { meta = resolveSibling(cj.parent || null, j.main, cj.parent || null); if (meta && !/^html?$/.test(extOf(meta.name))) meta = null; if (!meta) await winAlert(`site.json says the main page is "${j.main}", but there is no web page with that name. Looking for a page by itself instead.`); }
+    } catch { await winAlert('site.json couldn\'t be read (it must be valid JSON, like { "main": "index.html" }). Looking for a page by itself instead.'); }
+  }
+  if (!meta) {
+    const list = siteFind(dir, sc);
+    if (!list.length) return winAlert("There is no web page (.html file) in this folder to run.");
+    for (const c of list.slice(0, 12)) { const b = await dbGet(c.m.id, "files"); c.build = !!b && needsBuild(await blobText(b.slice ? b.slice(0, 200000) : b)); }
+    const good = list.filter(c => !c.build), use = good.length ? good : list;
+    if (!good.length && !await winConfirm("This looks like the source code of a project (it uses .jsx / .tsx / .ts / .vue files), which has to be built with npm first. A browser can't run it as it is, and VUS-OS can't build it.\n\nIf the project has a ready-made version (a dist or build folder, or a GitHub Pages / releases download), use that one instead. Run it anyway?", "Run anyway")) return;
+    if (use.length > 1 && siteKey(use[0]) === siteKey(use[1])) {
+      const top = use.filter(c => siteKey(c) === siteKey(use[0])).slice(0, 8);
+      const v = await winDialog("This folder has more than one page that could run. Which one should run?", [...top.map((c, i) => [(relDir(c.m.parent || null, dir) || "") + c.m.name, i]), ["Cancel", -1]], "Run file contents");
+      if (typeof v !== "number" || v < 0) return;
+      meta = top[v].m;
+    } else meta = use[0].m;
+  }
+  openApp(fileApp({ ...meta, title: fo ? fo.name : meta.name })); // the window is named after the folder, not "index.html"
+}
+
+// ----- Markdown preview (right-click a .md file > Preview): a small reader for headings, bold / italic, code, links, lists, quotes and rules. The text is escaped first, and the page is shown in a frame with no scripts, so a file can't run anything -----
+function mdToHtml(src) {
+  const link = u => /^(https?:\/\/|mailto:|#)/i.test(u) ? u : null;
+  const inl = s => esc(s)
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (a, t, u) => link(u) ? `<img src="${u}" alt="${t}">` : t)
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (a, t, u) => link(u) ? `<a href="${u}" target="_blank" rel="noopener">${t}</a>` : t)
+    .replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<i>$2</i>");
+  const L = String(src).replace(/\r/g, "").split("\n"), out = []; let list = null, para = [];
+  const flush = () => { if (para.length) { out.push("<p>" + inl(para.join(" ")) + "</p>"); para = []; } if (list) { out.push("</" + list + ">"); list = null; } };
+  for (let i = 0; i < L.length; i++) {
+    const ln = L[i]; let m;
+    if (/^\s*```/.test(ln)) { flush(); const code = []; i++; while (i < L.length && !/^\s*```/.test(L[i])) code.push(L[i++]); out.push("<pre><code>" + esc(code.join("\n")) + "</code></pre>"); }
+    else if ((m = ln.match(/^(#{1,6})\s+(.*)$/))) { flush(); out.push(`<h${m[1].length}>${inl(m[2])}</h${m[1].length}>`); }
+    else if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(ln)) { flush(); out.push("<hr>"); }
+    else if ((m = ln.match(/^\s*([-*+]|\d+[.)])\s+(.*)$/))) { const t = /\d/.test(m[1]) ? "ol" : "ul"; if (para.length) flush(); if (list !== t) { if (list) out.push("</" + list + ">"); out.push("<" + t + ">"); list = t; } out.push("<li>" + inl(m[2]) + "</li>"); }
+    else if ((m = ln.match(/^>\s?(.*)$/))) { flush(); out.push("<blockquote>" + inl(m[1]) + "</blockquote>"); }
+    else if (!ln.trim()) flush();
+    else { if (list) flush(); para.push(ln.trim()); }
+  }
+  flush(); return out.join("\n");
+}
+function mdApp(f) {
+  return { builtin: 1, name: f.name + " (preview)", icon: "svg:text", color: "blue", size: f.size, open: async (root, os) => {
+    const b = await dbGet(f.id, "files"); if (!b) { root.innerHTML = '<div class="load err">File not found</div>'; return; }
+    const css = "body{font:15px/1.65 system-ui,sans-serif;max-width:820px;margin:0 auto;padding:22px 26px;color:#222;background:#fff}h1,h2{border-bottom:1px solid #ddd;padding-bottom:.25em}pre{background:#f3f3f3;padding:12px;overflow:auto;border-radius:4px}code{background:#f3f3f3;padding:1px 4px;border-radius:3px;font-family:Consolas,monospace}pre code{background:none;padding:0}blockquote{margin:0;padding:0 14px;border-left:4px solid #ccc;color:#555}img{max-width:100%}a{color:#0969da}";
+    root.innerHTML = '<iframe sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;height:100%;border:0;background:#fff"></iframe>';
+    root.querySelector("iframe").srcdoc = "<!DOCTYPE html><meta charset=utf-8><style>" + css + "</style>" + mdToHtml(await blobText(b));
+    os.setTitle(f.name + " (preview)");
+  } };
+}
+
 // Floating player for html / images / audio / video / pdf
 async function viewer(root, os, f) {
   if (kindOf(f.name) === "binary") {
@@ -2029,14 +2130,14 @@ async function viewer(root, os, f) {
     if (a === "dl") dbGet(curF.id, "files").then(bb => dlBlob(curF.name, bb || blob));
     if (a === "edit") openApp(editApp(curF));
   };
-  os.setTitle(f.name);
+  os.setTitle(f.title || f.name); // f.title is set when a folder is run (the window is named after the folder)
   const frame = root.querySelector("iframe");
   if (site && frame) { // a link to another page of the site: the page asks (vusSite nav), the OS builds that page the same way and shows it
     const onMsg = async e => {
       const d = e.data; if (!d || d.vusSite !== "nav" || e.source !== frame.contentWindow) return;
       const id = site.pages[String(d.key)], meta = id && fmeta().find(x => x.id === id), b = meta && await dbGet(meta.id, "files"); if (!b) return;
       const next = await siteBuild(meta, b, site.ctx.root); if (!next) return;
-      site = next; sites.push(next); curF = meta; shown = next.url; frame.src = next.url + (String(d.hash || "").startsWith("#") ? d.hash : ""); os.setTitle(meta.name);
+      site = next; sites.push(next); curF = meta; shown = next.url; frame.src = next.url + (String(d.hash || "").startsWith("#") ? d.hash : ""); os.setTitle(f.title || meta.name);
     };
     window.addEventListener("message", onMsg);
     const iv = setInterval(() => { if (!frame.isConnected) { clearInterval(iv); window.removeEventListener("message", onMsg); sites.forEach(s => s.free()); } }, 4000); // window closed: give the blob: URLs back

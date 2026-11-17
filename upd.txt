@@ -1,3 +1,11 @@
+11.16.2026 7:55 PM
+- New right-click option on folders: Run file contents. Download a game or website from GitHub as a zip, unzip it into a folder here, right-click the folder (or the empty space inside it) and choose Run file contents. It finds the page by itself, even when it sits in a sub-folder like game-main/dist/index.html, and the window is named after the folder.
+- It looks for index.html first, then pages named main, home, app, game or play, and prefers the ready-to-run folders (dist, build, docs, public). If two pages are equally good, it asks which one to run. node_modules and .git folders are ignored.
+- Projects that need building first (React, Vue, TypeScript pages that use .jsx, .tsx, .ts or .vue files) are noticed: the OS uses the built dist/build page when there is one, and otherwise warns you before running.
+- Optional: put a site.json file in the folder, like { "main": "pages/home.html" }, to choose the page that runs.
+- Websites now load up to 1500 files (was 300), so games with lots of images and sounds work, and more file types get the right type: 3D models (.glb, .gltf, .obj), shaders (.vert, .frag, .glsl), tile maps, more fonts and images, midi, mkv, geojson.
+- Markdown files (.md): right-click and choose Preview to read them nicely formatted.
+
 11.16.2026 7:35 PM
 - Websites in a folder: every css file in the same folder as the html page is now used, whatever it is called (style.css, styles.css, my-theme.css). A file the page links by name still loads in the order the page sets; the other css files in that folder are added after it. This doesn't apply to loose files on the Desktop or in Downloads and Documents.
 - Websites in a folder now also work when the OS itself is opened from a file on your computer or inside a sandboxed viewer: the css, js and images used to be blocked there.
