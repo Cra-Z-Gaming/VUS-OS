@@ -1,3 +1,7 @@
+11.16.2026 7:35 PM
+- Websites in a folder: every css file in the same folder as the html page is now used, whatever it is called (style.css, styles.css, my-theme.css). A file the page links by name still loads in the order the page sets; the other css files in that folder are added after it. This doesn't apply to loose files on the Desktop or in Downloads and Documents.
+- Websites in a folder now also work when the OS itself is opened from a file on your computer or inside a sandboxed viewer: the css, js and images used to be blocked there.
+
 11.16.2026 3:50 PM
 - Websites in a folder: click an html file and it now finds everything in its folder and sub-folders. Links that start with / (like href="/styles.css") now point at the website's own folder, which was why the css was missed before.
 - Websites also get the files their own JavaScript loads: fetch("data.json"), XMLHttpRequest, new Image().src, new Audio("a.mp3"), img.src = ..., innerHTML with images, import "./x.js" modules, fonts, Web Workers, srcset and css background images set from scripts.

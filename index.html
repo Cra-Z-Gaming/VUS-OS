@@ -349,7 +349,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.16.2026 3:50 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.16.2026 7:35 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -1844,6 +1844,7 @@ function editApp(f) { // "Edit": open any text-based file (html, svg) in Notepad
 }
 
 // ----- websites in a folder: an html file picks up the css, js, images and other files next to it (and in sub-folders), like a normal website. The player loads the page from a blob: URL, so relative links can't find their neighbours; every local file the page points to is turned into a blob: URL and the reference is rewritten before the page is shown -----
+const OPAQUE_ORIGIN = location.origin === "null" || location.protocol === "file:" || window.origin === "null"; // opened from disk (file://) or inside a sandboxed frame
 const blobText = async b => b && b.text ? b.text() : new TextDecoder().decode(b);
 const LOCAL_REF = r => !!r && !/^\s*(?:[a-z][a-z0-9+.\-]*:|\/\/|#)/i.test(r); // not http:, data:, blob:, //host or #anchor
 const siteIndex = dir => fmeta().find(x => sameDir(x, dir) && /^index\.html?$/i.test(x.name)) || null; // the main page of a folder
@@ -1873,7 +1874,8 @@ async function bundleUrl(meta, ctx) { // a blob: URL for one file; css and html 
         : (x === "js" || x === "mjs") && small ? new Blob([await jsBundle(await blobText(b), dir, ctx)], { type: "text/javascript;charset=utf-8" })
         : x === "html" || x === "htm" ? new Blob([await htmlBundle(await blobText(b), dir, ctx)], { type: "text/html;charset=utf-8" })
         : new Blob([b], { type: siteMime(meta.name) });
-      url = URL.createObjectURL(blob); ctx.urls.push(url);
+      if (OPAQUE_ORIGIN) url = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => res(null); fr.readAsDataURL(blob); }); // in such a page the browser won't load blob: files for a site, so they go in as data: URLs instead
+      else { url = URL.createObjectURL(blob); ctx.urls.push(url); }
     }
   } finally { ctx.busy.delete(meta.id); }
   ctx.map.set(meta.id, url); return url;
@@ -1902,7 +1904,8 @@ async function jsBundle(js, dir, ctx) { // import "./x.js", export ... from "./x
 }
 async function htmlBundle(text, dir, ctx, shim) {
   const doc = new DOMParser().parseFromString(text, "text/html");
-  const link = async v => { if (!LOCAL_REF(v)) return null; const m = resolveSibling(dir, v, ctx.root), u = m ? await bundleUrl(m, ctx) : null; return u ? u + ((String(v).match(/#.*$/) || [""])[0]) : null; }; // keeps a #part (svg sprites)
+  const used = new Set(); // ids of the files the page itself points to (so the css in its folder that nothing points to can be added below)
+  const link = async v => { if (!LOCAL_REF(v)) return null; const m = resolveSibling(dir, v, ctx.root), u = m ? await bundleUrl(m, ctx) : null; if (m) used.add(m.id); return u ? u + ((String(v).match(/#.*$/) || [""])[0]) : null; }; // keeps a #part (svg sprites)
   const fix = async (el, attr) => { const u = await link(el.getAttribute(attr)); if (u) el.setAttribute(attr, u); };
   for (const e of doc.querySelectorAll("script[src],img[src],source[src],audio[src],video[src],track[src],iframe[src],embed[src],input[src]")) await fix(e, "src");
   for (const e of doc.querySelectorAll("link[href]")) await fix(e, "href");
@@ -1917,6 +1920,8 @@ async function htmlBundle(text, dir, ctx, shim) {
   for (const e of doc.querySelectorAll("style")) e.textContent = await cssBundle(e.textContent, dir, ctx);
   for (const e of doc.querySelectorAll("[style]")) e.setAttribute("style", await cssBundle(e.getAttribute("style"), dir, ctx));
   for (const e of doc.querySelectorAll("script:not([src])")) { const t = (e.getAttribute("type") || "").toLowerCase(); if (t && !/^(module|text\/javascript|application\/javascript)$/.test(t)) continue; e.textContent = await jsBundle(e.textContent, dir, ctx); } // inline scripts and modules
+  const homeDir = dir ? folders().find(x => x.id === dir) : null; // any css file in the page's own folder is used even when the page doesn't link it or links another name (style.css / styles.css / my-theme.css); not for loose files on the Desktop or in Downloads / Documents, where the files have nothing to do with each other
+  if (homeDir && !homeDir.home) for (const m of fmeta().filter(x => sameDir(x, dir) && extOf(x.name) === "css" && !used.has(x.id)).sort((a, b) => a.name.localeCompare(b.name))) { const u = await bundleUrl(m, ctx); if (u) { const l = doc.createElement("link"); l.setAttribute("rel", "stylesheet"); l.setAttribute("href", u); (doc.head || doc.documentElement).appendChild(l); } }
   if (shim) { const s = doc.createElement("script"); s.textContent = "(" + siteShim.toString() + ")(" + JSON.stringify(shim).replace(/</g, "\\u003c") + ");"; const h = doc.head || doc.documentElement; h.insertBefore(s, h.firstChild); } // the helper that makes the page's own code (fetch, new Image, links...) find its neighbours
   return (/^\s*<!doctype/i.test(text) ? "<!DOCTYPE html>\n" : "") + doc.documentElement.outerHTML;
 }
