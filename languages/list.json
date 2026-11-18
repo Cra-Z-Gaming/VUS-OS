@@ -14,5 +14,13 @@
     "size": "no download",
     "desc": "JavaScript with await input(), fs.read/fs.write",
     "example": "js -c \"console.log(2 + 2)\""
+  },
+  "git": {
+    "name": "Git",
+    "file": "git.js",
+    "cmds": ["git"],
+    "size": "no download",
+    "desc": "Clone, edit, commit, pull and push GitHub repositories (GitHub web API; push needs a token)",
+    "example": "git clone https://github.com/user/repo"
   }
 }

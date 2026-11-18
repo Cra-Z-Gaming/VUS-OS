@@ -110,6 +110,7 @@ export default {
       { n: ["uninstall"], d: "Remove an installed language and its downloaded files.", ex: "uninstall python" },
       { n: ["py", "python"], d: "Run a Python file from this folder, or one line with -c (needs: install python). Extra words after the file name reach the program as sys.argv. input() and sys.stdin work. The files in this folder can be read, written and imported. py -V shows the version. Ctrl+C or the Stop button ends a running program. Use ; instead of | inside code.", ex: "py hello.py Sam" },
       { n: ["js", "javascript"], d: "Run a JavaScript file from this folder, or one line with -c (needs: install javascript). Use await input(\"question\") to ask for a line, and fs.read(name) / fs.write(name, text) for this folder's files. Ctrl+C or the Stop button ends a running program. Use ; instead of | inside code.", ex: "js hello.js" },
+      { n: ["git"], d: "A small git for GitHub repositories (needs: install git). git clone <url> downloads a repository into a new folder; then cd into it and use status, add, commit, diff, log, branch, checkout, pull --rebase and push. Pushing and private repositories need a GitHub token: git config --global token <token>. git help lists everything.", ex: "git clone https://github.com/user/repo" },
       { n: ["|"], d: "Run several commands in one line, one after another.", ex: "ls | cat notes.txt | copy" },
       { n: ["\\"], d: "In execute, search everywhere instead of only this folder.", ex: "execute \\Notes" }
     ];
@@ -146,6 +147,19 @@ export default {
       if (runH) return print("A program is already running. Press Ctrl+C or Stop first.", "err");
       const mod = await loadLang(id); let code, name, args = [];
       if (/^(-V|--version)$/.test(a.trim())) return print(`${mod.name} (${mod.runtime})`);
+      if (mod.native) { // a language that does its own file work (git): it gets the typed words, the current folder and the OS functions, not a file's text
+        let n = 0; const MAXN = 3000;
+        const h = mod.run({ args: parseArgs(a), cwd, sys,
+          storage: sys.cfgGet ? { get: (k, d) => { const v = sys.cfgGet(k); return v == null ? d : v; }, set: (k, v) => sys.cfgSet(k, v) } : undefined, // saved settings (git name, email, token)
+          print: t => { if (n++ < MAXN) print(t || " "); else if (n === MAXN + 1) { print(`Output limit (${MAXN} lines) reached, stopping the program.`, "err"); stopRun(); } },
+          printErr: t => { if (n++ < MAXN) print(t || " ", "err"); },
+          status: setStatus,
+          input: p => new Promise(res => { const d = print(String(p || "") || "input> ", ""); inputWait = t => { d.textContent += t; res(t); }; }) });
+        runH = h; showStop(true);
+        await h.done;
+        if (runH === h) runH = null; showStop(false); setStatus(""); inputWait = null;
+        return;
+      }
       if (/^-[ce](\s|$)/.test(a)) { code = a.replace(/^-[ce]\s*/, "").replace(/^"([\s\S]*)"$/, "$1"); name = "<string>"; if (!code) return print('Usage: py -c "print(1 + 1)"', "err"); }
       else {
         const n = parseArgs(a)[0]; if (!n) return print("Usage: py <file>   or   py -c \"code\"", "err");
