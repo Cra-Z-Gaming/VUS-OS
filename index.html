@@ -349,7 +349,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.16.2026 7:55 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.18.2026 7:30 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -673,6 +673,8 @@ function makeOS(app, win) {
       copy: (kind, id, dir) => kind === "folder" ? copyFolder(id, dir) : copyFile(id, dir), move: (kind, id, dir) => moveTo(kind, id, dir), rename: (kind, id, name) => applyRename(kind, id, name),
       restart: () => softRestart(), run: id => runVsh(id), runSite: dir => siteRun(dir || null), // runSite = what right-click > Run file contents does for a folder
       overwrite: (id, text) => { const f = fmeta().find(x => x.id === id); return f ? putFile(id, f.name, new Blob([text]), undefined, true) : false; }, // replaces a file's text, keeping its name and folder
+      putFiles: (list, parent) => putFiles(list, parent || null), removeFiles: (ids, hard) => removeFiles(ids, hard), // batch versions for the git language
+      cfgGet: k => LS("langcfg", {})[k], cfgSet: (k, v) => { const m = LS("langcfg", {}); if (v === "" || v == null) delete m[k]; else m[k] = v; save("langcfg", m); }, // small settings kept for languages (git user name, email, token)
       // languages (Python etc.): the language file is kept in the same "code" store as app code, under the key lang|<id>; small info lives in localStorage
       langBase: () => OS_REPO + "languages/",
       langs: () => LS("langs", {}),
@@ -1015,6 +1017,25 @@ function ensureFolders(parent, segs) { // folder structure for imported folders
     p = f.id;
   }
   return p;
+}
+async function putFiles(list, parent = null) { // many files in one go (used by the git language): list = [{ path: "a/b.txt", blob }]. Folders are made as needed, an existing file is replaced, and the file list is saved once at the end. Returns "" when all went well, or a message.
+  const m = fmeta(), fl = folders(), at = new Map(), key = (p, n) => (p || "") + "|" + n; let fch = false, err = "", add = 0;
+  const used = new Set(m.map(f => f.id)); m.forEach((f, i) => at.set(key(f.parent || null, f.name), i));
+  const ensure = (p, segs) => { for (const sg of segs) { let f = fl.find(x => sameDir(x, p) && x.name === sg); if (!f) { f = { id: newId(), name: sg, parent: p, saved: true }; fl.push(f); fch = true; } p = f.id; } return p; };
+  const plan = list.map(it => { const segs = String(it.path).split("/").filter(Boolean), name = segs.pop(), p = ensure(parent, segs), i = at.get(key(p, name)); add += it.blob.size - (i === undefined ? 0 : m[i].size || 0); return { it, name, p }; });
+  if (!bypassLimit && usage() + add > limitBytes()) { if (fch) save("folders", fl); return `Storage is full (${fmt(limitBytes())} limit). Free up space in Settings > System > Storage, then try again.`; }
+  for (const { it, name, p } of plan) {
+    const i = at.get(key(p, name)); let id; if (i === undefined) { do id = newId(); while (used.has(id)); used.add(id); } else id = m[i].id; // a new id that no other file has
+    if (!(await dbSet(id, it.blob, "files"))) { err = "Couldn't save " + name + " (browser storage may be full)."; break; }
+    const e = { id, name, size: it.blob.size, parent: p, saved: true, mod: it.blob.lastModified || Date.now() };
+    if (i === undefined) { at.set(key(p, name), m.length); m.push(e); } else m[i] = e;
+  }
+  save("files", m); if (fch) save("folders", fl); renderIcons(); return err;
+}
+async function removeFiles(ids, hard) { // many files at once: to the Recycle Bin, or gone for good when hard
+  const set = new Set(ids), m = fmeta(), gone = m.filter(f => set.has(f.id)); if (!gone.length) return;
+  if (hard) for (const f of gone) await dbDel(f.id, "files"); else binAdd(gone.map(f => ({ ...f, del: Date.now() })), []);
+  save("files", m.filter(f => !set.has(f.id))); renderIcons();
 }
 async function addFiles(list, parent = null, rel = false) {
   list = Array.from(list); // copy first: the input is cleared right after

@@ -1,3 +1,9 @@
+11.18.2026 7:30 AM
+- New language: Git. In the Terminal type install git, then git clone https://github.com/user/repo to download a GitHub repository into a folder (public ones need no login). cd into it and use git status, add, commit, diff, log, branch, checkout, pull and push. git help lists everything.
+- Pushing, and private repositories, need a GitHub token: git config --global token <token> (or git asks for it when you push). Set your name with git config user.name "Name".
+- If GitHub and your computer both have new commits, use git pull --rebase. Merges, stash and tags are not supported.
+- Under the hood: the OS can now save many files at once, so cloning a big repository is fast.
+
 11.16.2026 7:55 PM
 - New right-click option on folders: Run file contents. Download a game or website from GitHub as a zip, unzip it into a folder here, right-click the folder (or the empty space inside it) and choose Run file contents. It finds the page by itself, even when it sits in a sub-folder like game-main/dist/index.html, and the window is named after the folder.
 - It looks for index.html first, then pages named main, home, app, game or play, and prefers the ready-to-run folders (dist, build, docs, public). If two pages are equally good, it asks which one to run. node_modules and .git folders are ignored.
