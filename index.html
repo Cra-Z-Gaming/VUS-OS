@@ -117,6 +117,9 @@ input,select,button{font-family:var(--font)}
 .xp .xr{margin-top:8px;font-size:12px}.xp .xr span{float:right;opacity:.75}.xp .xo{font-size:13px}
 .xp .xb{height:5px;background:rgba(128,128,128,.35);margin-top:3px}.xp .xb i{display:block;height:100%;width:0;background:var(--ac2)}
 .xp .xl{max-height:40vh;overflow-y:auto;padding-right:4px}
+.xp .xc{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.xp .xc button{padding:3px 10px;background:var(--hover);color:inherit;border:1px solid var(--bd);cursor:pointer;font:inherit}.xp .xc button:disabled{opacity:.45;cursor:default}
+.xp .xs{margin-top:6px;font-size:11px;opacity:.85;white-space:pre-line;word-break:break-word}.xp .xs:empty{display:none}
+.xp .xt{cursor:pointer;user-select:none;font-weight:600}.xp .xk{margin:2px 0 0 4px;padding-left:8px;border-left:1px solid var(--bd)}.xp .xk .xr{margin-top:6px;font-size:11px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 [data-theme=light] .xp{background:#fff;color:#111}
 #showdesk{width:6px;border-left:1px solid #555;flex-shrink:0}
 #showdesk:hover{background:rgba(255,255,255,.2)}
@@ -349,7 +352,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.18.2026 7:30 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.23.2026 8:00 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -2315,7 +2318,7 @@ async function makeZip(entries, opt = {}) { // entries: [{name, data: Uint8Array
   parts.push(cd, cat(u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length), u32(cd.length), u32(off), u16(0)));
   return new Blob(parts, { type: "application/zip" });
 }
-async function readZip(file) { // -> [{name, dir, blob(), data()}]. Only the file list is read up front; each file is read when asked for, so a big backup never sits in memory whole
+async function readZip(file) { // -> [{name, dir, size, blob(), stream(), data()}]. Only the file list is read up front; each file is read when asked for, so a big backup never sits in memory whole
   const tail = new Uint8Array(await file.slice(Math.max(0, file.size - 65557)).arrayBuffer()), td = new DataView(tail.buffer);
   let e = tail.length - 22; while (e >= 0 && td.getUint32(e, true) !== 0x06054b50) e--;
   if (e < 0) throw new Error("not a zip");
@@ -2325,13 +2328,21 @@ async function readZip(file) { // -> [{name, dir, blob(), data()}]. Only the fil
     if (dv.getUint32(p, true) !== 0x02014b50) throw new Error("bad zip");
     const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
     const name = new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nl));
+    const usize = dv.getUint32(p + 24, true);
+    const rawOf = async () => { const h = new DataView(await file.slice(lo, lo + 30).arrayBuffer()), start = lo + 30 + h.getUint16(26, true) + h.getUint16(28, true); return file.slice(start, start + csize); };
     const blob = async () => { // this file's bytes as a Blob (a stored file is just a slice of the zip, nothing is copied into memory)
-      const h = new DataView(await file.slice(lo, lo + 30).arrayBuffer()), start = lo + 30 + h.getUint16(26, true) + h.getUint16(28, true), raw = file.slice(start, start + csize);
+      const raw = await rawOf();
       if (method === 0) return raw;
       if (method === 8) return new Response(raw.stream().pipeThrough(new DecompressionStream("deflate-raw"))).blob();
       throw new Error("unsupported compression");
     };
-    out.push({ name, dir: name.endsWith("/"), blob, data: async () => new Uint8Array(await (await blob()).arrayBuffer()) });
+    const stream = async () => { // the same bytes as a stream, unpacked while they are read, so a big file never has to sit in memory whole
+      const raw = await rawOf();
+      if (method === 0) return raw.stream();
+      if (method === 8) return raw.stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      throw new Error("unsupported compression");
+    };
+    out.push({ name, dir: name.endsWith("/"), size: usize || csize, blob, stream, data: async () => new Uint8Array(await (await blob()).arrayBuffer()) });
     p += 46 + nl + xl + cl;
   }
   return out;
@@ -3110,7 +3121,7 @@ const lockSection = () => {
 const SETTING_GROUPS = { appearance: ["site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize", "taskSearch", "taskLabels", "taskPos", "lockLayout", "lockDigital", "lockDate", "lockAnalog", "lockSeconds", "lockBattery", "lockW"], clock: ["hour24", "clockSeconds", "clockWeekday"], windows: ["snap", "rememberWin", "keys", "keysFile", "keysEdit"], system: ["autoUpdate", "limiter", "limitMB", "binDays", "userName", "userPic", "userBirthday"] };
 // ----- save data from other pages (games etc.) and encrypted passwords -----
 const bytesToB64 = u8 => { let t = ""; for (let i = 0; i < u8.length; i += 0x8000) t += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(t); };
-const b64ToBytes = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
+const b64ToBytes = t => { if (typeof Uint8Array.fromBase64 === "function") { try { return Uint8Array.fromBase64(t); } catch { /* use the slower way below */ } } const s = atob(t), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }; // (the old Uint8Array.from(atob(t), fn) built a huge list first and could run a tab out of memory on a big saved file)
 const SITE_TYPED = { Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array, BigInt64Array, BigUint64Array };
 async function siteEnc(v, seen = new Set(), d = 0) { // turns anything IndexedDB can store into plain JSON (Blobs, dates, typed arrays, maps and sets are tagged with "$")
   if (v === undefined) return { $: "u" };
@@ -3146,7 +3157,8 @@ function siteDec(x) {
   }
   const o = {}; for (const k in x) o[k.startsWith("$$") ? k.slice(1) : k] = siteDec(x[k]); return o;
 }
-const idbOpen = (name, ver, up) => new Promise((res, rej) => { const r = ver ? indexedDB.open(name, ver) : indexedDB.open(name); if (up) r.onupgradeneeded = () => up(r.result); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(new Error("blocked")); });
+const idbOpen = (name, ver, up) => new Promise((res, rej) => { let dead = false; const r = ver ? indexedDB.open(name, ver) : indexedDB.open(name); if (up) r.onupgradeneeded = () => up(r.result); r.onsuccess = () => { if (dead) r.result.close(); else res(r.result); }; r.onerror = () => rej(r.error); r.onblocked = () => { dead = true; rej(new Error("blocked")); }; }); // a request reported as blocked closes its connection if it opens later, so it can't keep blocking other pages
+const errText = e => (e && (e.message || e.name)) || String(e);
 async function countSiteDb(name) { // how many rows a database holds, so its progress bar is exact
   const db = await idbOpen(name);
   try { let n = 0; for (const sn of [...db.objectStoreNames]) n += await new Promise((res, rej) => { const q = db.transaction(sn, "readonly").objectStore(sn).count(); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); return n; } finally { db.close(); }
@@ -3170,45 +3182,81 @@ async function dumpSiteDb(name, parts, opt = {}) { // streams one IndexedDB data
     }
   } finally { db.close(); }
 }
-async function* ndjsonLines(blob) { // a Blob's lines, read in pieces so a huge row never needs the whole file in memory
-  const r = blob.stream().pipeThrough(new TextDecoderStream()).getReader(); let buf = "";
-  for (;;) {
-    const { done, value } = await r.read(); if (done) break;
-    buf += value; let i;
-    while ((i = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (line) yield line; }
-  }
-  if (buf) yield buf;
-}
-async function restoreSiteDbStream(blob, replace) { // restores one database written as lines (layout first, then one row per line). ok:false = skipped, because a database with that name already exists with a different layout
-  const it = ndjsonLines(blob), first = await it.next(); let d;
-  try { d = JSON.parse(first.value); } catch { return { ok: false, name: "" }; }
-  const res = { ok: false, name: d && typeof d.name === "string" ? d.name : "" };
-  if (!d || typeof d.name !== "string" || /^vos/.test(d.name) || !Array.isArray(d.stores)) return res;
-  const have = ((await indexedDB.databases()) || []).some(x => x.name === d.name);
-  const db = have ? await idbOpen(d.name) : await idbOpen(d.name, Math.max(1, +d.version || 1), nd => d.stores.forEach(s => { const st = nd.createObjectStore(s.name, { keyPath: s.keyPath, autoIncrement: !!s.autoIncrement }); (s.indexes || []).forEach(i => st.createIndex(i.name, i.keyPath, { unique: !!i.unique, multiEntry: !!i.multiEntry })); }));
+const NDJSON_BIG = { big: true }; // given instead of a line that was too long to keep in memory
+const ROW_MAX = 120e6; // characters in one saved row; more than this (about 90 MB of data) is skipped, because a tab usually can't hold it
+async function* ndjsonLines(src, onBytes, limit = Infinity) { // the lines of a Blob or a byte stream, read in pieces so a huge row never needs the whole file in memory. A line longer than limit is dropped and NDJSON_BIG is given in its place
+  const raw = src instanceof Blob ? src.stream() : src;
+  const count = new TransformStream({ transform(c, ctl) { if (onBytes) onBytes(c.byteLength); ctl.enqueue(c); } });
+  const r = raw.pipeThrough(count).pipeThrough(new TextDecoderStream()).getReader();
+  let parts = [], len = 0, big = false;
+  const add = s => { if (big || !s) return; parts.push(s); len += s.length; if (len > limit) { big = true; parts = []; len = 0; } };
   try {
-    if (have && d.stores.some(s => !db.objectStoreNames.contains(s.name))) return res; // never bump a game's database version
+    for (;;) {
+      const { done, value } = await r.read(); if (done) break;
+      let from = 0, i;
+      while ((i = value.indexOf("\n", from)) >= 0) { // only the new piece is searched, so a very long line stays fast
+        add(value.slice(from, i)); from = i + 1;
+        const line = big ? NDJSON_BIG : parts.length === 1 ? parts[0] : parts.join("");
+        parts = []; len = 0; big = false;
+        if (line) yield line;
+      }
+      if (from < value.length) add(from ? value.slice(from) : value);
+    }
+    if (big) yield NDJSON_BIG; else if (len) yield parts.join("");
+  } finally { try { await r.cancel(); } catch { /* already closed */ } }
+}
+async function restoreSiteDbStream(src, replace, opt = {}) { // restores one database written as lines (layout first, then one row per line). Returns { ok, name, rows, dups, failed, big, full, reason, stopped }: ok:false = not (fully) restored and reason says why. opt: gate() (a promise while paused), stop() ("skip" / "end" / ""), onBytes(n), onRow(rowsSoFar), gentle (true = small write batches and a rest after every one, for weak computers)
+  const res = { ok: false, name: "", rows: 0, dups: 0, failed: 0, big: 0, full: false, halt: false, reason: "", stopped: "" };
+  const it = ndjsonLines(src, opt.onBytes, ROW_MAX), sleep = ms => new Promise(r => setTimeout(r, ms));
+  let db = null;
+  try {
+    const first = await it.next(); let d;
+    try { d = JSON.parse(first.value); } catch { res.reason = "its first line can't be read"; return res; }
+    if (!d || typeof d.name !== "string" || !Array.isArray(d.stores)) { res.reason = "it is not a saved database"; return res; }
+    res.name = d.name;
+    if (/^vos/.test(d.name)) { res.reason = "VUS-OS's own databases are never restored from here"; return res; }
+    const have = ((await indexedDB.databases()) || []).some(x => x.name === d.name);
+    try { db = have ? await idbOpen(d.name) : await idbOpen(d.name, Math.max(1, +d.version || 1), nd => d.stores.forEach(s => { const st = nd.createObjectStore(s.name, { keyPath: s.keyPath, autoIncrement: !!s.autoIncrement }); (s.indexes || []).forEach(i => st.createIndex(i.name, i.keyPath, { unique: !!i.unique, multiEntry: !!i.multiEntry })); })); }
+    catch (e) { res.reason = e && e.message === "blocked" ? "another tab or window is using it right now" : "the browser would not open it (" + errText(e) + ")"; return res; }
+    if (have && d.stores.some(s => !db.objectStoreNames.contains(s.name))) { res.reason = "it already exists here with a different layout"; return res; } // never bump a game's database version
     if (replace && d.stores.length) await new Promise(r => { const tx = db.transaction(d.stores.map(s => s.name), "readwrite"); d.stores.forEach(s => tx.objectStore(s.name).clear()); tx.oncomplete = tx.onerror = tx.onabort = () => r(); });
-    let batch = [], size = 0;
-    const flush = () => { // writes the rows collected so far in one transaction
-      if (!batch.length) return Promise.resolve();
+    let batch = [], size = 0, yt = Date.now();
+    const bMax = opt.gentle ? 25 : 100, sMax = opt.gentle ? 1.5e6 : 4e6; // gentle mode writes smaller batches
+    const flush = async () => { // writes the rows collected so far in one transaction, and waits until the browser says it is saved
+      if (!batch.length) return;
       const rows = batch; batch = []; size = 0;
-      return new Promise(r => {
-        const tx = db.transaction([...new Set(rows.map(x => d.stores[x.s].name))], "readwrite");
+      await new Promise(done => {
+        let fin = false, wd, bad = 0;
+        const end = why => { if (fin) return; fin = true; clearTimeout(wd); if (why) { res.failed += rows.length - bad; res.halt = true; res.reason = res.reason || why; if (why === "the browser's storage is full") res.full = true; } done(); };
+        let tx; try { tx = db.transaction([...new Set(rows.map(x => d.stores[x.s].name))], "readwrite"); } catch (e) { return end("the browser refused the write (" + errText(e) + ")"); }
+        wd = setTimeout(() => end("the browser stopped answering"), 90000);
         for (const x of rows) {
-          try { const st = tx.objectStore(d.stores[x.s].name), val = siteDec(x.v), q = st.keyPath != null ? (replace ? st.put(val) : st.add(val)) : (replace ? st.put(val, siteDec(x.k)) : st.add(val, siteDec(x.k))); q.onerror = e => { e.preventDefault(); e.stopPropagation(); }; } catch { /* a row the browser rejects is skipped */ }
+          try { const st = tx.objectStore(d.stores[x.s].name), val = siteDec(x.v), q = st.keyPath != null ? (replace ? st.put(val) : st.add(val)) : (replace ? st.put(val, siteDec(x.k)) : st.add(val, siteDec(x.k))); q.onerror = e => { e.preventDefault(); e.stopPropagation(); bad++; if (q.error && q.error.name === "ConstraintError") res.dups++; else res.failed++; }; } catch { bad++; res.failed++; } // a row the browser rejects is skipped (and counted); a duplicate in Merge is not a failure
         }
-        tx.oncomplete = tx.onerror = tx.onabort = () => r();
+        tx.oncomplete = () => { res.rows += rows.length - bad; end(); };
+        tx.onabort = () => end(tx.error && tx.error.name === "QuotaExceededError" ? "the browser's storage is full" : "the browser cancelled the write (" + (tx.error ? tx.error.name : "unknown reason") + ")");
+        tx.onerror = () => { /* a failed row was handled above; if the whole write fails, onabort follows */ };
       });
     };
     for (let nx = await it.next(); !nx.done; nx = await it.next()) {
-      let x; try { x = JSON.parse(nx.value); } catch { continue; }
-      if (!x || !Number.isInteger(x.s) || !d.stores[x.s] || typeof d.stores[x.s].name !== "string") continue;
-      batch.push(x); size += nx.value.length;
-      if (batch.length >= 100 || size > 4e6) await flush();
+      if (opt.gate) { const g = opt.gate(); if (g) await g; } // Pause waits here
+      const stop = opt.stop && opt.stop(); if (stop) { res.stopped = stop; break; }
+      if (nx.value === NDJSON_BIG) { res.big++; continue; }
+      let x; try { x = JSON.parse(nx.value); } catch { res.failed++; continue; }
+      if (!x || !Number.isInteger(x.s) || !d.stores[x.s] || typeof d.stores[x.s].name !== "string") { res.failed++; continue; }
+      batch.push(x); size += nx.value.length; if (opt.onRow) opt.onRow(res.rows + batch.length);
+      if (batch.length >= bMax || size > sMax) {
+        const t0 = Date.now(); await flush(); if (res.halt) break;
+        const took = Date.now() - t0;
+        if (opt.gentle) await sleep(Math.min(2000, Math.max(120, took * 1.5))); // gentle mode: always rest after a batch, longer when the batch was slow
+        else if (took > 1500) await sleep(Math.min(1000, took / 3)); // the computer is struggling: give it a short break
+      }
+      if (Date.now() - yt > 25) { await sleep(opt.gentle ? 8 : 0); yt = Date.now(); } // let the page repaint so the bars keep moving
     }
-    await flush(); res.ok = true;
-  } finally { db.close(); }
+    if (!res.halt) await flush();
+    res.ok = !res.stopped && !res.halt;
+    if (!res.ok && !res.reason) res.reason = res.stopped === "skip" ? "skipped by you" : "ended by you";
+  } finally { if (db) db.close(); try { await it.return(); } catch { /* closed already */ } }
   return res;
 }
 async function restoreSiteDb(d, replace) { // false = skipped, because a database with that name already exists with a different layout
@@ -3302,28 +3350,60 @@ async function exportPicker() { // resolves with the ticked options (apps, files
 }
 let XP = null; // the export progress panel while an export runs
 const closeXP = () => { if (XP) { XP.el.remove(); XP = null; } };
-function makeExportPanel(title = "Exporting backup", cancellable = true) { // progress panel in the corner (it sits in the toast stack, so it follows the taskbar position): overall bar and time left, one bar per task, and Cancel
+function makeExportPanel(title = "Exporting backup", cancellable = true, ctl = false) { // progress panel in the corner (it sits in the toast stack, so it follows the taskbar position): overall bar and time left, one bar per task, and Cancel
   const el = document.createElement("div"); el.className = "xp";
-  el.innerHTML = `<div class="xh"><b>${esc(title)}</b><button>Cancel</button></div><div class="xr xo"><span>Starting...</span>Overall<div class="xb"><i></i></div></div><div class="xl"></div>`;
-  const P = { el, tasks: [], cancelled: false }, t0 = Date.now(), list = el.querySelector(".xl"), btn = el.querySelector("button"), ov = el.querySelector(".xo");
+  el.innerHTML = `<div class="xh"><b>${esc(title)}</b><button>Cancel</button></div><div class="xr xo"><span>Starting...</span>Overall<div class="xb"><i></i></div></div>${ctl ? '<div class="xc"><button data-c="pa">Pause</button><button data-c="sk">Skip this one</button><button data-c="en">End import</button></div>' : ""}<div class="xs"></div><div class="xl"></div>`;
+  const P = { el, tasks: [], cancelled: false, paused: false, skip: false, ended: false, lastBeat: Date.now(), st: "" }, t0 = Date.now(), list = el.querySelector(".xl"), btn = el.querySelector("button"), ov = el.querySelector(".xo");
   let best = 0, last = 0;
   const mb = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : 1) + " MB" : Math.max(1, Math.round(n / 1e3)) + " KB";
   P.check = () => { if (P.cancelled) throw new Error("Export cancelled"); };
   btn.onclick = () => { P.cancelled = true; btn.disabled = true; btn.textContent = "Cancelling..."; };
-  if (!cancellable) btn.style.display = "none"; // an import can't be stopped halfway without leaving a mess
+  if (!cancellable) btn.style.display = "none"; // an import has its own Pause / Skip / End buttons instead (below)
+  const xs = el.querySelector(".xs"), paintStatus = () => { // the line under the overall bar: what is happening now, and a hint when nothing has moved for a while
+    const idle = Date.now() - P.lastBeat;
+    xs.textContent = (P.paused ? "Paused. Nothing is written until you press Resume." : P.st) + (ctl && !P.paused && !P.ended && !P.finished && idle > 8000 ? (P.st ? "\n" : "") + "No progress for " + Math.round(idle / 1000) + " s. A very big item may still be loading, or the computer is busy. You can Pause, Skip this one, or End." : "");
+  };
+  P.status = t => { P.st = t || ""; paintStatus(); };
+  P.beat = () => { P.lastBeat = Date.now(); };
+  P.gate = () => P.paused && !P.ended ? new Promise(res => { const w = () => (P.paused && !P.ended ? setTimeout(w, 150) : res()); w(); }) : null; // await it where the work may wait: it only waits while paused
+  P.stopNow = () => (P.ended ? "end" : P.skip ? "skip" : "");
+  P.canSkip = () => {};
+  if (ctl) {
+    const cb = k => el.querySelector('[data-c="' + k + '"]'), pa = cb("pa"), sk = cb("sk"), en = cb("en");
+    sk.disabled = true;
+    pa.onclick = () => { P.paused = !P.paused; pa.textContent = P.paused ? "Resume" : "Pause"; P.beat(); paintStatus(); P.draw(true); };
+    sk.onclick = () => { if (sk.disabled) return; P.skip = true; sk.disabled = true; P.status("Skipping..."); };
+    en.onclick = () => { P.ended = true; P.paused = false; en.disabled = true; sk.disabled = true; en.textContent = "Ending..."; P.status("Ending after the current step..."); };
+    P.canSkip = on => { sk.disabled = !on || P.ended; };
+  }
+  P.iv = setInterval(() => { if (!el.isConnected) clearInterval(P.iv); else { paintStatus(); P.draw(true); } }, 1000); // also repaints the bars once a second, so nothing looks frozen while paused
   P.add = (label, total, w = 1, unit = "") => { // unit: "b" bytes, "r" rows, "" just a bar. w = how much of the whole export this task is (for the overall bar)
     const row = document.createElement("div"); row.className = "xr"; row.innerHTML = `<span></span>${esc(label)}<div class="xb"><i></i></div>`; list.appendChild(row);
     const t = { total: Math.max(1, total), done: 0, w, unit, sp: row.querySelector("span"), bar: row.querySelector("i") };
     P.tasks.push(t); P.draw(true); return t;
   };
-  P.set = (t, done) => { t.done = Math.min(Math.max(done, 0), t.total); P.draw(); };
+  P.addGroup = (label, total, w = 1, fmt) => { // a task with its own little bars underneath (one per item); the arrow opens and closes them
+    const row = document.createElement("div"); row.className = "xr"; row.innerHTML = `<span></span><b class="xt">▸ ${esc(label)}</b><div class="xb"><i></i></div><div class="xk" hidden></div>`; list.appendChild(row);
+    const box = row.querySelector(".xk"), arrow = row.querySelector(".xt");
+    arrow.onclick = () => { box.hidden = !box.hidden; arrow.textContent = (box.hidden ? "▸ " : "▾ ") + label; };
+    const t = { total: Math.max(1, total), done: 0, w, unit: "", fmt, nDone: 0, sp: row.querySelector("span"), bar: row.querySelector(".xb i"), box };
+    P.tasks.push(t); P.draw(true); return t;
+  };
+  P.addKid = (g, label, total, unit = "") => { // one item inside a group: it shows its own progress but does not count toward the overall bar (the group does)
+    const row = document.createElement("div"); row.className = "xr"; row.title = label; row.innerHTML = `<span></span>${esc(label)}<div class="xb"><i></i></div>`; g.box.appendChild(row);
+    const t = { total: Math.max(1, total), done: 0, w: 0, unit, row, sp: row.querySelector("span"), bar: row.querySelector("i") };
+    P.tasks.push(t); P.draw(true); return t;
+  };
+  P.reveal = t => { if (t.row && !t.row.parentNode.hidden) t.row.scrollIntoView({ block: "nearest" }); };
+  P.set = (t, done) => { t.done = Math.min(Math.max(done, 0), t.total); P.lastBeat = Date.now(); P.draw(); };
   P.draw = force => {
     const now = Date.now(); if (!force && now - last < 150) return; last = now;
     let sw = 0, sd = 0;
     for (const t of P.tasks) {
       const f = t.done / t.total; sw += t.w; sd += t.w * f;
       t.bar.style.width = (f * 100).toFixed(1) + "%";
-      t.sp.textContent = t.unit === "b" ? mb(t.done) + " / " + mb(t.total) : t.unit === "r" ? t.done + " / " + t.total + " rows" : t.unit === "f" ? t.done + " / " + t.total + " files" : t.unit === "d" ? t.done + " / " + t.total + " databases" : f >= 1 ? "done" : "";
+      const base = t.fmt ? t.fmt(t) : t.unit === "b" ? mb(t.done) + " / " + mb(t.total) : t.unit === "r" ? t.done + " / " + t.total + " rows" : t.unit === "f" ? t.done + " / " + t.total + " files" : t.unit === "d" ? t.done + " / " + t.total + " databases" : f >= 1 ? "done" : "";
+      t.sp.textContent = base + (t.note ? (base ? " · " : "") + t.note : "");
     }
     best = Math.max(best, Math.min(sw ? sd / sw : 0, P.finished ? 1 : 0.99)); // never goes backwards, and never shows 100% until the work is really finished (the last steps can't report progress)
     const spent = now - t0, left = best > 0.03 && spent > 3000 ? spent * (1 - best) / best / 1000 : null; // time left is guessed from how fast it has gone so far
@@ -3331,7 +3411,9 @@ function makeExportPanel(title = "Exporting backup", cancellable = true) { // pr
     ov.querySelector("i").style.width = (best * 100).toFixed(1) + "%";
   };
   P.finish = (msg, ms = 15000) => new Promise(res => { // the real 100%: shows a message and a Close button, and goes away by itself after ms
-    P.finished = true; P.msg = msg; P.tasks.forEach(t => { t.done = t.total; }); P.draw(true);
+    P.finished = true; P.msg = msg; clearInterval(P.iv); xs.textContent = ""; if (ctl) el.querySelector(".xc").style.display = "none";
+    if (!P.ended) P.tasks.forEach(t => { t.done = t.total; }); // an import you ended keeps its real percentage
+    P.draw(true);
     btn.style.display = ""; btn.disabled = false; btn.textContent = "Close"; btn.onclick = () => res(); setTimeout(res, ms);
   });
   $("#toasts").prepend(el); P.draw(true); return P;
@@ -3363,10 +3445,11 @@ async function doExport() {
     for (const g of c.groups) for (const k of sc.groups[g] || []) { const v = localStorage.getItem(k); if (v !== null) ls[k] = v; }
     const dbT = [];
     for (const n of c.dbs) { let cnt = 1; try { cnt = await countSiteDb(n); } catch { /* counted as it goes */ } dbT.push([n, P.add("Saved data: " + n, cnt, Math.max(0.2, cnt * 0.2), "r")]); }
-    for (const [n, tk] of dbT) { const p = []; try { await dumpSiteDb(n, p, { check: P.check, onRow: () => P.set(tk, tk.done + 1) }); idb.push(p); } catch (err) { if (err && err.message === "Export cancelled") throw err; unread.push(n); } P.set(tk, tk.total); } // a database that fails halfway is skipped whole and listed
+    for (const [n, tk] of dbT) { const p = []; let rc = 0; try { await dumpSiteDb(n, p, { check: P.check, onRow: () => { rc++; P.set(tk, tk.done + 1); } }); idb.push({ n, p, rows: rc }); } catch (err) { if (err && err.message === "Export cancelled") throw err; unread.push(n); } P.set(tk, tk.total); } // a database that fails halfway is skipped whole and listed
     if (Object.keys(ls).length || idb.length || Object.keys(ap).length) {
-      idb.forEach((p, i) => entries.push({ name: "sitedb/" + i + ".ndjson", blob: new Blob(p), pack: true })); // one file per database, one row per line, so import can restore it row by row
-      entries.push({ name: "sitedata.json", data: new TextEncoder().encode(JSON.stringify({ ls, app: ap })) }); m.site = { keys: Object.keys(ls).length, dbs: idb.length, app: Object.keys(ap).length };
+      const dl = []; // the name, size and row count of every saved database go into the manifest, so Import can list them without opening the files
+      idb.forEach((x, i) => { const bl = new Blob(x.p), file = "sitedb/" + i + ".ndjson"; dl.push({ file, name: x.n, bytes: bl.size, rows: x.rows }); entries.push({ name: file, blob: bl, pack: true }); }); // one file per database, one row per line, so import can restore it row by row
+      entries.push({ name: "sitedata.json", data: new TextEncoder().encode(JSON.stringify({ ls, app: ap })) }); m.site = { keys: Object.keys(ls).length, dbs: idb.length, app: Object.keys(ap).length, dbList: dl };
     }
   }
   const tkP = P.add("Packing everything else", 1, 1, "b");
@@ -3388,6 +3471,94 @@ async function doExport() {
   await P.finish("Backup ready. Your browser is now saving the file, which can take a minute for a big backup.", 20000); // the panel stays so there is feedback while the browser writes the download
 }
 function pickBackup() { const i = document.createElement("input"); i.type = "file"; i.accept = ".zip,application/zip"; i.onchange = () => i.files[0] && doImport(i.files[0]); i.click(); }
+async function peekDbName(en) { // a saved database's name is on the first line of its file: read just that line
+  let it; try { it = ndjsonLines(await en.stream(), null, 1e6); const f = await it.next(), d = JSON.parse(f.value); return typeof d.name === "string" ? d.name : ""; } catch { return ""; } finally { if (it) { try { await it.return(); } catch { /* closed already */ } } }
+}
+const dbSizeText = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : 1) + " MB" : Math.max(1, Math.round(n / 1e3)) + " KB";
+const DB_BIG = 100e6; // a saved database over about 100 MB is marked "big" in the import list
+function pickImportDbs(dbE, m, isRep) { // asks which saved databases to restore (all ticked, big ones marked), whether to use gentle mode and whether to skip databases already restored. Resolves { ents, names, gentle, id, leftNames, doneNames } or null when cancelled
+  const known = {}; for (const x of (m.site && Array.isArray(m.site.dbList) ? m.site.dbList : [])) if (x && typeof x.file === "string" && typeof x.name === "string") known[x.file] = x; // names and sizes written by newer backups; older ones are read from the files
+  const id = m.date ? String(m.date) : "", doneDbs = (id && (LS("importDone", {})[id] || {}).dbs) || {};
+  const isDone = nm => !!nm && (doneDbs["d:" + nm] === "r" || (!isRep && doneDbs["d:" + nm] === "m"));
+  const nm = dbE.map(en => (known[en.name] ? known[en.name].name : void 0)), sz = dbE.map(en => en.size || (known[en.name] && +known[en.name].bytes) || 0), rw = dbE.map(en => (known[en.name] && +known[en.name].rows) || 0), auto = [];
+  return new Promise(res => {
+    const o = document.createElement("div"); o.className = "dlg";
+    const rows = dbE.map((en, i) => `<label style="display:flex;gap:8px;align-items:center;margin:5px 0"><input type="checkbox" data-i="${i}" checked><span class="pn" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><span class="pz" style="opacity:.75;font-size:12px;white-space:nowrap">${sz[i] ? dbSizeText(sz[i]) + (rw[i] ? ", " + rw[i].toLocaleString() + " rows" : "") : ""}</span><span class="pt" style="font-size:12px;white-space:nowrap"></span></label>`).join("");
+    const lnk = "cursor:pointer;text-decoration:underline";
+    o.innerHTML = `<div class="dlgb" style="display:flex;flex-direction:column;max-height:90vh;width:min(560px,94vw)"><div style="padding:14px 16px 0"><p style="margin-bottom:6px"><b>Saved data from other pages</b><br>Choose which saved databases to restore. A big one can take very long, or run a weak computer out of memory, so you can leave it out here.</p><div style="font-size:12px;margin-bottom:6px"><span data-a="all" style="${lnk}">Select all</span> · <span data-a="none" style="${lnk}">Select none</span> · <span data-a="big" style="${lnk}">Untick big ones</span><span class="pc" style="float:right;opacity:.75"></span></div></div><div style="overflow:auto;padding:0 16px;flex:1;min-height:0">${rows}</div><div style="padding:8px 16px 0"><div class="ps" hidden><label style="display:flex;gap:8px;align-items:center;margin:6px 0 2px"><input type="checkbox" data-s checked>Skip databases already restored from this backup</label><p style="font-size:12px;opacity:.7;margin:0 0 6px 26px">A retry then doesn't read them again.</p></div><label style="display:flex;gap:8px;align-items:center;margin:6px 0 2px"><input type="checkbox" data-g ${LS("gentleImport", false) ? "checked" : ""}>Gentle mode</label><p style="font-size:12px;opacity:.7;margin:0 0 6px 26px">Writes in smaller steps and rests in between. Slower, but easier on weak computers like a Chromebook. Your choice is remembered.</p><div class="pm" style="font-size:12px;opacity:.7;min-height:16px"></div></div><div class="dlgf" style="margin:0;padding:12px 16px"><button data-ok="1">Start import</button><button>Cancel</button></div></div>`;
+    const q = s => o.querySelector(s), box = i => q('[data-i="' + i + '"]'), lab = i => box(i).parentNode, skipOn = () => q("[data-s]").checked;
+    const count = () => { let n = 0, b = 0; dbE.forEach((en, i) => { if (box(i).checked) { n++; b += sz[i]; } }); q(".pc").textContent = n + " of " + dbE.length + " selected" + (b ? " · " + dbSizeText(b) : ""); };
+    const paint = i => { // shows the name and the tags of one row (called again when its name has been read)
+      const done = isDone(nm[i]);
+      lab(i).querySelector(".pn").textContent = nm[i] || (nm[i] === void 0 ? "Database " + (i + 1) + " (reading name...)" : "Database " + (i + 1));
+      lab(i).querySelector(".pt").innerHTML = (sz[i] >= DB_BIG ? '<span style="color:#fbbf24">big</span>' : "") + (sz[i] >= DB_BIG && done ? " · " : "") + (done ? '<span style="opacity:.75">restored earlier</span>' : "");
+      if (done) { q(".ps").hidden = false; if (!auto[i]) { auto[i] = true; if (skipOn()) box(i).checked = false; } } // the first time a finished database shows up it is unticked, if "skip" is on
+    };
+    dbE.forEach((en, i) => paint(i)); count();
+    const kd = e => { if (e.key === "Escape") { e.stopPropagation(); finish(null); } };
+    const finish = v => { document.removeEventListener("keydown", kd, true); o.remove(); res(v); };
+    o.onchange = e => {
+      if (e.target.dataset.s !== void 0) dbE.forEach((en, i) => { if (isDone(nm[i])) box(i).checked = !skipOn(); });
+      else if (e.target.dataset.g !== void 0) { try { save("gentleImport", e.target.checked); } catch { /* optional */ } }
+      count();
+    };
+    o.onclick = e => {
+      const a = e.target.closest("[data-a]");
+      if (a) { dbE.forEach((en, i) => { box(i).checked = a.dataset.a === "all" ? true : a.dataset.a === "none" ? false : !(sz[i] >= DB_BIG); }); count(); return; }
+      const b = e.target.closest("button"); if (!b) return;
+      if (!b.dataset.ok) return finish(null);
+      const pick = dbE.map((en, i) => box(i).checked), names = {}, leftNames = [], doneNames = [];
+      dbE.forEach((en, i) => { if (nm[i]) names[en.name] = nm[i]; if (!pick[i]) (isDone(nm[i]) ? doneNames : leftNames).push(nm[i] || "database " + (i + 1)); });
+      finish({ ents: dbE.filter((en, i) => pick[i]), names, gentle: q("[data-g]").checked, id, leftNames, doneNames });
+    };
+    document.addEventListener("keydown", kd, true); document.body.appendChild(o); q("button[data-ok]").focus();
+    (async () => { // names the backup did not list are read from the first line of each file
+      for (let i = 0; i < dbE.length && o.isConnected; i++) {
+        if (nm[i] !== void 0) continue;
+        q(".pm").textContent = "Reading database names... " + (i + 1) + " of " + dbE.length;
+        const n = await peekDbName(dbE[i]); if (!o.isConnected) return;
+        nm[i] = n || ""; paint(i); count();
+      }
+      if (o.isConnected) q(".pm").textContent = "";
+    })();
+  });
+}
+function markDbDone(id, name, isRep) { // remembers that this database of this backup was restored completely, so a retry can skip it (Merge never overwrites a Replace)
+  if (!id) return;
+  try {
+    const all = LS("importDone", {}), e = all[id] || { t: 0, dbs: {} }, k = "d:" + name;
+    e.t = Date.now(); e.dbs[k] = isRep || e.dbs[k] === "r" ? "r" : "m"; all[id] = e;
+    const out = {}; Object.keys(all).sort((a, b) => all[b].t - all[a].t).slice(0, 8).forEach(x => { out[x] = all[x]; }); // only the 8 newest backups are kept
+    save("importDone", out);
+  } catch { /* remembering is optional */ }
+}
+async function restoreSiteDbEntries(dbE, isRep, P, grp, notes, opt = {}) { // restores the saved-data databases of a backup one after another. Each has its own bar under the "Saved data" bar; Pause works everywhere, Skip ends the current database (what was already written stays), End stops the whole thing
+  P.status("Reading the list of saved databases...");
+  const names = []; for (const en of dbE) names.push((opt.names && opt.names[en.name]) || (await peekDbName(en)) || "database " + (names.length + 1)); // names already read for the import list are not read again
+  const kids = dbE.map((en, i) => P.addKid(grp, names[i], en.size, "b")), sync = () => P.set(grp, kids.reduce((s, k) => s + (k.fin ? k.total : k.done), 0));
+  const bad = [], part = []; let big = 0, failed = 0, full = false;
+  for (let i = 0; i < dbE.length; i++) {
+    const en = dbE[i], kid = kids[i], nm = names[i];
+    if (!P.ended) { const g = P.gate(); if (g) await g; }
+    if (P.ended) { kid.note = "not restored"; kid.fin = true; continue; }
+    P.skip = false; P.canSkip(true); grp.note = nm; kid.note = "starting..."; P.status("Restoring " + nm + " (" + (i + 1) + " of " + dbE.length + ")" + (opt.gentle ? ", gentle mode" : "")); P.reveal(kid); P.draw(true);
+    let r;
+    try { r = await restoreSiteDbStream(await en.stream(), isRep, { gentle: !!opt.gentle, gate: P.gate, stop: P.stopNow, onBytes: n => { P.set(kid, kid.done + n); sync(); }, onRow: n => { kid.note = n.toLocaleString() + " rows"; } }); }
+    catch (err) { r = { ok: false, name: nm, rows: 0, failed: 0, big: 0, full: false, reason: errText(err), stopped: "" }; }
+    P.canSkip(false); kid.fin = true; grp.nDone++; grp.note = "";
+    big += r.big; failed += r.failed; if (r.full) full = true;
+    if (r.ok) { markDbDone(opt.id, r.name || nm, isRep); P.set(kid, kid.total); kid.note = r.rows.toLocaleString() + " rows" + (r.dups ? ", " + r.dups.toLocaleString() + " already there" : "") + (r.failed ? ", " + r.failed + " failed" : ""); }
+    else if (r.stopped) { kid.note = r.stopped === "skip" ? "skipped" : "ended"; part.push(r.name || nm); }
+    else { kid.note = "failed"; bad.push((r.name || nm) + " (" + r.reason + ")"); }
+    sync(); P.draw(true);
+    if (opt.gentle && i < dbE.length - 1 && !P.ended) await new Promise(r => setTimeout(r, 400)); // a short breather between databases
+  }
+  sync(); P.status("");
+  if (part.length) notes.push("Stopped before finishing (may be partly restored): " + part.join(", ") + ".");
+  if (bad.length) notes.push("Could not restore: " + bad.join("; ") + ".");
+  if (failed) notes.push(failed.toLocaleString() + " rows could not be written" + (full ? " because the browser's storage is full" : "") + ".");
+  if (big) notes.push(big + " huge row" + (big === 1 ? "" : "s") + " (over about 90 MB) " + (big === 1 ? "was" : "were") + " skipped, because the browser can't hold " + (big === 1 ? "it" : "them") + " in memory.");
+}
 async function doImport(file) {
   let ents, m;
   try { ents = await readZip(file); m = JSON.parse(new TextDecoder().decode(await ents.find(e => e.name === "manifest.json").data())); if (m.app !== "vus-os") throw 0; }
@@ -3411,10 +3582,17 @@ async function doImport(file) {
       if (!ok) secure = null;
     }
   }
-  const P = XP = makeExportPanel("Importing backup", false), notes = [];
+  const notes = []; let dbE = m.site && !GUEST ? ents.filter(z => /^sitedb\/\d+\.ndjson$/.test(z.name)) : [], dbOpt = {};
+  if (dbE.length) { // pick the saved databases first, so a giant one can be left out before anything starts
+    const pk = await pickImportDbs(dbE, m, isRep); if (!pk) return;
+    dbE = pk.ents; dbOpt = { names: pk.names, gentle: pk.gentle, id: pk.id };
+    if (pk.leftNames.length) notes.push("Saved databases you left out: " + pk.leftNames.join(", ") + ".");
+    if (pk.doneNames.length) notes.push("Skipped because they were already restored earlier: " + pk.doneNames.join(", ") + ".");
+  }
+  const P = XP = makeExportPanel("Importing backup", false, true);
   const tkI = m.files || m.folders ? P.add("Files and folders" + (m.files && m.files.length ? " (" + m.files.length + ")" : ""), (m.files || []).length || 1, 3, "f") : null;
   const tkS = P.add("Apps, settings and layout", 1, 1);
-  const dbE = m.site && !GUEST ? ents.filter(z => /^sitedb\/\d+\.ndjson$/.test(z.name)) : [], tkD = dbE.length ? P.add("Saved data from other pages", dbE.length, 3, "d") : null;
+  const dbBytes = dbE.reduce((s, z) => s + (z.size || 1), 0), tkD = dbE.length ? P.addGroup("Saved data from other pages", dbBytes, Math.max(3, dbBytes / 1e6), t => t.nDone + " / " + dbE.length + " databases") : null;
   try {
   if (m.files || m.folders) {
     if (isRep && !m.bgOnly) { for (const f of fmeta()) await dbDel(f.id, "files"); save("files", []); save("folders", []); }
@@ -3430,7 +3608,9 @@ async function doImport(file) {
     }
     save("folders", fo);
     const fl = [...fmeta()], db = await idb;
+    P.status("Restoring files...");
     for (const f of m.files || []) {
+      { const g = P.gate(); if (g) await g; } if (P.ended) break; // Pause waits here; End stops copying files (what is already copied stays)
       P.set(tkI, tkI.done + 1);
       const par = f.parent ? fmap[f.parent] ?? null : null;
       if (fl.some(x => x.id === f.id || (x.name === f.name && (x.parent || null) === par && x.size === f.size))) continue;
@@ -3458,7 +3638,7 @@ async function doImport(file) {
         const sd = JSON.parse(new TextDecoder().decode(await e.data())), skipped = [];
         restoreSiteKeys(sd.ls, isRep); restoreAppData(sd.app, isRep);
         for (const d of sd.idb || []) { try { if (!await restoreSiteDb(d, isRep)) skipped.push(d.name); } catch { skipped.push(d.name); } } // backups made before this version keep the databases inside sitedata.json
-        for (const en of ents.filter(z => /^sitedb\/\d+\.ndjson$/.test(z.name))) { let nm = en.name; try { const r = await restoreSiteDbStream(await en.blob(), isRep); nm = r.name || nm; if (!r.ok) skipped.push(nm); } catch { skipped.push(nm); } if (tkD) P.set(tkD, tkD.done + 1); }
+        if (dbE.length) await restoreSiteDbEntries(dbE, isRep, P, tkD, notes, dbOpt); // one database at a time with its own bar, and a note for everything that could not be restored
         if (skipped.length) notes.push("Skipped databases that already exist with a different layout: " + skipped.join(", ") + ".");
       } catch { notes.push("The saves from other pages could not be read."); }
     }
@@ -3469,9 +3649,10 @@ async function doImport(file) {
   } else if (m.secure && !GUEST) notes.push("Passwords were not restored.");
   else if (m.secure) notes.push("Passwords were skipped in Guest mode.");
   renderIcons(); renderPins(); if ($("#start").classList.contains("open")) drawStart(); applyTheme(); tick();
-  await P.finish("import finished", 1500);
+  if (P.ended) notes.push("You ended the import early, so files and saved data that were not reached were not restored. Settings and layout were applied.");
+  await P.finish(P.ended ? "import ended early" : "import finished", P.ended || notes.length ? 10000 : 1500);
   } finally { closeXP(); }
-  notify("Import finished", parts.join(", ") + (notes.length ? ". " + notes.join(" ") : ""));
+  notify(P.ended ? "Import ended early" : "Import finished", parts.join(", ") + (notes.length ? ". " + notes.join(" ") : ""));
   if (await winDialog("Import finished. Restart VUS-OS now so everything takes effect (lock screen, windows, update settings)?\n\nThis keeps the page open.", [["Restart now", "y"], ["Later", false]]) === "y") softRestart();
 }
 
