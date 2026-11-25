@@ -1,3 +1,21 @@
+11.25.2026 6:19 PM
+- Settings is easier to get around. New pages: Lock screen (password, backup passwords, auto-lock, lock key), Widgets (one tab for the desktop, one for the lock screen) and Storage & backup (storage limit, Recycle Bin timer, opening speed, biggest items, other saved data, export and import).
+- System now holds multitasking, keyboard shortcuts, About and Delete everything. User is now just your profile.
+- Fixed: Open Storage settings in the storage-full message now shows the right page when Settings is already open (it could minimize Settings instead).
+- Fixed: the Gallery app now loads from its real place in the repo (apps/gallery.js), so it opens. Anyone who had it installed keeps it.
+- Gallery now has a Location box next to the search: show photos, videos and music from every folder at once (the default), or pick one folder. Hover a picture to see which folder it is in; the full-screen viewer shows it too.
+
+11.25.2026 4:46 PM
+- Two new apps in the App Store (Tools): Calculator and Clock.
+- Calculator: Standard and Scientific modes. Click the keys or just type; Enter = equals, Esc = clear. Shows the answer live while you type, keeps a History (click an entry to reuse it), Ans key, degrees / radians, and clear error messages (like dividing by zero).
+- Clock: the time and date, world clocks you can add or remove, 24-hour option, a Timer, a Stopwatch with laps, and Alarms (once or every day). Timer and alarms ring only while the Clock window is open (minimize it, don't close it).
+
+11.25.2026 4:35 PM
+- Notes got a big upgrade. Tabs: open several notes at once, close a tab with its x (the note is kept) or middle-click it. Search box above the note list. Find and replace (Find button, Ctrl+F or Ctrl+H; Enter, F3 and the Next / Prev buttons jump between matches, Match case, Replace all).
+- Notes can now be linked to real files. Open from Files picks a text file (txt, md, js, json, html, css and more, up to 2 MB) and Save to Files turns a note into a file on your Desktop. A linked note shows a small "file" tag on its tab; typing saves the file too, and the note follows the file if you change it in Notepad or File Explorer. Deleting a linked note keeps the file.
+- The note counter now also shows words.
+- Fixed: the Gallery app could fail to open if its file had moved in the repo. It now tries both places.
+
 11.25.2026 3:24 PM
 - New Always on Top button (a pin) in every window's title bar. Pin a small window and it stays above the others, so you can use two apps at once. If several windows are pinned, the one you pinned last is on top (pin A, then B: B is above A). Unpin and pin A again and it jumps back to the top. Clicking a pinned window doesn't change that order. It also still works from the taskbar right-click menu.
 - New Cursor page in Settings. Default keeps your normal cursor (it's the default for everyone). Circle: change the radius, fill color and opacity, outline thickness and color, or turn the fill or the outline off. Crosshair: turn the up, down, left and right lines on or off and change thickness, length, the gap in the middle and color. Also a few ready-made cursors (classic arrow, pointer, dot, target, diamond) with color and size, and your own image.
