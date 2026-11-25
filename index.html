@@ -280,6 +280,14 @@ input,select,button{font-family:var(--font)}
 .tmtable td{padding:7px 8px}.tmtable tr:hover td{background:rgba(128,128,128,.12)}.tmtable tr.on td{background:color-mix(in srgb,var(--ac) 35%,transparent)}
 .tmb .sbar{height:10px;background:rgba(128,128,128,.3)}.tmb .sbar i{display:block;height:100%;background:var(--ac)}
 .win.ontop .wt::before{content:"📌 "}
+.bar .pinb{width:36px}.bar .pinb svg{opacity:.5}.bar .pinb:hover svg{opacity:.9}.win.ontop .bar .pinb{color:var(--ac2)}.win.ontop .bar .pinb svg{opacity:1}
+#curs{position:fixed;left:0;top:0;pointer-events:none;z-index:2147483647;display:none;will-change:transform}#curs *{display:block;pointer-events:none}
+html.ccur,html.ccur *{cursor:none !important}
+html.ccur iframe{cursor:auto !important}
+html.ccur .rz.n,html.ccur .rz.s{cursor:ns-resize !important}html.ccur .rz.e,html.ccur .rz.w{cursor:ew-resize !important}html.ccur .rz.ne,html.ccur .rz.sw{cursor:nesw-resize !important}html.ccur .rz.nw,html.ccur .rz.se{cursor:nwse-resize !important}
+html.ccur textarea,html.ccur input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=color]):not([type=range]):not([type=file]){cursor:text !important}
+body:has(.sleep) #curs{display:none !important}
+.rgv{display:flex;align-items:center;gap:8px}.stc .rgv input{width:150px;padding:0;background:none;border:0}.rgv output{min-width:26px;text-align:right}
 #updscr{position:fixed;inset:0;z-index:985;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(6px)}
 .updb{width:min(460px,92vw);max-height:80vh;display:flex;flex-direction:column;background:var(--el);color:var(--fg);border:1px solid var(--bd);box-shadow:0 12px 40px rgba(0,0,0,.6);padding:18px}
 .updh{font-size:16px;font-weight:600;margin-bottom:10px}
@@ -352,7 +360,7 @@ html[data-tb=right] #toasts{right:calc(var(--tbv) + 12px);bottom:12px}
 // ===================== CONFIG =====================
 const APPS_JSON = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS/refs/heads/main/apps.json";
 const OS_REPO   = "https://raw.githubusercontent.com/Cra-Z-Gaming/VUS-OS/refs/heads/main/";
-const OS_VERSION = "11.23.2026 8:00 AM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
+const OS_VERSION = "11.25.2026 3:24 PM"; // release date and time (m.d.yyyy h:mm AM/PM). Change it when you release a new index.html. It's the only place the version lives, and this line must keep this exact shape: const OS_VERSION = "...";
 
 // Native apps: a .js file that does `export default { open(root, os) {...} }`.
 // Point "url" at any raw link; update the link here when you edit an app.
@@ -408,7 +416,7 @@ const SVG = {
   gallery: ln('M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6') + '<circle cx="8.5" cy="9" r="1.3" fill="currentColor"/>'
 };
 const svgI = (n, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}">${SVG[n] || ""}</svg>`;
-const glyph = (a, s = ICON_PX[getSettings().iconSize] || 42) => { if (String(a.icon || "").startsWith("svg:")) return `<div class="gl" style="width:${s}px;height:${s}px">${svgI(a.icon.slice(4), s)}</div>`; const [bg, fg] = solid(a); return `<div class="gl" style="width:${s}px;height:${s}px;font-size:${Math.round(s * .42)}px;background:${bg};color:${fg}">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</div>`; };
+const glyph = (a, s = ICON_PX[getSettings().iconSize] || 42) => { const ci = (LS("settings", {}).appIcons || {})[key(a)]; if (ci) return `<div class="gl" style="width:${s}px;height:${s}px"><img src="${esc(ci)}" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain"></div>`; /* a custom logo from Settings > Apps */ if (String(a.icon || "").startsWith("svg:")) return `<div class="gl" style="width:${s}px;height:${s}px">${svgI(a.icon.slice(4), s)}</div>`; const [bg, fg] = solid(a); return `<div class="gl" style="width:${s}px;height:${s}px;font-size:${Math.round(s * .42)}px;background:${bg};color:${fg}">${esc(a.icon || a.name.slice(0, 2).toUpperCase())}</div>`; };
 
 // ===================== CATALOG (apps + tools only) =====================
 let catalog = [...NATIVE];
@@ -487,7 +495,7 @@ $("#showdesk").onclick = () => {
 };
 
 // ===================== WINDOWS =====================
-let z = 10, n = 0;
+let z = 10, n = 0, topSeq = 0;
 const wins = new Map();
 
 // Keeps a window drag or resize going until the button is let go, wherever the pointer goes (over an iframe, off the page, even outside the browser).
@@ -518,7 +526,7 @@ function openApp(app) {
   const o = (n % 8) * 26;
   el.className = "win"; el.id = id;
   Object.assign(el.style, { width: Math.min(app.w || 760, innerWidth - 40) + "px", height: Math.min(app.h || 520, innerHeight - 120) + "px", left: 20 + o + "px", top: 20 + o + "px" });
-  el.innerHTML = `<div class="bar">${glyph(app, 16)}<div class="wt">${esc(app.name)}</div><button data-a="min"><svg width="10" height="10"><path d="M0 5.5h10" stroke="currentColor"/></svg></button><button data-a="max"><svg class="i1" width="10" height="10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg><svg class="i2" width="10" height="10"><path d="M2.5 2.5v-2h7v7h-2M.5 2.5h7v7h-7z" fill="none" stroke="currentColor"/></svg></button><button data-a="x" class="x"><svg width="10" height="10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></button></div><div class="body"><div class="load">Loading ${esc(app.name)}...</div></div>${["n", "s", "e", "w", "ne", "nw", "se", "sw"].map(d => `<div class="rz ${d}" data-d="${d}"></div>`).join("")}`;
+  el.innerHTML = `<div class="bar">${glyph(app, 16)}<div class="wt">${esc(app.name)}</div><button data-a="top" class="pinb" title="Always on top"><svg width="12" height="12" viewBox="0 0 24 24"><path fill="currentColor" d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"/></svg></button><button data-a="min"><svg width="10" height="10"><path d="M0 5.5h10" stroke="currentColor"/></svg></button><button data-a="max"><svg class="i1" width="10" height="10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg><svg class="i2" width="10" height="10"><path d="M2.5 2.5v-2h7v7h-2M.5 2.5h7v7h-7z" fill="none" stroke="currentColor"/></svg></button><button data-a="x" class="x"><svg width="10" height="10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></button></div><div class="body"><div class="load">Loading ${esc(app.name)}...</div></div>${["n", "s", "e", "w", "ne", "nw", "se", "sw"].map(d => `<div class="rz ${d}" data-d="${d}"></div>`).join("")}`;
   $("#desktop").appendChild(el);
 
   { const g = LS("winGeo", {})[geoKey(app)]; // reopen where this app's window was last (offset a little if the app is already open)
@@ -538,6 +546,7 @@ function openApp(app) {
     const a = e.target.dataset.a;
     if (a === "min") { el.classList.add("min"); task.classList.remove("active"); renderPins(); }
     if (a === "max") el.classList.toggle("max");
+    if (a === "top") toggleOnTop(id);
     if (a === "x") closeWin(id);
   };
   bar.ondblclick = e => { if (!e.target.closest("button")) el.classList.toggle("max"); };
@@ -635,8 +644,20 @@ function snapWin(el, z) {
 }
 function focus(id) {
   wins.forEach(w => { w.el.classList.toggle("focus", w.id === id); w.task.classList.toggle("active", w.id === id); });
-  { const w = wins.get(id); w.el.style.zIndex = (w.onTop ? 100000 : 0) + ++z; }
+  stackWin(wins.get(id));
   renderPins();
+}
+// Always on top: pinned windows live in a layer above all others (z-index AOT_BASE and up). Inside that layer they are ordered by WHEN each was pinned (topSeq), not by which one was clicked last: pin A then B and B is above A; turn A off and on again and A is back on top. Normal windows use z. Both counters are renumbered (keeping the order) long before they could reach the next layer, so toggling never runs out.
+const AOT_BASE = 1000000;
+function tidyZ() {
+  const all = [...wins.values()], by = (a, b) => +a.el.style.zIndex - +b.el.style.zIndex;
+  if (z > AOT_BASE - 1000) { const l = all.filter(w => !w.onTop).sort(by); l.forEach((w, i) => { w.el.style.zIndex = i + 10; }); z = l.length + 10; }
+  if (topSeq > 2e9) { const l = all.filter(w => w.onTop).sort((a, b) => a.topSeq - b.topSeq); l.forEach((w, i) => { w.topSeq = i + 1; w.el.style.zIndex = AOT_BASE + w.topSeq; }); topSeq = l.length; }
+}
+function stackWin(w) {
+  if (!w) return;
+  if (z > AOT_BASE - 1000 || topSeq > 2e9) tidyZ();
+  w.el.style.zIndex = w.onTop ? AOT_BASE + (w.topSeq || (w.topSeq = ++topSeq)) : ++z;
 }
 function toggle(id) {
   const w = wins.get(id);
@@ -2457,11 +2478,11 @@ const STORE = { builtin: 1, single: 1, name: "App Store", icon: "svg:store", col
 const ICON_PX = { small: 36, medium: 42, large: 56 };
 const SWATCH = ["#0078d7", "#e81123", "#00b294", "#8764b8", "#ff8c00", "#107c10", "#e3008c", "#767676"];
 const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings", color: "cyan", open(root) {
-  const NAV = [["home", "🏠", "Home"], ["user", "👤", "User"], ["system", "💻", "System"], ["person", "🎨", "Personalization"], ["taskbar", "▬", "Taskbar"], ["apps", "🧩", "Apps"], ["time", "🕒", "Time & language"]];
+  const NAV = [["home", "🏠", "Home"], ["user", "👤", "User"], ["system", "💻", "System"], ["person", "🎨", "Personalization"], ["cursor", "🖱️", "Cursor"], ["taskbar", "▬", "Taskbar"], ["apps", "🧩", "Apps"], ["time", "🕒", "Time & language"]];
   let page = settingsStart, bigAll = false; settingsStart = "home"; settingsNav = p => { page = p; draw(); };
   root.innerHTML = '<div class="st"><div class="stn"></div><div class="stc"></div></div>';
   const nav = root.querySelector(".stn"), box = root.querySelector(".stc");
-  const set = p => { save("settings", { ...getSettings(), ...p }); applyTheme(); tick(); drawAvatar(); if (p.autoUpdate === true) autoUpdate(true); if ("binDays" in p) { purgeBin(); renderIcons(); } };
+  const set = p => { save("settings", { ...getSettings(), ...p }); if (Object.keys(p).every(k => /^(cursor|cir|ch)[A-Z]/.test(k))) { applyCursor(); return; } applyTheme(); tick(); drawAvatar(); if (p.autoUpdate === true) autoUpdate(true); if ("binDays" in p) { purgeBin(); renderIcons(); } };
   const opts = (list, cur) => list.map(([v, l]) => `<option value="${esc(String(v))}" ${String(v) === String(cur) ? "selected" : ""}>${esc(l)}</option>`).join("");
   const pages = {
     home: () => `<h2>Settings</h2><div class="sth">${NAV.slice(1).map(([k, i, l]) => `<div class="stt" data-go="${k}"><span>${i}</span>${l}</div>`).join("")}</div>`,
@@ -2501,13 +2522,25 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
         ${s.favMode === "link" ? `<label>Image link<input type="text" data-k="favLink" value="${esc(s.favLink)}" placeholder="https://..."></label>` : ""}
         ${s.favMode === "file" ? `<label>Image<button data-act="favup">${s.favData ? "Change..." : "Choose..."}</button></label>` : ""}`;
     },
+    cursor: () => {
+      const s = getSettings(), m = s.cursorMode || "default";
+      const rg = (l, k, lo, hi, u = "px") => `<label>${l}<span class="rgv"><input type="range" data-k="${k}" data-n="1" min="${lo}" max="${hi}" value="${+s[k]}"><output>${+s[k]}</output>${u}</span></label>`;
+      const ck = (l, k, re) => `<label>${l}<input type="checkbox" data-k="${k}" ${re ? 'data-r="1" ' : ""}${s[k] ? "checked" : ""}></label>`;
+      const cl = (l, k) => `<label>${l}<input type="color" data-k="${k}" value="${esc(s[k])}"></label>`;
+      let body = "";
+      if (m === "circle") body = `<h3>Circle</h3>${rg("Radius", "cirR", 1, 60)}${ck("No fill", "cirNoFill", 1)}${s.cirNoFill ? "" : cl("Fill color", "cirFill") + rg("Fill opacity", "cirAlpha", 0, 100, "%")}${ck("No outline", "cirNoStroke", 1)}${s.cirNoStroke ? "" : rg("Outline thickness", "cirW", 1, 12) + cl("Outline color", "cirStroke")}${s.cirNoFill && s.cirNoStroke ? "<p>Fill and outline are both off, so a tiny dot is shown to keep the cursor visible.</p>" : ""}`;
+      else if (m === "cross") body = `<h3>Crosshair</h3><p>Choose which lines to show.</p>${ck("Up", "chUp")}${ck("Down", "chDown")}${ck("Left", "chLeft")}${ck("Right", "chRight")}${rg("Thickness", "chW", 1, 10)}${rg("Length", "chLen", 1, 80)}${rg("Gap in the middle", "chGap", 0, 40)}${cl("Color", "chColor")}${ck("Thin outline (easier to see on any background)", "chOutline")}`;
+      else if (m === "image") body = `<h3>Your image</h3><label>Image<span><button data-act="curimg">${s.cursorImg ? "Change..." : "Choose..."}</button> ${s.cursorImg ? '<button data-act="curimgrm">Remove</button>' : ""}</span></label>${rg("Size", "cursorSize", 8, 96)}<label>Click point<select data-k="cursorHot">${opts([["tl", "Top-left corner"], ["c", "Center"]], s.cursorHot)}</select></label>${s.cursorImg ? "" : "<p>No image chosen yet, so the classic arrow is shown.</p>"}`;
+      else if (m !== "default") body = `<h3>Look</h3>${cl("Color", "cursorColor")}${rg("Size", "cursorSize", 8, 96)}`;
+      return `<h2>Cursor</h2><label>Cursor<select data-k="cursorMode" data-r="1">${opts([["default", "Default (the normal cursor)"], ["circle", "Circle (custom)"], ["cross", "Crosshair (custom)"], ["arrow", "Classic arrow"], ["pointer", "Pointer"], ["dot", "Dot"], ["target", "Target"], ["diamond", "Diamond"], ["image", "Your own image"]], m)}</select></label>${m === "default" ? "<p>The normal cursor of your computer. Pick another one to have VUS-OS draw it.</p>" : "<p>VUS-OS draws this cursor. Inside an app's own page the normal cursor shows, and window edges and text boxes keep theirs.</p>"}${body}${m === "default" ? "" : '<button data-act="currst">Reset cursor settings</button>'}`;
+    },
     taskbar: () => {
       const s = getSettings();
       return `<h2>Taskbar</h2><label>Taskbar position<select data-k="taskPos">${opts([["bottom", "Bottom"], ["top", "Top"], ["left", "Left"], ["right", "Right"]], s.taskPos)}</select></label><label>Show search box<input type="checkbox" data-k="taskSearch" ${s.taskSearch ? "checked" : ""}></label>
         <h3>Taskbar icons</h3><label>Window names<select data-k="taskLabels">${opts([["full", "Show full name"], ["hide", "Hide name"], ["hover", "Hide name, hover to show full name"], ["partial", "Show name partially"]], s.taskLabels)}</select></label><p>This applies to open windows. Apps pinned to the taskbar always show just their icon. On the left or right, the search box is hidden and windows show just their icon.</p>`;
     },
     apps: () => `<h2>Apps</h2><label>Update apps automatically<input type="checkbox" data-k="autoUpdate" ${getSettings().autoUpdate ? "checked" : ""}></label><p>On: saved apps are checked at startup and then every 6 hours. Off: you get a reminder once a week.</p><button data-act="upd">Open Updates</button>
-      <h3>On the desktop</h3>${installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).map(a => `<div class="item row">${glyph(a, 28)}<div style="flex:1"><b>${esc(a.name)}</b></div><button data-act="rm" data-i="${esc(key(a))}">Remove</button></div>`).join("") || "<p>No apps on the desktop.</p>"}`,
+      <h3>On the desktop</h3>${installed().map(k => catalog.find(a => key(a) === k)).filter(Boolean).map(a => `<div class="item row">${glyph(a, 28)}<div style="flex:1"><b>${esc(a.name)}</b></div><button data-act="rm" data-i="${esc(key(a))}">Remove</button></div>`).join("") || "<p>No apps on the desktop.</p>"}<h3>App icons</h3><p>Give any app your own picture. It shows on the desktop, taskbar, Start menu and in the window title.</p>${appIconRows()}`,
     time: () => `<h2>Time & language</h2><label>Use 24-hour clock<input type="checkbox" data-k="hour24" ${getSettings().hour24 ? "checked" : ""}></label><label>Show seconds on the taskbar clock<input type="checkbox" data-k="clockSeconds" ${getSettings().clockSeconds ? "checked" : ""}></label><label>Show the weekday on the taskbar clock<input type="checkbox" data-k="clockWeekday" ${getSettings().clockWeekday ? "checked" : ""}></label>`
   };
   const draw = () => {
@@ -2534,6 +2567,11 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
     else if (d.act === "favup") pickFavicon(u => { set({ favData: u }); draw(); });
     else if (d.act === "avup") pickAvatar(u => { set({ userPic: u }); draw(); });
     else if (d.act === "avrm") { set({ userPic: "" }); draw(); }
+    else if (d.act === "curimg") pickFitted(64, u => { set({ cursorImg: u, cursorMode: "image" }); draw(); });
+    else if (d.act === "curimgrm") { set({ cursorImg: "" }); draw(); }
+    else if (d.act === "currst") { set({ ...CURSOR_DEFAULTS }); draw(); }
+    else if (d.act === "aicon") pickFitted(96, u => { setAppIcon(d.i, u); draw(); });
+    else if (d.act === "aireset") { setAppIcon(d.i, ""); draw(); }
     else if (d.act === "lkkey") { t.textContent = "Press a key..."; captureKey(k => { if (k) set({ lockKey: k }); draw(); }); }
     else if (d.act === "lknow") lockNow();
     else if (d.act === "lkedit") lockEditor();
@@ -2544,7 +2582,7 @@ const SETTINGS = { builtin: 1, single: 1, name: "Settings", icon: "svg:settings"
     else if (d.act === "bkimp") pickBackup();
     else if (d.act === "rm") { toggleInstall(catalog.find(a => key(a) === d.i)); draw(); }
   };
-  root.oninput = e => { const t = e.target, k = t.dataset.k; if (t.dataset.w) { lockWidgetSet(t.dataset.w, t.dataset.o, t.type === "checkbox" ? t.checked : t.value); return; } if (k) set({ [k]: t.type === "checkbox" ? t.checked : t.dataset.n ? +t.value : t.value }); };
+  root.oninput = e => { const t = e.target, k = t.dataset.k; if (t.dataset.w) { lockWidgetSet(t.dataset.w, t.dataset.o, t.type === "checkbox" ? t.checked : t.value); return; } if (k) set({ [k]: t.type === "checkbox" ? t.checked : t.dataset.n ? +t.value : t.value }); if (t.type === "range" && t.nextElementSibling && t.nextElementSibling.tagName === "OUTPUT") t.nextElementSibling.textContent = t.value; };
   root.onchange = e => { if (e.target.dataset.r) draw(); };
   lkRedraw = () => { if (root.isConnected) draw(); };
   draw();
@@ -2659,10 +2697,11 @@ const WHATSNEW = { builtin: 1, single: 1, name: "What's new", icon: "svg:info", 
   const me = verTime(OS_VERSION);
   root.innerHTML = `<div class="pad"><h2>What's new</h2><p style="font-size:12px;color:var(--mute)">You have Version-${esc(OS_VERSION)}</p>` + (list.length ? list.map(e => { const t = verTime(e.v), tag = t === me ? "Installed" : t > me ? "Newer than yours" : ""; return `<div style="border-top:1px solid var(--bd);padding-top:10px"><b>Version-${esc(e.v)}</b>${tag ? ` <span style="font-size:11px;color:var(--ac2)">${tag}</span>` : ""}${e.notes.map(n => `<p style="font-size:13px;margin-top:4px">• ${esc(n)}</p>`).join("")}</div>`; }).join("") : '<p style="font-size:13px">The update log could not be loaded. Connect to the internet once and it will be saved for offline use.</p>') + "</div>";
 }};
-const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: true, taskSearch: true, taskLabels: "partial", taskPos: "bottom", clockSeconds: false, clockWeekday: false, theme: "dark", limiter: "low", binDays: 7, lockBind: false, idleLock: 0, lockKey: "l", lockClicks: 3, lockLayout: "pw", lockDigital: true, lockDate: true, lockAnalog: false, lockSeconds: false, lockBattery: false, favMode: "default", favLink: "", favData: "", keys: true, keysFile: true, keysEdit: true, rememberWin: true, dnd: false, showIcons: true }, LS("settings", {}));
+const CURSOR_DEFAULTS = { cursorMode: "default", cursorColor: "#ffffff", cursorSize: 24, cursorImg: "", cursorHot: "tl", cirR: 12, cirFill: "#ffffff", cirNoFill: false, cirAlpha: 100, cirW: 2, cirStroke: "#000000", cirNoStroke: false, chUp: true, chDown: true, chLeft: true, chRight: true, chW: 2, chLen: 14, chGap: 0, chColor: "#ffffff", chOutline: true }; // Settings > Cursor. "default" = the normal cursor, so new users see no change
+const getSettings = () => Object.assign({ site: "VUS-OS", bgMode: "default", bgColor: "#0a0e1a", bgLink: "", bgFile: "", autoUpdate: true, accent: "#0078d7", iconSize: "medium", hour24: false, limitMB: 512, snap: true, taskSearch: true, taskLabels: "partial", taskPos: "bottom", clockSeconds: false, clockWeekday: false, theme: "dark", limiter: "low", binDays: 7, lockBind: false, idleLock: 0, lockKey: "l", lockClicks: 3, lockLayout: "pw", lockDigital: true, lockDate: true, lockAnalog: false, lockSeconds: false, lockBattery: false, favMode: "default", favLink: "", favData: "", keys: true, keysFile: true, keysEdit: true, rememberWin: true, dnd: false, showIcons: true, ...CURSOR_DEFAULTS, appIcons: {} }, LS("settings", {}));
 let bgUrl = null;
 async function applyTheme() {
-  const s = getSettings(), r = document.documentElement.style;
+  const s = getSettings(), r = document.documentElement.style; applyCursor();
   updateTitle(); applyFavicon(); applyTaskbar(); const bt = $("#bootTitle"); if (bt) bt.textContent = s.site; // boot screen is removed after startup
   document.documentElement.dataset.theme = s.theme;
   r.setProperty("--ac", s.accent); r.setProperty("--ac2", s.theme === "light" ? s.accent : `color-mix(in srgb, ${s.accent} 65%, white)`);
@@ -3118,7 +3157,7 @@ const lockSection = () => {
 };
 
 // ===================== BACKUP: EXPORT / IMPORT =====================
-const SETTING_GROUPS = { appearance: ["site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize", "taskSearch", "taskLabels", "taskPos", "lockLayout", "lockDigital", "lockDate", "lockAnalog", "lockSeconds", "lockBattery", "lockW"], clock: ["hour24", "clockSeconds", "clockWeekday"], windows: ["snap", "rememberWin", "keys", "keysFile", "keysEdit"], system: ["autoUpdate", "limiter", "limitMB", "binDays", "userName", "userPic", "userBirthday"] };
+const SETTING_GROUPS = { appearance: ["appIcons", "site", "theme", "accent", "bgMode", "bgColor", "bgLink", "bgFile", "iconSize", "taskSearch", "taskLabels", "taskPos", "lockLayout", "lockDigital", "lockDate", "lockAnalog", "lockSeconds", "lockBattery", "lockW"], clock: ["hour24", "clockSeconds", "clockWeekday"], cursor: Object.keys(CURSOR_DEFAULTS), windows: ["snap", "rememberWin", "keys", "keysFile", "keysEdit"], system: ["autoUpdate", "limiter", "limitMB", "binDays", "userName", "userPic", "userBirthday"] };
 // ----- save data from other pages (games etc.) and encrypted passwords -----
 const bytesToB64 = u8 => { let t = ""; for (let i = 0; i < u8.length; i += 0x8000) t += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(t); };
 const b64ToBytes = t => { if (typeof Uint8Array.fromBase64 === "function") { try { return Uint8Array.fromBase64(t); } catch { /* use the slower way below */ } } const s = atob(t), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }; // (the old Uint8Array.from(atob(t), fn) built a huge list first and could run a tab out of memory on a big saved file)
@@ -3324,10 +3363,10 @@ async function exportPicker() { // resolves with the ticked options (apps, files
     const siteBox = Object.keys(sc.groups).length || sc.dbs.length || sc.appKeys.length ? cb("site", "Save most apps data") + '<p style="font-size:12px;opacity:.7;margin:0 0 6px 26px">Saves from games and other apps on this site (scores, progress, settings), plus the data VUS-OS apps keep (like Notes). Only pages hosted on this same site can be read.</p>' : "";
     const inp = "width:100%;padding:6px 8px;background:rgba(128,128,128,.2);border:1px solid rgba(128,128,128,.6);color:inherit;outline:0";
     const pwBox = GUEST ? "" : `<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(128,128,128,.4)">${cb("passwords", "Passwords and logins", 0, 1)}<p style="font-size:12px;opacity:.75;margin:0 0 6px 26px">Off by default. Includes your VUS-OS lock passwords${nSec ? ` and ${nSec} saved login/token item${nSec === 1 ? "" : "s"} from other pages` : ""}. They are encrypted in the file, and you need the passphrase below to restore them.</p><div class="xpw" style="display:none;margin-left:26px"><input class="xp1" type="password" autocomplete="new-password" placeholder="Passphrase (8+ characters)" style="${inp};margin-bottom:6px"><input class="xp2" type="password" autocomplete="new-password" placeholder="Repeat passphrase" style="${inp}"><div class="xmsg" style="color:#f87171;font-size:12px;min-height:16px;margin-top:4px"></div></div></div>`;
-    o.innerHTML = `<div class="dlgb" style="display:flex;flex-direction:column;max-height:90vh"><div style="padding:14px 16px 0"><p style="margin-bottom:8px"><b>Export</b><br>Choose what to save.${GUEST ? "" : " Passwords stay out unless you turn them on at the bottom."}</p></div><div style="overflow:auto;padding:0 16px;flex:1;min-height:0">${cb("apps", "Downloaded apps")}${cb("files", "Files and custom apps (text, HTML, music, video, anything you uploaded)")}${cb("pos", "Desktop positions (where icons sit)")}${cb("startmenu", "Start menu tiles and taskbar pins")}${cb("settings", "Settings")}${cb("appearance", "Appearance (theme, accent, background, icon size, name)", 1)}${cb("clock", "Clock (24-hour time)", 1)}${cb("windows", "Windows (snap, remembered positions, keyboard shortcut switches)", 1)}${cb("system", "Updates, storage and Recycle Bin", 1)}${siteBox}${pwBox}</div><div class="dlgf" style="margin:0;padding:12px 16px"><button data-ok="1">Export</button><button>Cancel</button></div></div>`;
+    o.innerHTML = `<div class="dlgb" style="display:flex;flex-direction:column;max-height:90vh"><div style="padding:14px 16px 0"><p style="margin-bottom:8px"><b>Export</b><br>Choose what to save.${GUEST ? "" : " Passwords stay out unless you turn them on at the bottom."}</p></div><div style="overflow:auto;padding:0 16px;flex:1;min-height:0">${cb("apps", "Downloaded apps")}${cb("files", "Files and custom apps (text, HTML, music, video, anything you uploaded)")}${cb("pos", "Desktop positions (where icons sit)")}${cb("startmenu", "Start menu tiles and taskbar pins")}${cb("settings", "Settings")}${cb("appearance", "Appearance (theme, accent, background, icon size, app icons, name)", 1)}${cb("cursor", "Cursor (shape, size, colors, your own image)", 1)}${cb("clock", "Clock (24-hour time)", 1)}${cb("windows", "Windows (snap, remembered positions, keyboard shortcut switches)", 1)}${cb("system", "Updates, storage and Recycle Bin", 1)}${siteBox}${pwBox}</div><div class="dlgf" style="margin:0;padding:12px 16px"><button data-ok="1">Export</button><button>Cancel</button></div></div>`;
     o.onchange = e => {
       const t = e.target, n = t.dataset.c;
-      if (n === "settings") o.querySelectorAll("[data-c=appearance],[data-c=clock],[data-c=windows],[data-c=system]").forEach(c => c.checked = t.checked);
+      if (n === "settings") o.querySelectorAll("[data-c=appearance],[data-c=cursor],[data-c=clock],[data-c=windows],[data-c=system]").forEach(c => c.checked = t.checked);
       else if (n === "passwords") o.querySelector(".xpw").style.display = t.checked ? "block" : "none";
     };
     o.onclick = e => {
@@ -4325,7 +4364,95 @@ function applyTaskbar() {
   document.querySelectorAll("#tasks .task").forEach(t => { t.title = tipOn() ? t.dataset.name || "" : ""; });
 }
 function tipOn() { const s = getSettings(); return s.taskLabels === "hover" || s.taskPos === "left" || s.taskPos === "right"; } // names are hidden, so show a tooltip
-function toggleOnTop(id) { const w = wins.get(id); if (!w) return; w.onTop = !w.onTop; w.el.classList.toggle("ontop", w.onTop); focus(id); }
+// ===================== CUSTOM CURSOR =====================
+// "Default" does nothing at all: the browser's own cursor stays. Any other choice hides the real cursor and draws a small picture that follows the pointer, so its size, shape and colors aren't limited by what browsers allow for cursor images. Window edges and text boxes keep their normal cursor so they still tell you what they do. The inside of an app's own page (an iframe) belongs to that page, so the normal cursor shows there.
+const CURSOR_KEEP = ".rz,textarea,input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=color]):not([type=range]):not([type=file])";
+function cursorShape(s) { // the picture for the chosen cursor: { html, w, h, x, y }; x and y are the hotspot (the exact pixel that clicks) inside the picture
+  const num = (v, lo, hi, d) => { v = +v; return Math.min(hi, Math.max(lo, isFinite(v) ? v : d)); };
+  const col = c => /^#[0-9a-f]{6}$/i.test(c) ? c : "#ffffff";
+  const dark = c => { const h = col(c).slice(1), v = [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)); return v[0] * .299 + v[1] * .587 + v[2] * .114 < 140; };
+  const svg = (w, h, vb, inner) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${vb}">${inner}</svg>`;
+  const m = s.cursorMode;
+  if (m === "circle") {
+    const r = num(s.cirR, 1, 60, 12), sw = s.cirNoStroke ? 0 : num(s.cirW, 0, 12, 2), fill = s.cirNoFill ? "none" : col(s.cirFill);
+    if (fill === "none" && !sw) return { html: svg(10, 10, "0 0 10 10", '<circle cx="5" cy="5" r="3" fill="#fff" stroke="#000"/>'), w: 10, h: 10, x: 5, y: 5 }; // both off would be invisible, so a tiny dot stays
+    const d = Math.ceil((r + sw / 2 + 1) * 2);
+    return { html: svg(d, d, `0 0 ${d} ${d}`, `<circle cx="${d / 2}" cy="${d / 2}" r="${r}" fill="${fill}" fill-opacity="${num(s.cirAlpha, 0, 100, 100) / 100}" stroke="${sw ? col(s.cirStroke) : "none"}" stroke-width="${sw}"/>`), w: d, h: d, x: d / 2, y: d / 2 };
+  }
+  if (m === "cross") {
+    const len = num(s.chLen, 1, 80, 14), gap = num(s.chGap, 0, 40, 0), t = num(s.chW, 1, 10, 2), ol = s.chOutline ? 1 : 0, c = col(s.chColor), oc = dark(c) ? "#fff" : "#000";
+    const half = Math.ceil(Math.max(len + gap, t / 2) + ol + 1), d = half * 2;
+    const arms = [s.chUp && [-t / 2, -gap - len, t, len], s.chDown && [-t / 2, gap, t, len], s.chLeft && [-gap - len, -t / 2, len, t], s.chRight && [gap, -t / 2, len, t]].filter(Boolean); // x, y, width, height from the middle
+    const R = (a, e, f) => `<rect x="${half + a[0] - e}" y="${half + a[1] - e}" width="${a[2] + e * 2}" height="${a[3] + e * 2}" fill="${f}"/>`;
+    const inner = arms.length ? (ol ? arms.map(a => R(a, ol, oc)).join("") : "") + arms.map(a => R(a, 0, c)).join("") : `<circle cx="${half}" cy="${half}" r="2" fill="${c}" stroke="${oc}"/>`; // no line ticked: a dot keeps the cursor visible
+    return { html: svg(d, d, `0 0 ${d} ${d}`, inner), w: d, h: d, x: half, y: half };
+  }
+  if (m === "image" && s.cursorImg) {
+    const z = num(s.cursorSize, 8, 96, 32), c = s.cursorHot === "c";
+    return { html: `<img src="${esc(s.cursorImg)}" width="${z}" height="${z}" draggable="false" alt="">`, w: z, h: z, x: c ? z / 2 : 0, y: c ? z / 2 : 0 };
+  }
+  const F = col(s.cursorColor), S = dark(F) ? "#ffffff" : "#000000", z = num(s.cursorSize, 8, 96, 24);
+  const P = { // vb = viewBox [x, y, width, height], hot = the clicking point inside it, b = the drawing
+    arrow: { vb: [-1, -1, 14, 21], hot: [0, 0], b: `<path d="M0 0v16l4-4 3 7 2.5-1-3-7H12z" fill="${F}" stroke="${S}" stroke-linejoin="round"/>` },
+    pointer: { vb: [-1.5, -1.5, 18, 18], hot: [0, 0], b: `<path d="M0 0L14 5.5L8 8L5.5 14Z" fill="${F}" stroke="${S}" stroke-width="1.5" stroke-linejoin="round"/>` },
+    dot: { vb: [0, 0, 12, 12], hot: [6, 6], b: `<circle cx="6" cy="6" r="4.5" fill="${F}" stroke="${S}" stroke-width="1.5"/>` },
+    target: { vb: [0, 0, 24, 24], hot: [12, 12], b: `<circle cx="12" cy="12" r="9" fill="none" stroke="${S}" stroke-width="3.2"/><circle cx="12" cy="12" r="9" fill="none" stroke="${F}" stroke-width="1.6"/><circle cx="12" cy="12" r="2" fill="${F}" stroke="${S}"/>` },
+    diamond: { vb: [0, 0, 20, 20], hot: [10, 10], b: `<path d="M10 1.5L18.5 10L10 18.5L1.5 10Z" fill="${F}" stroke="${S}" stroke-width="1.5" stroke-linejoin="round"/>` }
+  };
+  const p = P[m] || P.arrow, k = z / p.vb[3], w = Math.ceil(p.vb[2] * k);
+  return { html: svg(w, z, p.vb.join(" "), p.b), w, h: z, x: (p.hot[0] - p.vb[0]) * k, y: (p.hot[1] - p.vb[1]) * k };
+}
+function applyCursor() {
+  const C = applyCursor.st || (applyCursor.st = { x: 0, y: 0, seen: false, hide: false, on: false, sh: null, el: null, raf: 0, bound: false }), s = getSettings();
+  C.place = () => { C.raf = 0; if (C.el && C.sh) C.el.style.transform = `translate(${C.x - C.sh.x}px,${C.y - C.sh.y}px)`; };
+  C.vis = () => { if (C.el) C.el.style.display = C.on && C.seen && !C.hide ? "block" : "none"; };
+  if (!C.bound) { // always listening, so the pointer position is already known the moment a custom cursor is switched on
+    C.bound = true;
+    addEventListener("pointermove", e => {
+      if (e.pointerType === "touch") return;
+      C.x = e.clientX; C.y = e.clientY; C.seen = true;
+      const t = e.target; C.hide = !!(t && t.closest && (t.tagName === "IFRAME" || (!e.buttons && t.closest(CURSOR_KEEP)))); // while a button is held (dragging or resizing) the drawn cursor stays
+      if (C.on) { C.vis(); if (!C.raf) C.raf = requestAnimationFrame(C.place); }
+    }, true);
+    addEventListener("pointerover", e => { if (e.target && e.target.tagName === "IFRAME") { C.hide = true; C.vis(); } }, true); // moving onto an app's page: the page's own cursor takes over
+    document.documentElement.addEventListener("mouseleave", () => { C.seen = false; C.vis(); });
+  }
+  C.on = !!s.cursorMode && s.cursorMode !== "default";
+  document.documentElement.classList.toggle("ccur", C.on);
+  if (!C.on) { C.vis(); return; }
+  if (!C.el) { C.el = document.createElement("div"); C.el.id = "curs"; document.body.appendChild(C.el); }
+  C.sh = cursorShape(s); C.el.innerHTML = C.sh.html; C.place(); C.vis();
+}
+
+// ===================== CUSTOM APP ICONS =====================
+// Logos are stored inside the settings (key appIcons: app key -> small png as text), so they are exported and imported with the Appearance settings. glyph() uses them everywhere an app icon is drawn.
+function pickFitted(size, cb) { // an uploaded picture, shrunk to fit inside a transparent size x size square and kept as text (survives closing the tab)
+  const i = document.createElement("input"); i.type = "file"; i.accept = "image/*";
+  i.onchange = () => {
+    const f = i.files[0]; if (!f) return;
+    const u = URL.createObjectURL(f), im = new Image();
+    im.onload = () => { const w0 = im.naturalWidth || im.width || size, h0 = im.naturalHeight || im.height || size, k = Math.min(size / w0, size / h0), w = w0 * k, h = h0 * k, c = document.createElement("canvas"); c.width = c.height = size; c.getContext("2d").drawImage(im, (size - w) / 2, (size - h) / 2, w, h); URL.revokeObjectURL(u); cb(c.toDataURL("image/png")); };
+    im.onerror = () => { URL.revokeObjectURL(u); winAlert("Couldn't read that image."); };
+    im.src = u;
+  };
+  i.click();
+}
+function setAppIcon(k, u) { const s = getSettings(), m = { ...(s.appIcons || {}) }; if (u) m[k] = u; else delete m[k]; save("settings", { ...s, appIcons: m }); refreshIcons(); }
+function refreshIcons() { // redraw every place that shows an app icon
+  renderIcons(); renderPins(); if ($("#start").classList.contains("open")) drawStart();
+  wins.forEach(w => { const b = w.el.querySelector(".bar .gl"), t = w.task.querySelector(".gl"); if (b) b.outerHTML = glyph(w.app, 16); if (t) t.outerHTML = glyph(w.app, 20); });
+}
+function appIconRows() { // Settings > Apps: one row per app that can get its own logo
+  const list = new Set([...SYS_APPS(), ...catalog.filter(a => NATIVE.includes(a) || installed().includes(key(a)) || pinnedKeys().includes(key(a)))]), mp = getSettings().appIcons || {};
+  return [...list].map(a => `<div class="item row">${glyph(a, 28)}<div style="flex:1;overflow:hidden"><b>${esc(a.name)}</b></div><button data-act="aicon" data-i="${esc(key(a))}">Change...</button>${mp[key(a)] ? `<button data-act="aireset" data-i="${esc(key(a))}">Reset</button>` : ""}</div>`).join("");
+}
+function toggleOnTop(id) {
+  const w = wins.get(id); if (!w) return;
+  w.onTop = !w.onTop; w.topSeq = w.onTop ? ++topSeq : 0; // pinning always takes the next number, so the newest pin is on top
+  w.el.classList.toggle("ontop", w.onTop);
+  const b = w.el.querySelector('.bar [data-a="top"]'); if (b) b.title = w.onTop ? "Turn off always on top" : "Always on top";
+  w.el.classList.remove("min"); focus(id);
+}
 function openSettings(page) { // opens Settings on a page, or jumps there if Settings is already open
   const w = [...wins.values()].find(x => x.app === SETTINGS);
   if (w && settingsNav) { settingsNav(page); w.el.classList.remove("min"); focus(w.id); return; }

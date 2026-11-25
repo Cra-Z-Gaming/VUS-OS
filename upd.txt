@@ -1,3 +1,24 @@
+11.25.2026 3:24 PM
+- New Always on Top button (a pin) in every window's title bar. Pin a small window and it stays above the others, so you can use two apps at once. If several windows are pinned, the one you pinned last is on top (pin A, then B: B is above A). Unpin and pin A again and it jumps back to the top. Clicking a pinned window doesn't change that order. It also still works from the taskbar right-click menu.
+- New Cursor page in Settings. Default keeps your normal cursor (it's the default for everyone). Circle: change the radius, fill color and opacity, outline thickness and color, or turn the fill or the outline off. Crosshair: turn the up, down, left and right lines on or off and change thickness, length, the gap in the middle and color. Also a few ready-made cursors (classic arrow, pointer, dot, target, diamond) with color and size, and your own image.
+- Window edges and text boxes keep their normal cursor, and inside an app's own page the normal cursor shows.
+- New App icons section in Settings > Apps: give any built-in or installed app your own logo. It shows on the desktop, taskbar, Start menu and in the window title. Reset puts the original back.
+- Cursor settings and app icons are saved with your settings, so Export and Import include them (new Cursor tick box in the Export list, app icons are under Appearance).
+
+11.23.2026 8:00 AM
+- Importing a backup now asks which saved databases you want before it starts. Every database from your games is listed with its size (and, for backups made from now on, its row count), the big ones are marked, and you can untick one so it is left out. Select all, Select none and Untick big ones help with a long list, and the list shows how much you have picked.
+- New backups remember each saved database's name and size inside the file, so that list opens instantly. Older backups still work: the names are read from the file while the list is open.
+- New Gentle mode switch in the same list, for weak computers like a Chromebook. It writes in smaller steps and rests after every step. It is slower, but much easier on the computer. Your choice is remembered for next time.
+- The import remembers which databases it already restored completely. If you have to try again (after End, Skip, a crash, or closing the tab), those show "restored earlier" and are unticked, so they are not read again. Turn the "Skip databases already restored" box off to restore them again.
+- The finish message now lists what you left out and what was skipped because it was already restored.
+
+11.23.2026 7:45 AM
+- Importing a backup is much easier to follow. "Saved data from other pages" now has a little arrow: open it to see one bar per saved database (your games' saves), each with its name, how many MB are done and how many rows are written so far. The data is written as it goes, so it arrives bit by bit instead of all at the end.
+- New buttons while importing: Pause (nothing is written until you press Resume, handy if the computer is struggling), Skip this one (leave out the saved database it is working on; what is already written stays) and End import (stop copying files and saved data; settings and layout are still applied).
+- A line under the overall bar says what is happening right now, and after about 8 seconds with no movement it tells you so and points at Pause, Skip and End.
+- The import no longer unpacks a whole saved database into memory first (it reads it as a stream), a big saved file no longer needs several times its size in memory, and the computer gets a short break when it is working hard. Rows bigger than about 90 MB are skipped (and listed) because a browser tab can't hold them.
+- When something can't be restored, the finish message now says which database and why (another tab is using it, different layout, storage full, ...) instead of a general line. Duplicates that were already there are counted, not treated as failures.
+
 11.18.2026 7:30 AM
 - New language: Git. In the Terminal type install git, then git clone https://github.com/user/repo to download a GitHub repository into a folder (public ones need no login). cd into it and use git status, add, commit, diff, log, branch, checkout, pull and push. git help lists everything.
 - Pushing, and private repositories, need a GitHub token: git config --global token <token> (or git asks for it when you push). Set your name with git config user.name "Name".
